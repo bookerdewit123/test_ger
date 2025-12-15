@@ -1,0 +1,178 @@
+observer
+    enable MESSAGE_DELIVERY_ATTEMPT MessageDeliveryAttempt_observer_comms     //
+    //enable MESSAGE_TRANSMITTED                   // not implemented, covered by deliv attempt?
+    //enable MESSAGE_RECEIVED                      // not implemented, covered by deliv attempt?
+    //enable MESSAGE_FAILED_ROUTING
+    enable SIMULATION_INITIALIZING SimulationInitializing_observer_comms
+end_observer 
+    
+
+script_variables
+   ## Define files to write outputs to ##
+   string commOpen_Method;
+#   global int commRun_Num = WsfSimulation.RunNumber();
+#   global int commRandom_Seed = WsfSimulation.RandomSeed();
+#
+#   if(commRun_Num == 1)
+#      {commOpen_Method = "out";}
+#   else
+#      {commOpen_Method = "append";} // not used
+  
+   commOpen_Method = "out";
+   // creates output files
+   FileIO MessOut = FileIO();
+   string rel_path = Path.GetWorkingDirectory().ToString() + "/output/message_output"; // single file for all replicates
+   
+   // confirms files can be used
+   writeln(rel_path);
+   assert(MessOut.Open((rel_path + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), commOpen_Method),
+     "WeaponComm_Output.csv output file failed to open");
+     
+end_script_variables
+
+
+//include_once observers_aims/observer_utils.txt    // other observer files include this already
+
+// Preallocation scripts to create headers of files //
+
+script void write_comms_file() // preallocates
+
+   Array<string> header = {"Treatment",               // excursion
+                           "Replicate",               // Run number
+                           "Seed",
+                           "TIME_NOW",
+                           "Event",
+                           "commType",
+                           "messageType",
+                           "originSide",
+                           "originName",
+                           "originType",
+                           "originIndex",
+                           "originLat",               // remove for files size reduction?
+                           "originLon",               // remove for files size reduction?
+                           "originAlt",               // remove for files size reduction?
+                           "destinationSide",
+                           "destinationName",
+                           "destinationType",
+                           "destinationIndex",
+                           "tx2rxRange",
+                           "SNR",                     // remove for files size reduction?
+                           "txPower",
+                           "rxPower",
+                           "successFail",
+                           "Serial Number",
+                           "Data Tag",
+                           };
+
+   string header_line = ",".Join(header);
+                                 
+   MessOut.Write(header_line);
+   MessOut.Write("\n");
+   
+end_script
+
+script void SimulationInitializing_observer_comms()
+   // NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
+   MATH.SetSeed(WsfSimulation.RandomSeed());
+   
+   #if (WsfSimulation.RunNumber() == 1)    // commenting so that the header always writes
+   #{
+   write_comms_file();   // writes header if first run
+   #}
+
+end_script
+
+#script void CommTurnedOn(WsfComm aComm) 
+#
+#if(commOff == true)
+#{
+#   commReconnect = commReconnect + 1;
+#   commOff = false;
+#
+#}
+#end_script
+
+#script void CommTurnedOff(WsfComm aComm) 
+#
+#   commOff = true;
+#end_script
+
+script void MessageDeliveryAttempt_observer_comms(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) //WsfEM_Interaction emResult
+   
+#   int sizeOfArray = snrAbs.Size();
+   Array<string> words;  
+
+   // pre-filter down results - comment in and out as needed
+   if (aXmtr.Platform().Side() != "blue")      return;      // only want BLUE messages
+   if (aMsg.Type() == "WSF_ASSET_MESSAGE")    return;      // do not include asset messages (which make up 1/3 of total)
+
+   // origin info
+   string originPlatSide   = aXmtr.Platform().Side();
+   string commOriginPlatformName = aResult.XmtrPlatformName();
+   double commTxPower      = aResult.XmtdPower();
+   string originPlatType   = aXmtr.Platform().Type();
+   int    originPlatIndex  = aXmtr.Platform().AuxDataInt("Index");
+   WsfGeoPoint locationInt = aXmtr.Platform().Location();         // current loc of Xmtr platform
+   double originPlatLon    = locationInt.Longitude();
+   double originPlatLat    = locationInt.Latitude();
+   double originPlatAlt    = locationInt.Altitude();
+   
+   // destination info
+   string destPlatSide     = aRcvr.Platform().Side();
+   string commDestPlatformName = aResult.RcvrPlatformName();
+   double commRxPower      = aResult.RcvdPower();
+   string destPlatType     = aRcvr.Platform().Type();
+   int    destPlatIndex    = aRcvr.Platform().AuxDataInt("Index");
+
+   // general info
+   double commSnrValue     = aResult.SignalToNoise();             // recorded
+   double commMessageDeliveryAttemptTime = TIME_NOW;              // time
+   double commRangeVal     = aResult.XmtrToRcvrRange();           // range of link
+   string commFailStatus   = aResult.FailedStatus();              // added to test what this is
+   double commYaw_msl      = aRcvr.Platform().RelativeBearingTo(aResult.TargetLocation());
+   double commHeading      = aRcvr.Platform().Heading();
+   string commType         = aXmtr.Type();
+   bool   commSucFail      = aResult.Succeeded();                 // boolean of Success/Fail
+   bool   commIsConnected  = aXmtr.IsConnectionEnabled(aRcvr.GetAddress());
+#   commHceRange = getSmallerDist(aXmtr.Platform()) *MATH.NM_PER_M();
+   int    commSerialNum    = aMsg.SerialNumber();                 // added to extract more info
+   double commMessageTag   = aMsg.DataTag();                      // added to pull more info out
+   string messageTypeVal   = aMsg.Type();                         // added to pull more data out
+#   bool commJamEffect = emResult.EW_Effects.EA_CoherencyCheck(); // added to see if this is for jamming
+   
+   bool commJamBool = true;
+   if(aXmtr.Platform().IsValid() || aRcvr.Platform().IsValid())
+   {
+      commJamBool = (aXmtr.Platform().AuxDataBool("isJammed") || aRcvr.Platform().AuxDataBool("isJammed"));
+   }
+   
+   words = {(string)TREATMENT_NUMBER,                 // design file
+            (string)REPLICATE_NUMBER,                 // design file
+            (string)WsfSimulation.RandomSeed(),       // 
+            (string)commMessageDeliveryAttemptTime,   // TIME_NOW
+            "MESSAGE_DELIVERY_ATTEMPT",               // hardcoded until others implemented
+            (string)commType,
+            (string)messageTypeVal,
+            (string)originPlatSide.Upper(),           // made uppercase
+            (string)commOriginPlatformName,
+            (string)originPlatType,
+            (string)originPlatIndex,
+            (string)originPlatLon,
+            (string)originPlatLat,
+            (string)originPlatAlt,
+            (string)destPlatSide.Upper(),             // made uppercase
+            (string)commDestPlatformName,
+            (string)destPlatType,
+            (string)destPlatIndex,
+            (string)commRangeVal,
+            (string)commSnrValue,
+            (string)commTxPower,
+            (string)commRxPower,
+            (string)commSucFail,
+            (string)commSerialNum,
+            (string)commMessageTag,                   // data tag
+            };
+   string line = ",".Join(words);
+   MessOut.Write(line);
+   MessOut.Write("\n");
+end_script

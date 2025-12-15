@@ -1,0 +1,195 @@
+# Script that places a value at the index of an array arr
+script Array<int> placeInArrayInt(int index, int value, Array<int> arr)
+   int size = arr.Size();
+   if(index == 0)
+   {
+      Array<int> out = Array<int>();
+      out.PushBack(value);
+      for(int i = 0; i < size; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      return out;
+   }
+   else if (index > size)
+   {
+      arr.PushBack(value);
+      return arr;
+   }
+   else
+   {
+      Array<int> out = Array<int>();
+      for(int i = 0; i <= index-1; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      out.PushBack(value);
+      for(int i = index; i < size; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      return out;
+   }
+end_script
+
+# Script that places a value at the index of an array arr 
+script Array<double> placeInArrayDouble(int index, double value, Array<double> arr)
+   int size = arr.Size();
+   if(index == 0)
+   {
+      Array<double> out = Array<double>();
+      out.PushBack(value);
+      for(int i = 0; i < size; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      return out;
+   }
+   else if (index > size)
+   {
+      arr.PushBack(value);
+      return arr;
+   }
+   else
+   {
+      Array<double> out = Array<double>();
+      for(int i = 0; i <= index-1; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      out.PushBack(value);
+      for(int i = index; i < size; i+=1)
+      {
+         out.PushBack(arr.Get(i));
+      }
+      return out;
+   }
+end_script 
+
+script bool contains(Array<string> array, string str)
+   for(int i = 0; i < array.Size(); i +=1)
+   {
+      if(array.Get(i).Lower().Contains(str.Lower()))
+      {
+         return true;
+      }
+   }
+   return false;
+end_script
+
+# Find the index of the max value in the array
+script int maxIndDouble(Array<double> array)
+   double max = MATH.DOUBLE_MIN();
+   int maxInd = 0;
+   for (int i = 0; i < array.Size(); i += 1)
+   {
+      if (array.Get(i) > max) 
+      {
+         max = array.Get(i);
+         maxInd = i;
+      }
+   }
+   return maxInd;
+end_script
+
+# Find the index of the min value in the array
+script int minIndDouble(Array<double> array)
+   double min = MATH.DOUBLE_MAX();
+   int minInd = 0;
+   for (int i = 0; i < array.Size(); i += 1)
+   {
+      if (array.Get(i) < min) 
+      {
+         min = array.Get(i);
+         minInd = i;
+      }
+   }
+   return minInd;
+end_script
+
+# Find if a platform has a track of target name
+script bool checkIfHasTrack(WsfPlatform aPlatform, string name)
+   foreach (WsfTrack aTrack in aPlatform.MasterTrackList())
+   {
+      if(aTrack.TargetName() == name)
+      {
+         return true;
+      }
+   }
+   return false;
+end_script
+
+# Grab a platform has a track of target name
+script WsfTrack getTrack(WsfPlatform aPlatform, string name)
+   WsfTrack track = WsfTrack();
+   foreach (WsfTrack aTrack in aPlatform.MasterTrackList())
+   {
+      if(aTrack.TargetName() == name)
+      {
+         return aTrack;
+      }
+   }
+   return track;
+end_script
+
+script string returnName(WsfObject anObject)
+   if (anObject.IsValid())
+   {
+      return anObject.Name();
+   }
+   else
+   {
+      return "[invalid]";
+   }
+end_script
+
+//
+// EMCON Functions
+//
+script bool turnOnSensors(WsfPlatform aPlatform)
+   bool out = false;
+   for (int i = 0; i < aPlatform.SensorCount(); i+=1)
+   {
+      if(aPlatform.SensorEntry(i).TurnOn())
+      {
+         out = true;
+      }
+   }
+   return out;
+end_script
+
+script bool turnOffSensors(WsfPlatform aPlatform)
+   bool out = false;
+   for (int i = 0; i < aPlatform.SensorCount(); i+=1)
+   {
+      if(aPlatform.SensorEntry(i).TurnOff())
+      {
+         out = true;
+      }
+   }
+   return out;
+end_script
+
+script bool turnOnComms(WsfPlatform aPlatform)
+   bool out = false;
+   for (int i = 0; i < aPlatform.CommCount(); i+=1)
+   {
+      if(aPlatform.CommEntry(i).TurnOn())
+      {
+         out = true;
+      }
+   }
+   return out;
+end_script
+
+script bool turnOffComms(WsfPlatform aPlatform)
+   bool out = false;
+   for (int i = 0; i < aPlatform.CommCount(); i+=1)
+   {
+      if(aPlatform.CommEntry(i).TurnOff())
+      {
+         out = true;
+      }
+   }
+   return out;
+end_script

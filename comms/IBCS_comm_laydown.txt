@@ -1,0 +1,188 @@
+# *********************************************************************************************** #
+# **************************              UNCLASSIFIED                 ************************** #
+# **********************                 TECHNICAL DATA                  ************************ #
+# ********************                                                      ********************* #
+#  CONTRACTOR:
+#
+#      Northrop Grumman Corporation
+#      Space Systems
+#      10125 Federal Drive
+#      Colorado Springs, CO 80908
+#
+#  COPYRIGHT 2023 NORTHROP GRUMMAN CORPORATION - ALL RIGHTS RESERVED.
+#
+# ORIGINAL PROGRAM: OUTMATCH IR&D - JADC2
+# *********************************************************************************************** #
+# NORTRHOP GRUMMAN PRIVATE / PROPRIETARY LEVEL I /
+# *********************************************************************************************** #
+# *********************************************************************************************** #
+# Ref 1 - External sources must be cited here
+# Ref 2 -
+# *********************************************************************************************** #
+
+include_once comms/itu_attenuation.txt
+
+#### DATA LINK ####
+comm DATALINK WSF_COMM_XMTR_RCVR
+   transfer_rate      1000000 mbits/sec
+end_comm
+
+#### IFCN ####
+antenna_pattern IFCN_OMNI_ANTENNA
+	 uniform_pattern
+		 // Apeture Area: 0.041 m^2
+		 peak_gain 9 dB
+	 end_uniform_pattern
+end_antenna_pattern
+
+network IFCN_NET WSF_COMM_NETWORK_GENERIC     
+end_network
+
+comm IFCN WSF_RADIO_TRANSCEIVER
+	 transmitter
+       earth_radius_multiplier 1.0
+       scan_mode azimuth_and_elevation
+       azimuth_scan_limits -180 deg 180 deg
+       elevation_scan_limits 0 deg 90 deg
+		 frequency 5000 MHz
+		 antenna_pattern IFCN_OMNI_ANTENNA
+		 bandwidth 80 MHz
+		 power 5000 watts
+		 #attenuation_model ITU_ATTENUATION
+		 check_terrain_masking true
+	 end_transmitter
+	receiver
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+		frequency 5000 MHz
+		 antenna_pattern IFCN_OMNI_ANTENNA
+		 bandwidth 80 MHz
+		check_terrain_masking true
+	end_receiver
+	transfer_rate 400 mbits/sec
+   antenna_height 10 m
+   network_name IFCN_NET
+end_comm
+
+
+#### CEC ####
+antenna_pattern CEC_OMNI_ANTENNA
+	 uniform_pattern
+		 // Apeture Area: 0.041 m^2
+		 peak_gain 12.5 dB
+	 end_uniform_pattern
+end_antenna_pattern
+
+network CEC_NET WSF_COMM_NETWORK_GENERIC 
+end_network
+
+comm CEC WSF_RADIO_TRANSCEIVER
+	 transmitter
+       earth_radius_multiplier 1.0
+       scan_mode azimuth_and_elevation
+       azimuth_scan_limits -180 deg 180 deg
+       elevation_scan_limits 0 deg 90 deg
+		 frequency 1000 MHz
+		 antenna_pattern CEC_OMNI_ANTENNA
+		 bandwidth 404.6 KHz
+		 power 100 watts
+		 #attenuation_model ITU_ATTENUATION
+		 check_terrain_masking true
+       
+	 end_transmitter
+	receiver
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+		frequency 1000 MHz
+		antenna_pattern CEC_OMNI_ANTENNA
+		bandwidth 404.6 KHz
+		check_terrain_masking true
+	end_receiver
+	transfer_rate 238 kbits/sec
+   antenna_height 10 m
+   network_name CEC_NET
+end_comm
+
+network SAT_NET WSF_COMM_NETWORK_GENERIC 
+end_network
+
+comm SATLINE WSF_RADIO_TRANSCEIVER    
+	transmitter
+      earth_radius_multiplier 1.0
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+      frequency 500 MHz
+      antenna_pattern CEC_OMNI_ANTENNA
+   	bandwidth 100 KHz
+   	power 100 watts
+   	#attenuation_model ITU_ATTENUATION
+   	check_terrain_masking true  
+	end_transmitter
+
+	receiver
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+		frequency 500 MHz
+		antenna_pattern CEC_OMNI_ANTENNA
+		bandwidth 100 KHz
+		check_terrain_masking true
+	end_receiver
+   
+	transfer_rate 238 kbits/sec
+   antenna_height 300 m
+   network_name SAT_NET
+end_comm
+
+# Add Link 16
+network L16_NET WSF_COMM_NETWORK_GENERIC 
+end_network
+
+comm L16 WSF_RADIO_TRANSCEIVER    
+	transmitter
+      earth_radius_multiplier 1.0
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+      frequency 500 MHz
+      antenna_pattern CEC_OMNI_ANTENNA
+   	bandwidth 100 KHz
+   	power 100 watts
+   	#attenuation_model ITU_ATTENUATION
+   	check_terrain_masking true  
+	end_transmitter
+
+	receiver
+      scan_mode azimuth_and_elevation
+      azimuth_scan_limits -180 deg 180 deg
+      elevation_scan_limits 0 deg 90 deg
+		frequency 500 MHz
+		antenna_pattern CEC_OMNI_ANTENNA
+		bandwidth 100 KHz
+		check_terrain_masking true
+	end_receiver
+   
+	transfer_rate 238 kbits/sec
+   antenna_height 300 m
+   network_name L16_NET
+end_comm
+
+### Added new comm to support track latency
+comm WEAPONUPLINK WSF_COMM_XMTR_RCVR
+#   link_protocol      csma
+   transfer_rate      100 mbits/sec # if message has size, compute transmit time with this
+   packet_loss_time 60 sec          # This is the delay enforced for each message
+   
+   # Large number of channels set to allows parallel processing of messages. This prevents
+   # clogging the transmit pipe due to the delay factor (waits until message is sent with 
+   # delay before sending the next one (e.g. FIFO))
+   channels 10000                   
+end_comm
+
+### Added new network to support track latency
+network weapon_net WSF_COMM_NETWORK_MESH_LEGACY 
+end_network
+

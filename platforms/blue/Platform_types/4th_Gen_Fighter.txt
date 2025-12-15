@@ -1,0 +1,45 @@
+
+include_once sensors/an_captor_m.txt
+
+# TO DO: Need realistic mover parameters
+platform_type 4thGenFighter BLUE_FIGHTER
+   icon eurofighter
+   side blue
+   category 4thGenFighter
+
+   route
+      position 53n 14e
+      altitude 25000 feet
+      speed 509 knots
+      heading $<STARTING_HEADING:90>$ degrees
+   end_route
+
+#TODO: Simple way off turning off transmitter for jam
+#   execute at_interval_of 1 s 
+#      if (PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("RED_AEW")) > 1)
+#         PLATFORM.Comm("L16_T").TurnOff();
+#   end_execute
+
+   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
+
+
+   sensor AN/Captor-M_LARGE AN_CAPTOR_M_LARGE
+      on
+      internal_link data_mgr
+   end_sensor 
+
+   sensor AN/Captor-M_MEDIUM AN_CAPTOR_M_MEDIUM
+      on
+      internal_link data_mgr
+   end_sensor 
+
+   sensor AN/Captor-M_SMALL AN_CAPTOR_M_SMALL 
+      on
+      internal_link data_mgr
+   end_sensor 
+
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().MEDIUM; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+
+end_platform_type

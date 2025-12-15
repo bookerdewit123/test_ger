@@ -1,0 +1,4 @@
+attenuation_model ITU_ATTENUATION itu
+
+end_attenuation_model
+

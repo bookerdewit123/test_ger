@@ -1,0 +1,71 @@
+# From Model Library
+include_once generic_weapon_base.txt
+
+#TO DO: Make the missile as simple as possible (remove seeker), test behavior of the guidance modes
+weapon_effects BLUE_SAM_EFFECT WSF_GRADUATED_LETHALITY
+   radius_and_pk $<BLUE_RADIUS_PK:100>$ m $<BLUE_WEAPON_PK:0.7>$ # set on assumptions.txt
+end_weapon_effects
+
+weapon_effects RED_BOMB_EFFECT WSF_GRADUATED_LETHALITY
+   radius_and_pk $<RED_GLIDE_PK_RANGE:100>$ m $<RED_GLIDE_PK:0.7>$ # set on assumptions.txt
+end_weapon_effects
+
+platform_type BLUE_SAM GENERIC_SAM
+   
+   edit mover 
+      average_speed $<BLUE_AVERAGE_SPEED_MPS:100>$ kts # set on assumptions.txt
+      guide_to_truth true # For similpicity
+      guidance_mode lead_pursuit
+    end_mover
+
+   edit processor fuse
+      max_time_of_flight_to_detonate 200 sec # Should not be limiting factor, range should be, found in assumptions.txt
+   end_processor
+
+end_platform_type
+
+weapon BLUE_SAM GENERIC_SAM 
+   launched_platform_type BLUE_SAM
+   weapon_effects BLUE_SAM_EFFECT
+   # This built-in script is called whenever this weapon is launched
+   script void on_create(WsfPlatform aWeapon, WsfTrack aTrack)
+      # Record which blue launcher launched this blue missile
+      //blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
+      
+      # Record which red missile is target of this blue missile
+      //blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
+   end_script
+end_weapon
+
+platform_type RED_GLIDE GENERIC_SAM 
+   
+   edit mover 
+      average_speed $<RED_AVERAGE_SPEED_GLIDE:100>$ m/s //kts # set on assumptions.txt, speed is way faster for video purposes
+      guide_to_truth true # For similpicity
+      guidance_mode lead_pursuit
+    end_mover
+
+   edit processor fuse
+      max_time_of_flight_to_detonate 500 sec # Should not be limiting factor, range should be, found in assumptions.txt
+   end_processor
+
+end_platform_type
+
+weapon RED_GLIDE GENERIC_SAM 
+   launched_platform_type RED_GLIDE
+   weapon_effects RED_BOMB_EFFECT
+   # This built-in script is called whenever this weapon is launched
+   script void on_create(WsfPlatform aWeapon, WsfTrack aTrack)
+      # Record which blue launcher launched this blue missile
+      //blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
+      
+      # Record which red missile is target of this blue missile
+      //blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
+   end_script
+   
+   #TO DO MIKE : Trying to figure out how to make the bomb detonate
+#   script void on_destroy (WsfPlatform aWeapon)
+#      if (aWeapon.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_bms_platform")) < 100)
+#         aWeapon.Detonate("target_impact");
+#   end_script
+end_weapon

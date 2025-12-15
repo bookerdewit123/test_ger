@@ -1,0 +1,670 @@
+processor BMS_SHOT_MANAGEMENT_PROCESSOR WSF_SCRIPT_PROCESSOR
+   on
+   update_interval 99999999 sec
+   
+   script_variables
+      # Shared Variables #
+      double lastSend = 0;
+      double bidDecisionTime = 10;
+      double lastBidDecisionTime = 0;
+      double minPkThreshold = 0.6; # Do not allow solutions with Pk lower than this threshold 
+      
+      # Shot Selection Variables #
+      string runFunctionName = "RunShotManager";
+      bool createBidsForSubs = false;   
+      int bidCount = -1;  
+      Map<string, Array<rxBids>> receivedBidsForThreats = Map<string, Array<rxBids>>();
+      bool makingShotDecision = false;
+      Map<int,activeSolutionsStruct> activeInterceptTimes = Map<int,activeSolutionsStruct>();
+      double interceptTimeAddition = 1;
+      # Boolean to allow the shot manager to re-evaluation solutions on a threat if time permits
+      bool allowBidReevaluation = true; 
+
+      Array<string> subWeapons = Array<string>();
+   end_script_variables
+   
+   script double GetDecisionTime()
+      return bidDecisionTime;
+   end_script
+   
+   script void UpdateRemoveThreats()
+      Array<int> removeKeys = Array<int>();
+      for(int active=0; active < activeInterceptTimes.Size(); active+=1)
+      {
+         int threatKey = (int)activeInterceptTimes.ElementKeyAtIndex(active);
+         WsfPlatform threatKeyPlat = WsfSimulation.FindPlatform(threatKey);
+         activeSolutionsStruct tempActive = (activeSolutionsStruct)activeInterceptTimes.Get(threatKey);
+         if(tempActive.interceptTime < TIME_NOW)
+         {
+            removeKeys.PushBack(threatKey);
+         }
+      }
+      
+      foreach(int key in removeKeys)
+      {
+         WsfPlatform threatKeyPlat = WsfSimulation.FindPlatform(key);
+         if(threatKeyPlat.IsValid())
+         {
+            activeInterceptTimes.Remove(key);
+            writeln_d(TIME_NOW, ": (DEBUG): Removing ", threatKeyPlat.Name(), " from activeInterceptTimes - InterceptTime has passed.");
+         }
+      }
+   end_script
+   
+   script void RunShotManager() 
+      makingShotDecision = true;
+      
+      UpdateRemoveThreats();
+      
+      int threatCount = receivedBidsForThreats.Size();
+      Array<string> threatKeys =Array<string>();
+      if(threatCount > 0)
+      {
+         for(int i=0;i<threatCount;i=i+1)
+         {
+            string threat = (string)receivedBidsForThreats.ElementKeyAtIndex(i);
+            WsfPlatform threatPlat = WsfSimulation.FindPlatform(threat);
+            if(threatPlat.IsValid())
+            {
+               threatKeys.PushBack(threat);
+            }
+         }
+      }
+   
+      if(threatKeys.Size() > 0)
+      {
+         foreach(string threatKey in threatKeys)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Making Shot Decisions for ", threatKey);
+            WsfPlatform threatPlat = WsfSimulation.FindPlatform(threatKey);
+            if(threatPlat.IsValid())
+            { 
+               int activeSolutionCount = activeInterceptTimes.Size(); # Get all active solutions
+               double activeSolutionInterceptTime = 0;
+               bool threatInList = false;
+               int threatID;
+               for(int active=0; active < activeSolutionCount; active+=1) # Iterate over active solutions to see if threat is actively being engaged
+               {
+                  int activeThreatKey = (int)activeInterceptTimes.ElementKeyAtIndex(active); # Get the active threat index
+                  WsfPlatform activeThreatKeyPlat = WsfSimulation.FindPlatform(activeThreatKey); # Get the active threat WsfPlatform
+                  activeSolutionsStruct tempActive = (activeSolutionsStruct)activeInterceptTimes.Get(activeThreatKey); # Get the active threat activeSolutionsStruct
+                  activeSolutionInterceptTime = tempActive.interceptTime; # Get the active threat intercept time
+                  
+                  # Check that both the threat in threat list and the threat from the active threat list are both valid
+                  if(activeThreatKeyPlat.IsValid() && threatPlat.IsValid())
+                  {
+                     # Check if the active threat is the threat from the threat list. If so, note that its active and a threat weapon pairing exists and get the corresponding key. 
+                     if(threatPlat.Name() == activeThreatKeyPlat.Name() && activeSolutionInterceptTime > TIME_NOW)
+                     {
+                        threatInList = true;
+                        threatID = activeThreatKey;
+                     }
+                  }
+               }
+               
+               # there is already a weapon:threat pairing existing...
+               if(threatInList == true)
+               {
+                  activeSolutionsStruct tempActive = (activeSolutionsStruct)activeInterceptTimes.Get(threatID);
+                  double pendingLaunchTime = tempActive.launchTime;
+                  
+                  # there is not enough time for the current solution to reevluate new bids, or we don't re-evaluate bids send everyone else HOLD messages
+                  if((pendingLaunchTime <= TIME_NOW + bidDecisionTime) || !allowBidReevaluation)
+                  {
+                     writeln_d(TIME_NOW, " (DEBUG) Not enough time to reevaluate new bids. Using current weapon-threat pair: ", threatKey, "-", tempActive.weaponName, " (LaunchTime - ", pendingLaunchTime, ")");
+                     Array<rxBids> tempBids = receivedBidsForThreats.Get(threatKey);
+                     foreach(rxBids bid in tempBids)
+                     {
+                        int bidID = bid.receivedBidID;
+                        WsfPlatform bidOriginator = WsfSimulation.FindPlatform(bid.receivedBidsOriginator);
+                        fireSolutionStruct bidFireSolution = bid.receivedFireSolution;
+                        if(bidOriginator.IsValid())
+                        {
+                           WsfMessage actionMessage = GetBidActionMessage(bidID, "Hold", bidOriginator,activeSolutionInterceptTime,bidFireSolution);
+                           if(bidOriginator == PLATFORM)
+                           {
+                              SendMessageToProcessor(actionMessage,"shot_mgr");
+                           }
+                           else
+                           {
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true)
+                              {
+                                 processor.ExecuteScriptWithArgs("AddMessageToQue", {bidOriginator.Name(), actionMessage});
+                              } 
+                           }
+                        }
+                     }
+                  }
+                  # there is enough time to reevaluate new bids
+                  else
+                  {
+                     writeln_d(TIME_NOW, " (DEBUG) Enough time to reevaluate new bids. Previous weapon-threat pair: ", threatKey, "-", tempActive.weaponName, " (LaunchTime - ", pendingLaunchTime, ")");
+                     ###########################################################################
+                     ## RUN DECISION CRITERIA ##################################################
+                     Array<rxBids> tempBids = receivedBidsForThreats.Get(threatKey);
+                     writeln_d(TIME_NOW, "   (DEBUG) Checking bids for ", threatKey);
+                     double chosenInterceptTime = MATH.DOUBLE_MAX();
+                     double chosenPK = -1;
+                     fireSolutionStruct chosenFireSolution = fireSolutionStruct(); 
+                     WsfPlatform chosenWeaponPlatform;
+                     int chosenBid = -1;
+                     int index = -1;
+                     
+                     #DEBUG
+                     int bidID = 0;
+                     foreach(rxBids bid in tempBids)
+                     {
+                        index = index + 1;
+   		                #writeln_d("   (DEBUG) BidIndex: ", index);
+                        WsfPlatform tempWeaponPlatform = WsfSimulation.FindPlatform(bid.receivedBidsOriginator); # CAC
+                        
+                        # Skip if intercept is later - want earliest
+                        if (bid.receivedBid.GetInterceptTime() >= chosenInterceptTime) continue;
+                        
+                        # Skip if PK is not better - want highest
+                        if (bid.receivedBid.GetPBS() < minPkThreshold) continue;
+                        
+                        # Skip if bidding weapon got killed
+                        if (tempWeaponPlatform.IsNull()) continue;
+                        
+                        # Best bid so far
+                        chosenInterceptTime = bid.receivedBid.GetInterceptTime();
+                        chosenPK = bid.receivedBid.GetPBS();
+                        chosenFireSolution = bid.receivedBid.fireSolution;
+                        chosenBid = index;
+                        chosenWeaponPlatform = WsfSimulation.FindPlatform(bid.receivedBidsOriginator);
+                     
+                     }
+                     writeln_d(TIME_NOW, "   (DEBUG) New Chosen Bid is index: ", chosenBid, " of ", index, " ---ID: ", chosenFireSolution.solutionID);
+                     
+                     ###############################
+                     ### Draw Intercept Location ###
+                     WsfDraw dr2 = WsfDraw();
+                     dr2.SetDuration(chosenInterceptTime - TIME_NOW);
+                     dr2.SetColor(0,0,0);
+                     dr2.SetPointSize(10);
+                     dr2.BeginPoints();
+                     dr2.Vertex(chosenFireSolution.interceptPosition);
+                     dr2.End();
+                     ###############################
+
+                     #new bid is chosen, send standdown to current solution
+                     activeSolutionsStruct tempActive = (activeSolutionsStruct)activeInterceptTimes.Get(threatID);
+                     string originator = tempActive.weaponName;
+
+                     WsfMessage standDownMessage = GetStandDownMessage(tempActive, originator, threatKey);
+                     if(originator == PLATFORM.Name())
+                     {
+                        SendMessageToProcessor(standDownMessage,"shot_mgr");
+                     }
+                     else
+                     {
+                        WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                        bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                        if(hasFunction == true)
+                        {
+                           processor.ExecuteScriptWithArgs("AddMessageToQue", {originator, standDownMessage});
+                        } 
+                     }
+                     
+                     #Send Hold/Launch Accordingly
+                     Map<string,bool> sentToPlats = Map<string,bool>();
+                     
+                     int bidIndex = -1;
+                     chosenInterceptTime = chosenInterceptTime + interceptTimeAddition;
+                     
+                     foreach(rxBids bid in tempBids)
+                     {
+                        bidIndex = bidIndex + 1;
+            
+                        int bidID = bid.receivedBidID;
+                        WsfPlatform bidOriginator = WsfSimulation.FindPlatform(bid.receivedBidsOriginator);
+                        fireSolutionStruct bidFireSolution = bid.receivedFireSolution;
+                       
+                        if(bidOriginator.IsValid())
+                        {
+                           sentToPlats.Set(bidOriginator.Name(),true);
+                        
+                           if(bidIndex == chosenBid)
+                           {
+                              WsfPlatform threatPlat = bidFireSolution.threat;
+                              if(threatPlat.IsValid())
+                              {
+                                 activeSolutionsStruct tempAct = activeSolutionsStruct();
+                                 tempAct.interceptTime = chosenInterceptTime;
+                                 tempAct.launchTime = bidFireSolution.launchTime;
+                                 tempAct.weaponName = bidOriginator.Name();
+                                 activeInterceptTimes.Set(threatPlat.Index(), tempAct);
+                              }
+                              
+                              WsfMessage actionMessage = GetBidActionMessage(bidID, "Launch", bidOriginator,chosenInterceptTime,bidFireSolution);
+                              if(bidOriginator == PLATFORM)
+                              {
+                                 SendMessageToProcessor(actionMessage,"shot_mgr");
+                              }
+                              else
+                              {
+                                 WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                                 bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                                 if(hasFunction == true)
+                                 {
+                                    processor.ExecuteScriptWithArgs("AddMessageToQue", {bidOriginator.Name(), actionMessage});
+                                 }
+                              }
+                           }
+                           else
+                           {
+                              WsfMessage actionMessage = GetBidActionMessage(bidID, "Hold", bidOriginator,chosenInterceptTime,bidFireSolution);
+                              if(bidOriginator == PLATFORM)
+                              {
+                                 SendMessageToProcessor(actionMessage,"shot_mgr");
+                              }
+                              else
+                              {
+                                 WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                                 bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                                 if(hasFunction == true)
+                                 {
+                                    processor.ExecuteScriptWithArgs("AddMessageToQue", {bidOriginator.Name(), actionMessage});
+                                 } 
+                              }
+                           }
+                        }
+                     }
+                     
+                     string localShotManager = "";
+                     if(chosenWeaponPlatform.IsValid())
+                     {
+                        WsfProcessor procRef = chosenWeaponPlatform.Processor("launcher_mgr");
+                        if(procRef.IsValid())
+                        {
+                           localShotManager = (string)ExecuteScript("GetLocalShotManager");
+                        }
+                     }
+                     
+                     if(localShotManager == PLATFORM.Name())
+                     {
+                        string globalShotManager = "";
+                        WsfProcessor procRef = chosenWeaponPlatform.Processor("launcher_mgr");
+                        if(procRef.IsValid())
+                        {
+                           globalShotManager = (string)ExecuteScript("GetGlobalShotManager");
+                        }
+                        
+                        if(globalShotManager != "")
+                        {
+                           WsfMessage launchMsg = GetLaunchMessage(chosenFireSolution, PLATFORM.Name());
+                           WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                           bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                           if(hasFunction == true && globalShotManager != "")
+                           {
+                              processor.ExecuteScriptWithArgs("AddMessageToQue", {globalShotManager, launchMsg});
+                           }
+                        }
+                     }
+                     else
+                     {
+                        Array<string> platSubs = platformSubs.Get(PLATFORM.Name());
+                     
+                        foreach(string sub in platSubs)
+                        {
+                           if(sentToPlats.Exists(sub) == false)
+                           {
+                              WsfPlatform subPlat = WsfSimulation.FindPlatform(sub);
+                              if(subPlat.IsValid())
+                              {
+                                 if(subPlat.Processor("launcher_mgr").IsValid())
+                                 {
+                                    WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                                    bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                                    if(hasFunction == true)
+                                    {
+                                       WsfMessage actionMessage = GetBidActionMessage(-1, "Hold", chosenWeaponPlatform, chosenInterceptTime, chosenFireSolution);
+                                       processor.ExecuteScriptWithArgs("AddMessageToQue", {sub, actionMessage});
+                                       #writeln(TIME_NOW, " ", PLATFORM.Name(), ": Rx launch message sending message to ", sub);
+                                    } 
+                                 }
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+            
+               # there is no pairing that exists
+               else
+               {
+                  ###########################################################################
+                  ## RUN DECISION CRITERIA ##################################################
+                  Array<rxBids> tempBids = receivedBidsForThreats.Get(threatKey);
+                  writeln_d(TIME_NOW, "   (DEBUG) Checking bids for ", threatKey, " ---- No current weapon-threat pairing exists.");
+                  double chosenInterceptTime = MATH.DOUBLE_MAX();
+                  double chosenPK = -1;
+                  fireSolutionStruct chosenFireSolution = fireSolutionStruct(); 
+                  WsfPlatform chosenWeaponPlatform;
+                  int chosenBid = -1;
+                  int index = -1;
+                  
+                  #DEBUG
+                  int bidID = 0;
+                  foreach(rxBids bid in tempBids)
+                  {
+                     index = index + 1;
+		                #writeln_d("   (DEBUG) BidIndex: ", index);
+                     if((bid.receivedBid.GetPBS() > chosenPK) && (bid.receivedBid.GetPBS() >= minPkThreshold))
+                     {
+                        chosenInterceptTime = bid.receivedBid.GetInterceptTime();
+                        chosenPK = bid.receivedBid.GetPBS();
+                        chosenFireSolution = bid.receivedBid.fireSolution;
+                        chosenBid = index;
+                        chosenWeaponPlatform = WsfSimulation.FindPlatform(bid.receivedBidsOriginator);
+                     }
+                  }
+                  writeln_d(TIME_NOW, "   (DEBUG) Chosen Bid is index: ", chosenBid , " of ", index, " ---ID: ", chosenFireSolution.solutionID);
+                  ###########################################################################
+                  ###########################################################################
+                  
+                  ###############################
+                  ### Draw Intercept Location ###
+                  WsfDraw dr2 = WsfDraw();
+                  dr2.SetDuration(chosenInterceptTime - TIME_NOW);
+                  dr2.SetColor(0,0,0);
+                  dr2.SetPointSize(10);
+                  dr2.BeginPoints();
+                  dr2.Vertex(chosenFireSolution.interceptPosition);
+                  dr2.End();
+                  ###############################
+
+                  Map<string,bool> sentToPlats = Map<string,bool>();
+                  
+                  int bidIndex = -1;
+                  chosenInterceptTime = chosenInterceptTime + interceptTimeAddition;
+                  foreach(rxBids bid in tempBids)
+                  {
+                     bidIndex = bidIndex + 1;
+         
+                     int bidID = bid.receivedBidID;
+                     WsfPlatform bidOriginator = WsfSimulation.FindPlatform(bid.receivedBidsOriginator);
+                     fireSolutionStruct bidFireSolution = bid.receivedFireSolution;
+                     
+                     if(bidOriginator.IsValid())
+                     {
+                        sentToPlats.Set(bidOriginator.Name(),true);
+                     
+                        if(bidIndex == chosenBid)
+                        {
+                           WsfPlatform threatPlat = bidFireSolution.threat;
+                           if(threatPlat.IsValid())
+                           {
+                              activeSolutionsStruct tempAct = activeSolutionsStruct();
+                              tempAct.interceptTime = chosenInterceptTime;
+                              tempAct.launchTime = bidFireSolution.launchTime;
+                              tempAct.weaponName = bidOriginator.Name();
+                              activeInterceptTimes.Set(threatPlat.Index(), tempAct);
+                           }
+                           
+                           WsfMessage actionMessage = GetBidActionMessage(bidID, "Launch", bidOriginator,chosenInterceptTime,bidFireSolution);
+                           if(bidOriginator == PLATFORM)
+                           {
+                              SendMessageToProcessor(actionMessage,"shot_mgr");
+                           }
+                           else
+                           {
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true)
+                              {
+                                 processor.ExecuteScriptWithArgs("AddMessageToQue", {bidOriginator.Name(), actionMessage});
+                              }
+                           }
+                        }
+                        else
+                        {
+                           WsfMessage actionMessage = GetBidActionMessage(bidID, "Hold", bidOriginator,chosenInterceptTime,bidFireSolution);
+                           if(bidOriginator == PLATFORM)
+                           {
+                              SendMessageToProcessor(actionMessage,"shot_mgr");
+                           }
+                           else
+                           {
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true)
+                              {
+                                 processor.ExecuteScriptWithArgs("AddMessageToQue", {bidOriginator.Name(), actionMessage});
+                              } 
+                           }
+                        }
+                     }
+                  }
+                  
+                  string localShotManager = "";
+                  if(chosenWeaponPlatform.IsValid())
+                  {
+                     WsfProcessor procRef = chosenWeaponPlatform.Processor("launcher_mgr");
+                     if(procRef.IsValid())
+                     {
+                        localShotManager = (string)ExecuteScript("GetLocalShotManager");
+                     }
+                  }
+                  
+                  if(localShotManager == PLATFORM.Name())
+                  {
+                     string globalShotManager = "";
+                     WsfProcessor procRef = chosenWeaponPlatform.Processor("launcher_mgr");
+                     if(procRef.IsValid())
+                     {
+                        globalShotManager = (string)ExecuteScript("GetGlobalShotManager");
+                     }
+                     
+                     if(globalShotManager != "")
+                     {
+                        WsfMessage launchMsg = GetLaunchMessage(chosenFireSolution, PLATFORM.Name());
+                        WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                        bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                        if(hasFunction == true && globalShotManager != "")
+                        {
+                           processor.ExecuteScriptWithArgs("AddMessageToQue", {globalShotManager, launchMsg});
+                        }
+                     }
+                  }
+                  else
+                  {
+                     Array<string> platSubs = platformSubs.Get(PLATFORM.Name());
+                  
+                     foreach(string sub in platSubs)
+                     {
+                        if(sentToPlats.Exists(sub) == false)
+                        {
+                           WsfPlatform subPlat = WsfSimulation.FindPlatform(sub);
+                           if(subPlat.IsValid())
+                           {
+                              if(subPlat.Processor("launcher_mgr").IsValid())
+                              {
+                                 WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                                 bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                                 if(hasFunction == true)
+                                 {
+                                    WsfMessage actionMessage = GetBidActionMessage(-1, "Hold", chosenWeaponPlatform, chosenInterceptTime, chosenFireSolution);
+                                    processor.ExecuteScriptWithArgs("AddMessageToQue", {sub, actionMessage});
+                                    #writeln(TIME_NOW, " ", PLATFORM.Name(), ": Rx launch message sending message to ", sub);
+                                 } 
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+               
+               receivedBidsForThreats.Remove(threatKey);
+            }
+         }
+      
+         if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Shot Decisions Made");
+      }
+
+      makingShotDecision = false;
+   end_script   
+
+   on_message
+      type BidMessage
+         script
+            UpdateRemoveThreats();
+         
+            WsfMessage msg = (WsfMessage)MESSAGE;
+            #writeln(TIME_NOW, " ", PLATFORM.Name(), ": Received message from ", msg.Originator());
+            string msgOriginatorName = msg.Originator();
+            WsfPlatform msgOriginatorPlatform = WsfSimulation.FindPlatform(msgOriginatorName);
+            
+            WsfPlatform msgBidOriginator = (WsfPlatform)msg.AuxDataObject("BidOriginator");
+            bidMessageStruct msgBid = (bidMessageStruct)msg.AuxDataObject("Bid");
+            int msgBidID = msg.AuxDataInt("BidID");
+            WsfPlatform msgThreat = (WsfPlatform)msg.AuxDataObject("Threat");
+            fireSolutionStruct msgFireSolution = (fireSolutionStruct)msg.AuxDataObject("FireSolution");
+            
+            double msgInterceptTime = msgBid.GetInterceptTime(); #(double)msg.AuxDataDouble("InterceptTime");
+            double msgLaunchTime = msgBid.GetLaunchTime(); #(double)msg.AuxDataDouble("LaunchTime");
+            double Pes = msgBid.GetPBS(); #(double)msg.AuxDataDouble("Pes");
+            
+            if(msgThreat.IsValid())
+            {
+               int activeSolutionCount = activeInterceptTimes.Size();
+               bool threatInList = false;
+               double interceptTime = 0;
+               for(int active=0; active < activeSolutionCount; active+=1)
+               {
+                  int threatKey = (int)activeInterceptTimes.ElementKeyAtIndex(active);
+                  activeSolutionsStruct tempActive = (activeSolutionsStruct)activeInterceptTimes.Get(threatKey);
+                  interceptTime = tempActive.interceptTime;
+                  WsfPlatform threatKeyPlat = WsfSimulation.FindPlatform(threatKey);
+   
+                  if(threatKeyPlat.IsValid() && msgThreat.IsValid())
+                  {                          
+                     if(msgThreat.Name() == threatKeyPlat.Name() && TIME_NOW < interceptTime)
+                     {
+                        threatInList = true;
+                     }
+                  }
+               }
+   
+               if(makingShotDecision == true)
+               {
+                  WsfMessage actionMessage = GetBidActionMessage(msgBidID, "Hold", msgBidOriginator,interceptTime,msgFireSolution);
+                  WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                  bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                  if(hasFunction == true)
+                  {
+                     processor.ExecuteScriptWithArgs("AddMessageToQue", {msgBidOriginator.Name(), actionMessage});
+                  } 
+               }
+
+               if(msgThreat.IsValid() && makingShotDecision == false)
+               {
+                  string PesString = write_str( "Pes," , TIME_NOW ,"," , msgThreat.Name() , "," , Pes);
+                  if ($<IBCS_VERBOSE:true>$) PLATFORM.Comment(PesString); # Adding Pes data for metric to database
+
+                  if(msgBidOriginator.IsNull())
+                  {
+                     writeln("##################### IM NULL ######################");
+                  }
+                  
+                  if(lastBidDecisionTime < TIME_NOW)
+                  {
+                     lastBidDecisionTime = TIME_NOW + bidDecisionTime;
+                     ExecuteScriptAtTime(TIME_NOW + bidDecisionTime, runFunctionName);
+                  }
+               
+                  if(receivedBidsForThreats.Exists(msgThreat.Name()) == true)
+                  {
+                     Array<rxBids> bidsForThreat = receivedBidsForThreats.Get(msgThreat.Name());
+                     rxBids tempBid = { };
+                     tempBid.receivedBid = msgBid;
+                     tempBid.receivedBidsOriginator = msgBidOriginator.Name();
+                     tempBid.receivedBidID = msgBidID;
+                     tempBid.receivedBidThreat = msgThreat.Name();
+                     tempBid.receivedFireSolution = msgFireSolution;
+                     bidsForThreat.PushBack(tempBid);
+                     receivedBidsForThreats.Set(msgThreat.Name(), bidsForThreat);
+                  }
+                  else
+                  {
+                     Array<rxBids> bidsForThreat = Array<rxBids>();
+                     rxBids tempBid = { };
+                     tempBid.receivedBid = msgBid;
+                     tempBid.receivedBidsOriginator = msgBidOriginator.Name();
+                     tempBid.receivedBidID = msgBidID;
+                     tempBid.receivedBidThreat = msgThreat.Name();
+                     tempBid.receivedFireSolution = msgFireSolution;
+                     bidsForThreat.PushBack(tempBid);
+                     receivedBidsForThreats.Set(msgThreat.Name(), bidsForThreat);
+                  }
+               }
+               
+               else
+               {
+                  WsfMessage actionMessage = GetBidActionMessage(msgBidID, "Hold", msgBidOriginator,99999999, msgFireSolution);
+                  WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                  bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                  if(hasFunction == true)
+                  {
+                     processor.ExecuteScriptWithArgs("AddMessageToQue", {msgBidOriginator.Name(), actionMessage});
+                  } 
+               }
+            }
+         end_script
+         
+      type BidActionVerifyMessage
+         script
+            WsfMessage msg = (WsfMessage)MESSAGE;
+            #writeln(TIME_NOW, " ", PLATFORM.Name(), ": Received message from ", msg.Originator());
+         end_script
+         
+      type LaunchMessage
+         script
+            WsfMessage msg = (WsfMessage)MESSAGE;
+            if(msg.IsValid())
+            {
+               string msgOriginator = msg.AuxDataString("LaunchOriginator");
+               WsfPlatform msgOrigPlatform = WsfSimulation.FindPlatform(msgOriginator);
+               fireSolutionStruct msgFireSolution = (fireSolutionStruct)msg.AuxDataObject("FireSolution");
+               
+               if(msgOrigPlatform.IsValid() && msgFireSolution.interceptTime > 0 &&  msgFireSolution.threat.IsValid())
+               {
+                  activeSolutionsStruct tempAct = activeSolutionsStruct();
+                  tempAct.interceptTime = msgFireSolution.interceptTime;
+                  tempAct.launchTime = msgFireSolution.launchTime;
+                  tempAct.weaponName = msgOrigPlatform.Name();
+                  activeInterceptTimes.Set(msgFireSolution.threat.Index(), tempAct);
+                  
+                  WsfMessage actionMessage = GetBidActionMessage(-1, "Hold", msgOrigPlatform, msgFireSolution.interceptTime, msgFireSolution);
+                  
+                  Array<string> platSubs = platformSubs.Get(PLATFORM.Name());
+                  
+                  foreach(string sub in platSubs)
+                  {
+                     if(sub != msgOriginator)
+                     {
+                        WsfPlatform subPlat = WsfSimulation.FindPlatform(sub);
+                        if(subPlat.IsValid())
+                        {
+                           if(subPlat.Processor("launcher_mgr").IsValid())
+                           {
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true)
+                              {
+                                 processor.ExecuteScriptWithArgs("AddMessageToQue", {sub, actionMessage});
+                                 #writeln(TIME_NOW, " ", PLATFORM.Name(), ": Rx launch message sending message to ", sub);
+                              } 
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         end_script
+   end_on_message
+
+end_processor

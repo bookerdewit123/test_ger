@@ -1,0 +1,171 @@
+#TO DO: Add in ways to check for type of platform (priority list) and range to target
+processor BMC2 WSF_SCRIPT_PROCESSOR
+   
+   script Array<WsfPlatform> GetShootersSide(string side)
+      Array<WsfPlatform> blueShooters = Array<WsfPlatform>();
+      
+      for (int ii = 0; ii < WsfSimulation.PlatformCount(); ii += 1)
+      {
+         # Get platform
+         WsfPlatform iPlatform = WsfSimulation.PlatformEntry(ii);
+         if (iPlatform.IsNull()) continue;
+         
+         # Identify shooters only
+         if (iPlatform.WeaponCount() == 0) continue;
+         
+         # Must be correct side
+         if (iPlatform.Side() != side) continue;
+         
+         # Add to list
+         blueShooters.PushBack(iPlatform);
+      }
+      
+      return blueShooters;
+   end_script
+   
+   script WsfTrack GetLocalTrack(WsfPlatform aTarget, WsfPlatform aPlatform)
+   
+      WsfTrack mLocalTrack;
+      foreach (WsfTrack iTrack in aPlatform.MasterTrackList())
+      {
+         if(aTarget.IsValid()){
+            if (iTrack.TargetName() == aTarget.Name())
+            {
+               mLocalTrack = iTrack;
+               break;
+            }
+          }
+      }
+      return mLocalTrack;
+   end_script
+   
+   script bool IsGettingFiredOn(WsfPlatform aTarget)
+      foreach (WsfPlatform iLauncher in GetShootersSide("blue"))
+      {
+         if (iLauncher.IsNull()) continue;
+         
+         for (int ii = 0; ii < iLauncher.WeaponCount(); ii += 1)
+         {
+            WsfWeapon iWeapon = iLauncher.WeaponEntry(ii);
+            if (iWeapon.IsNull()) continue;
+            
+            # Find local track
+            WsfTrack localTrack = GetLocalTrack(aTarget, iLauncher);
+            if (localTrack.IsNull()) continue;
+            
+            if (iWeapon.ActiveWeaponPlatformsFor(localTrack.TrackId()).Count() > 0)
+            {
+               # Someone is shooting at this track already
+               return true;
+            }
+         }
+      }
+      return false;
+   end_script
+   
+   script WsfTrack canShooterEngage(WsfPlatform aShooter, string aWeaponName, WsfPlatform aTarget)
+      WsfTrack organicTrack;
+      
+      # Don't shoot while turning
+      double delta = aShooter.Heading() - mapFighterHeading[aShooter.Name()];
+      delta = MATH.Fmod(delta, 180);
+      delta = MATH.Fabs(MATH.Fabs(delta)-90);
+      writeln(delta);
+      bool isTurning = delta < 10;
+      #MIKE: Figure out what turning is
+      #if (isTurning) return organicTrack;
+
+      #MIKE: Figure out what Weapon Quantity actually means
+      # weapons check
+      if (aShooter.Weapon(aWeaponName).QuantityRemaining() == 0) return organicTrack;
+      
+      # organic sensor check
+      
+      foreach (WsfTrack iTrack in aShooter.MasterTrackList())
+      {  
+         if (iTrack.TargetName() == aTarget.Name())
+         {
+            organicTrack = iTrack;
+            break;
+         }
+      }
+      
+      return organicTrack;
+            
+   end_script
+   
+   on_message
+      type WSF_TRACK_MESSAGE
+      script
+         WsfTrackMessage msg = (WsfTrackMessage)MESSAGE;
+         WsfTrack mTrack = msg.Track();
+         WsfPlatform mTarget = mTrack.Target();
+         
+         #---------------------------
+         # fire permission check
+         #---------------------------
+         # Only shoot when processed
+         # MIKE: The following line is useful for the MULTIAXIS
+         
+         # Verify there is a target
+         if (mTarget.IsNull() || !mTarget.IsValid())
+            return; 
+         
+         # Don't fire on blue targets
+         if (mTarget.Side() == "blue" || mTarget.Name() == "RED_AEW" || mTarget.Type() == "RED_GLIDE" || mTarget.Name().Contains("NONTARGET")) #TO DO MIKE: Currently how different targets are either targeted or ignored
+            return;
+            
+         # Is not being fired on already
+         if (IsGettingFiredOn(mTarget)) return;
+         # Closest available
+         WsfTrack organicTrack;
+         WsfPlatform closestFighter;
+         double closest_distance = MATH.DOUBLE_MAX();
+         foreach (WsfPlatform iPlatform in PLATFORM.Subordinates())
+         {
+            # Is this platform eligible
+            if(mTarget.IsValid()){
+               WsfTrack tempOrganicTrack = canShooterEngage(iPlatform, "aam", mTarget);
+               if (tempOrganicTrack.IsNull()) continue;
+               # Proximity check
+               double dist = mTarget.GroundRangeTo(iPlatform);
+               if (dist < closest_distance)
+               {
+                  closestFighter = iPlatform;
+                  closest_distance = dist;
+                  organicTrack = tempOrganicTrack;
+               }
+               }
+         }
+         
+         # Validation
+         if (closestFighter.IsNull()) return;
+         if (organicTrack.IsNull()) return;
+         
+         # Draw assignments by line
+         WsfDraw draw = WsfDraw();
+         draw.SetColor(1,0,0);
+         draw.SetDuration(10);
+         draw.BeginLines();
+            draw.Vertex(mTarget);
+            draw.Vertex(closestFighter);
+         draw.End();
+         PLATFORM.Comment ("ASSIGNMENT SENT");
+         # Fire one at a time per track
+         if (closestFighter.ActiveWeaponPlatformsFor(organicTrack.TrackId()).Empty()) 
+         #MIKE The following can be useful for range of weapon firing
+         //&& closestFighter.SlantRangeTo(organicTrack) < 100000)
+         {
+            WsfTrackMessage msg = WsfTrackMessage();
+            msg.SetTrack(organicTrack);
+            #MIKE CHANGE: Want to change from checking WSF_TRACK_MESSAGE to something else
+            msg.SetType("SHOOT");
+            # Send command to fire to fighters
+            PLATFORM.Comm("L16_T").SendMessage(msg, closestFighter.Name(), "L16_T");
+            #Uncommenting this has weapons firing
+            //closestFighter.Weapon("aam").Fire(organicTrack);
+         }
+         
+      end_script
+   end_on_message
+end_processor

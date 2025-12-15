@@ -1,0 +1,246 @@
+
+/******************************************************************************/
+
+#         I B C S    P L A T F O R M S
+
+/******************************************************************************/
+
+platform_type IBCS_BATTALION_EOC_PLATFORM BMS_PLATFORM
+   side blue
+   icon cmd_post
+   icon truck
+   
+   #category ANY_ROUTE
+   
+#   track_manager
+#      fusion_method weighted_average
+#         #Nothing
+#      end_fusion_method
+#      
+##      correlation_method nearest_neighbor 
+##         tracking_sigma 1
+##         turning_sigma  1
+##      end_correlation_method
+#   end_track_manager
+   
+   add comm ifcn IFCN
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 200 m
+   end_comm
+
+   add processor sys_track_mgr BMS_TRACK_MANAGEMENT_PROCESSOR
+      report_interval 1 sec
+      #report_to platform BM comm ifcn via track_comms
+      script_variables
+         hardReportTo = {}; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = true; # This means to send to all subs, not just direct subs
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+   
+   add processor shot_dec_mgr BMS_SHOT_MANAGEMENT_PROCESSOR
+      #update_interval 10 sec
+      script_variables 
+         bidDecisionTime = 1; 
+      end_script_variables
+   end_processor
+end_platform_type
+
+platform_type IBCS_BATTERY_EOC_PLATFORM BMS_PLATFORM
+   side blue
+   icon cmd_post
+   icon truck
+   
+   #category ANY_ROUTE
+   
+#   track_manager
+#      fusion_method weighted_average
+#         #Nothing
+#      end_fusion_method
+#      
+##      correlation_method nearest_neighbor 
+##         tracking_sigma 1
+##         turning_sigma  1
+##      end_correlation_method
+#   end_track_manager
+   
+   add comm ifcn IFCN
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 200 m
+   end_comm
+
+   add processor sys_track_mgr BMS_TRACK_MANAGEMENT_PROCESSOR
+      report_interval 1 sec
+      #report_to platform BM comm ifcn via track_comms
+      script_variables
+         hardReportTo = {}; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+   
+   add processor shot_dec_mgr BMS_SHOT_MANAGEMENT_PROCESSOR
+      #update_interval 10 sec
+      script_variables
+         bidDecisionTime = 1;
+      end_script_variables
+   end_processor
+end_platform_type
+
+
+platform_type PATRIOT_RADAR BMS_PLATFORM
+   side blue
+   icon Ground_Radar
+   
+   category FIRE_CONTROL
+   category CUEABLE_SENSOR
+   #category ANY_ROUTE
+
+   add sensor an_mpq_65 AN_MPQ-65
+      on
+      internal_link combat_id_check
+      ignore_same_side
+      ignore fighter
+   end_sensor
+   
+   add comm ifcn IFCN
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 35 m
+   end_comm
+   
+   
+   ############################
+   # COMBAT ID DELAY
+   ############################
+   # POC: Chuck Connors
+   # Designed to not affect BMS code
+   # Meant to work in conjunction with E-2D
+   # Adds delay for human operator to identify threats.
+   # Acts as a go between for sensor and senaor_data processsor
+   # so that if it is not identified the track never makes it to
+   # sensor_data and thus not acted on
+   processor combat_id_check WSF_SCRIPT_PROCESSOR
+      on_message
+         type WSF_TRACK_MESSAGE
+         script
+            # IDA team addition, default is to ignore this code
+            # meaning all data goes directly to sensor_data
+            if ($<BMS_ONLY:true>$) return;
+            
+            # Extract threat from message
+            WsfTrackMessage msg = (WsfTrackMessage)MESSAGE;
+            WsfPlatform mTarget = msg.Track().Target();
+            
+            # Check for AUX Data flag from COMBAT_ID_DELAY processor
+            bool threatIdentified = mTarget.AuxDataExists("THREAT_IDENTIFIED")
+               && mTarget.AuxDataBool("THREAT_IDENTIFIED");
+               
+            # If not identified as threat, then don't act on it
+            if(!threatIdentified) PROCESSOR.SuppressMessage();
+         end_script
+      end_on_message
+      internal_link sensor_data
+   end_processor
+   
+   
+   
+   add processor sensor_data BMS_TRACK_MANAGEMENT_PROCESSOR
+      report_interval 1 sec
+      non_master_track_processor
+      #report_to platform RADAR comm ifcn via track_comms
+      script_variables
+         hardReportTo = {}; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+
+   add processor sys_track_mgr BMS_TRACK_MANAGEMENT_PROCESSOR
+      report_interval 1 sec 
+      #report_to platform RADAR comm ifcn via track_comms
+      script_variables
+         hardReportTo = {}; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+end_platform_type
+
+platform_type PATRIOT_LAUNCHER BMS_PLATFORM
+   side blue
+   icon PAC-3_Launcher
+   
+   #category AUTO_FIRE
+   category ANY_ROUTE
+   
+   add comm ifcn IFCN 
+      internal_link comms_proc
+   end_comm
+   
+   add weapon PAC-3 PAC-3   
+      quantity 12
+   end_weapon
+   
+   add processor sys_track_mgr BMS_TRACK_MANAGEMENT_PROCESSOR
+      report_interval 1 sec 
+      #report_to platform RADAR comm ifcn via track_comms
+      script_variables
+         hardReportTo = {}; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+
+   add processor launcher_mgr BMS_LAUNCHER_PROCESSOR
+      #update_interval 1 sec # This is if you want to override the global value set for this platform
+      script_variables
+         #autoFire = true;
+         shotManager = ibcs_global_shot_manager;
+         localShotManager = "";
+         canReload = true; # Un comment to make it so the launcher can reload if other params are set
+         reload_time = {30}; #sec per one ammo
+         reload_inv_multiplier = {1}; #If base quantity equals 2 then you have 4 in inventory 
+         forced_reload_times =  {}; #This is more of a hard coded value for the launcher to reload (Dont have to use)
+      end_script_variables
+   end_processor  
+   
+   aux_data # AUX Data used for M3
+      string platformID = "PATRIOT LAUNCHER"
+      string weaponID = "PAC-3MSE"
+      int lenEff = 0
+      double pcEff = 0.8
+   end_aux_data
+end_platform_type
+
+platform_type IFCN_RELAY_PLATFORM BMS_PLATFORM
+   side blue
+   icon command_vehicle_icon
+   
+   add comm ifcn IFCN 
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 35 m
+   end_comm
+end_platform_type

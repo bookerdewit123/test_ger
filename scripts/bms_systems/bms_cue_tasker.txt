@@ -1,0 +1,231 @@
+
+processor BMS_CUE_TASKER_PROCESSOR WSF_SCRIPT_PROCESSOR
+   update_interval 1 sec
+   
+   script_variables
+      # Shared Variables #
+      bool firstUpdate = false;
+      double lastSend = 0;
+          
+      # Track Manager Variables #   
+      double lastCueTime = 0;
+      Array<WsfPlatform> sentCueThreat = Array<WsfPlatform>();
+      Array<WsfPlatform> sentCueSensor = Array<WsfPlatform>();
+      Map<WsfPlatform, Array<WsfPlatform>> sensorForeverTracks = Map<WsfPlatform, Array<WsfPlatform>>();
+      Array<WsfPlatform> subRadarPlatforms = Array<WsfPlatform>();
+   end_script_variables
+   
+   execute at_time .1 sec absolute 
+
+   end_execute
+   
+   script void RunCueTasker()
+      WsfLocalTrackList masterTrackList = PLATFORM.MasterTrackList();
+
+      #### Update Radar Platforms Forever Track Lists ####
+      foreach(WsfPlatform subRadar in subRadarPlatforms)
+      {
+         string procName = "sensor_data";
+
+         Array<WsfPlatform> currentForever = sensorForeverTracks.Get(subRadar);
+   
+         WsfTrackList subLocalList = subRadar.RawTrackList(procName);
+         #WsfTrackList subLocalList = subRadar.RawTrackList("sys_track_mgr");
+         #WsfLocalTrackList subMasterList = subRadar.TrackList("sys_track_mgr");
+         #int subMasterCount = subMasterList.Count();
+         int subLocalCount = subLocalList.Count();
+         int trackCount = subRadar.SensorEntry(0).ActiveTrackCount();
+
+         if(subLocalCount > 0)
+         {
+            foreach(WsfTrack localTrack in subLocalList)
+            {
+               WsfPlatform target = localTrack.Target();
+               if(localTrack.Target().IsValid())
+               {
+                  bool found = false;
+                  if(currentForever.IsValid())
+                  {
+                     foreach(WsfPlatform trackPlat in currentForever)
+                     {
+                        if(localTrack.Target() == trackPlat)
+                        {
+                           found = true;
+                        }
+                     }
+                  }
+         
+                  if(found == false)
+                  {
+                     currentForever.PushBack(localTrack.Target());
+                     sensorForeverTracks.Set(subRadar,currentForever);
+                     #writeln(sensorForeverTracks);
+                  }
+               }
+            }
+         }
+      }
+
+      #### Check for Cueing Tasks ####
+      foreach(WsfTrack track in masterTrackList)
+      {
+         if(track.Target().IsValid())
+         {
+            foreach(WsfPlatform subRadar in subRadarPlatforms)
+            {
+               Array<WsfPlatform> currentForever = sensorForeverTracks.Get(subRadar);
+               bool found = false;
+               if(currentForever.IsValid())
+               {
+                  foreach(WsfPlatform trackPlat in currentForever)
+                  {
+                     if(track.Target() == trackPlat)
+                     {
+                        found = true;
+                     }
+                  }
+               }
+      
+               if(found == false)
+               {
+                  #writeln(TIME_NOW,": ", track.TargetName(), " not found on ", subRadar.Name());
+         
+                  bool alreadySentCue = false;
+                  foreach(WsfPlatform threat in sentCueThreat)
+                  {
+                     if(threat == track.Target())
+                     {
+                        foreach(WsfPlatform sensorPlat in sentCueSensor)
+                        {
+                           if(sensorPlat == subRadar)
+                           {
+                              alreadySentCue = true;
+                           }
+                        }
+                     }
+                  }
+            
+                  bool canDetectTarget = false;
+                  if(alreadySentCue == false)
+                  {
+                     #### Un Comment this if you want it to send a cue without checking if radar is within FOV ####
+                     #canDetectTarget = true;
+               
+                     bool maskedByTerrain = true;
+                     maskedByTerrain = subRadar.MaskedByTerrain(track.Target().Location(), track.Target().Altitude(), 1.0);
+               
+                     if(maskedByTerrain == false)
+                     {
+                        if(subRadar.SensorCount() > 0)
+                        {
+                           int sensorCount = subRadar.SensorCount();
+                           for(int i=0;i<sensorCount;i=i+1)
+                           {
+                              if(subRadar.SensorEntry(i).IsA_TypeOf("WSF_RADAR_SENSOR") || subRadar.SensorEntry(i).IsA_TypeOf("CUSTOM_RF_SENSOR"))
+                              {
+                                 int mode = (int)subRadar.SensorEntry(i).CurrentMode();
+                                 WsfEM_Rcvr radarRcvr = subRadar.SensorEntry(i).Rcvr(mode);
+                                 WsfEM_Xmtr radarXmtr = subRadar.SensorEntry(i).Xmtr(mode);
+                                 string sensorName = subRadar.SensorEntry(i).Name();
+                           
+                                 bool withinFOV = subRadar.WithinFieldOfView(track.Target(),sensorName);
+                                 if(withinFOV == true)
+                                 {
+                                    double xmtrPower = radarXmtr.PeakPower();
+                                    double db_xmtrPower = 10 * MATH.Log10(xmtrPower);
+                                    #writeln("Power: ",xmtrPower);
+                           
+                                    double xmtrFreq = radarXmtr.Frequency();
+                                    #writeln("Freq: ",xmtrFreq);
+                           
+                                    string xmtrPol = radarXmtr.Polarization();
+                                    #writeln("Pol: ",xmtrPol);
+                           
+                                    double gain = radarXmtr.AntennaPattern(0).PeakGain(xmtrFreq);
+                                    #writeln("Gain: ",gain);
+                           
+                                    double xmtrLoss = radarXmtr.InternalLoss();
+                                    #writeln("XLoss: ",xmtrLoss);
+                           
+                                    double xmtrDutyCycle = radarXmtr.DutyCycle();
+                                    #writeln("Duty Cycle: ",xmtrDutyCycle);
+                           
+                                    double rcvrNoise = radarRcvr.NoisePower();
+                                    #writeln("RNoise: ",rcvrNoise);
+                           
+                                    double rcvrLoss = radarRcvr.InternalLoss();
+                                    #writeln("RLoss: ",rcvrLoss);
+                           
+                                    double c = 299792458;
+                                    double pi = MATH.PI();
+                              
+                                    double az = subRadar.RelativeAzimuthOf(track.Target().Location());
+                                    #writeln("Target Az: ",az);
+                                    double el = subRadar.RelativeElevationOf(track.Target().Location());
+                                    #writeln("Target El: ",el);
+                                    double rcs = track.Target().RadarCrossSection(az,el,xmtrPol,xmtrFreq);
+                                    double db_rcs = 20 * MATH.Log10(rcs);
+                                    #writeln("Target RCS: ",rcs);
+                           
+                                    double detectionThreshold = radarRcvr.DetectionThreshold();
+                                    #writeln("Detection Threshold: ",detectionThreshold);
+                           
+                                    double wavelength = c/xmtrFreq;
+                                    double db_wavelength = 20 * MATH.Log10(wavelength);
+                                    #writeln("Wavelength: ",wavelength);
+                           
+                                    double distance = subRadar.SlantRangeTo(track.Target());
+                                    double db_distance = 40 * MATH.Log10(distance);
+                                    #writeln("Distance: ",distance);
+                           
+                                    double db_rr_pi = (30*MATH.Log10(4*pi));  
+                                                            
+                                    double powerRx = db_xmtrPower + (2*gain) + db_rcs + db_wavelength - xmtrLoss - rcvrLoss - db_distance - db_rr_pi;
+                                    #writeln("Received Power: ", powerRx);
+                                    double s_to_n = powerRx - rcvrNoise;
+                                    #writeln("S/N: ", s_to_n);
+                           
+                                    if(s_to_n > detectionThreshold)
+                                    {
+                                       canDetectTarget = true;
+                                    }
+                                 }
+                                 else
+                                 {
+                                    #writeln("Not in FOV");
+                                 }
+                              }
+                           }
+                        }
+                     }
+                  }
+      
+                  if(alreadySentCue == false && canDetectTarget == true)
+                  {
+                     WsfMessage cueMessage = GetCueMessage(track, subRadar);
+                     if(subRadar.Processor("sensor_data").IsValid() == true)
+                     {
+                        #We will need to check if a sensor has already tracked the threat before so its doesnt get a cue mesage
+                        sentCueThreat.PushBack(track.Target());
+                        sentCueSensor.PushBack(subRadar);
+                        WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                        bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                        if(hasFunction == true)
+                        {
+                           processor.ExecuteScriptWithArgs("AddMessageToQue", {subRadar.Name(), cueMessage});
+                        } 
+                     }
+                  }
+               }
+            }
+         }
+      }
+   end_script  
+   
+   on_update
+      RunCueTasker();
+   end_on_update 
+      
+   on_message
+   end_on_message
+end_processor

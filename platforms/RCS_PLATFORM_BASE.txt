@@ -1,0 +1,18 @@
+# include the RCS sizes library
+include_once rcs_sizes.txt
+
+# *********************************************************************************************** #
+# The RCS_PLATFORM_BASE is an "abstract" platform type meant to be extended by any platform       #
+# that participates in the simple Radar Cross Section algorithm for detection                     #
+#                                                                                                 #
+# When extending this platform_type to a non-abstract platform type definition:                   #
+#     * Add a script variable to the extended platform, xRCS_I, and set it equal to the value     #
+#       from RCS_SIZE_ENUM that applies for the extended platform                                 #
+# *********************************************************************************************** #
+platform_type RCS_PLATFORM_BASE WSF_PLATFORM
+
+   script_variables
+      int xRCS_I = RCS_SIZE_ENUM().NONE; # This should be initialized by classes extending RCS_SENSOR_BASE
+   end_script_variables
+   
+end_platform_type

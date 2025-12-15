@@ -1,0 +1,605 @@
+#********************************************************************************************
+# Main script structure used to store trajectory data
+#********************************************************************************************
+# DO NOT DIRECTLY MODIFY STRUCTURE SECTION WITHOUT CONSENT OF CREATORS
+# --> If modifications desired, copy structure, rename, and mark appropriately.
+#********************************************************************************************
+script_struct OutmatchThreatTrajectory 
+   script_variables
+      double X = 0;
+      double Y = 0;
+      double Z = 0;
+      double Xdot = 0;
+      double Ydot = 0;
+      double Zdot = 0;
+      bool onCorrectHeading = false;
+      double myNewRelativeHeading = 999999;
+   end_script_variables
+end_script_struct
+#********************************************************************************************
+processor OUTMATCH_LAUNCHER_PROCESSOR WSF_TASK_PROCESSOR
+   
+   script_variables 
+      Map<string, OutmatchThreatTrajectory> myThreatTrajectory = Map<string, OutmatchThreatTrajectory>();
+      double heading_rate_default = 0.5;
+      double heading_rate = 0.5;  
+   end_script_variables
+   
+   script void SetOutmatchCurvedTrajectoryHeadingRate(double newHeadingRate)
+   {
+      if(newHeadingRate<=0)
+      {
+      writeln_warning("****WARNING: A value less than or equal to zero was passed into the function SetOutmatchCurvedTrajectoryHeadingRate. \n",
+         " The following value was passed in: ",newHeadingRate,"\n",
+         " The default value of ",heading_rate_default," deg/s will be used instead.");
+         heading_rate = heading_rate_default;
+      }
+      else
+      {
+         heading_rate = newHeadingRate;
+      }
+   }
+   end_script
+   
+   script void ClearOutmatchThreatTrajectoryCache()
+   {
+      # This function clears out the threat trajectory cache to prevent memory build up.
+      myThreatTrajectory.Clear();
+   }
+   end_script
+   
+   script WsfGeoPoint plat_future_location(WsfPlatform plat, double forward_time)
+      #####################################################################################################################
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      ### Propagate threat trajectory to a future point in time, towards a give target.
+      # Created on: 5/2/2022  by: Ryan Fisher
+      #  Derived from previous IRAD code.    
+      #  Description:
+      #     This function takes a given platform (threat) and propagates its location to a future point in time.
+      #     The method of propagation uses the position, velocity, and accleration in the WCS coordinate frame.
+      #     This threat is then propagated by a delta_t forward,
+      #     using x = x_0 + v_0*t + (1/2)*(t^2)*a_0 for propagation. 
+      #
+      #  Inputs:
+      #     plat: The threat platform, of type WsfPlatform, that will be propagated.
+      #     forward_time: the time in which the function will propagate to (within delta_t)
+      #
+      #  Outputs:
+      #     end_location: returns a WsfGeoPoint with the end location of the threat
+      #
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      #####################################################################################################################
+      double X, Y, Z;
+      Vec3 plat_accWCS = plat.AccelerationWCS(); 
+      Vec3 plat_vel = plat.VelocityWCS();
+      Vec3 plat_location = plat.LocationWCS();
+      X =  plat_location.X() + plat_vel.X() * forward_time + plat_accWCS.X() * forward_time * forward_time / 2;
+      Y =  plat_location.Y() + plat_vel.Y() * forward_time + plat_accWCS.Y() * forward_time * forward_time / 2;
+      Z =  plat_location.Z() + plat_vel.Z() * forward_time + plat_accWCS.Z() * forward_time * forward_time / 2;
+      Vec3 end_loc = Vec3();
+      end_loc.SetX(X);
+      end_loc.SetY(Y);
+      end_loc.SetZ(Z);
+      WsfGeoPoint end_location = WsfGeoPoint();
+      end_location.SetWCS(end_loc);
+      return end_location;
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+   end_script
+   
+   script WsfGeoPoint plat_future_location_const_alt(WsfPlatform plat, double forward_time)
+      #####################################################################################################################
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      ### Propagate threat trajectory to a future point in time, towards a give target.
+      # Created on: 5/2/2022  by: Ryan Fisher
+      #     
+      #  Description:
+      #     This function takes a given platform (threat) and propagates its location to a future point in time.
+      #     The method of propagation uses the position, velocity, and accleration in the WCS coordinate frame, 
+      #     subtract out  the downward component of acceleration. This threat is then propagated by a delta_t forward,
+      #     using x = x_0 + v_0*t + (1/2)*(t^2)*a_0 for propagation. This propagation method manually forces altitude 
+      #     to remain constant as we currently cannot predict change in altitude easily (things often go into the Earth).
+      #
+      #     To Do: Need to implement method of rotating NED velocity to body frame coordinates, to better propagate.
+      #        Specifically, we need to use OrientationNED to get the yaw (heading) relative to NED, subtract the 
+      #        x component of the body frame velocity vector, and then convert to WCS. 
+      #
+      #  Inputs:
+      #     plat: The threat platform, of type WsfPlatform, that will be propagated.
+      #     forward_time: the time in which the function will propagate to (within delta_t)
+      #
+      #  Outputs:
+      #     end_location: returns a WsfGeoPoint with the end location of the threat
+      #
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      #####################################################################################################################
+      
+   	   Vec3 plat_accWCS = plat.AccelerationWCS();
+      Vec3 plat_accNED = plat.AccelerationNED();
+      double yawAngle = plat.OrientationNED().X();
+      double northAccel = plat_accNED.X();
+      double eastAccel = plat_accNED.Y(); 
+      if ( plat_accNED[2] > 0.1 || plat_accNED[2] < -0.1 )
+      {
+         double accelDown = plat_accNED.Z();
+         Vec3 downVec = plat.LocationWCS();
+         double downMag = downVec.Magnitude();
+         if (downMag!=0)
+         {
+         downVec.Scale(-1.0/downMag);
+         downVec.Scale(accelDown);
+         }
+         Vec3 lateral_heading_Accel = Vec3().Subtract(plat_accWCS,downVec);
+         
+   #         ### Lets do more math to set heading acceleration to zero
+   #         # double xhat = plat_accNED.Y()*Math.Cos(90-yawAngle) + plat_accNED.X()*Math.Sin(90-yawAngle);  # Heading component of acceleration
+   #         double yhat = -plat_accNED.Y()*Math.Sin(90-yawAngle) + plat_accNED.X()*Math.Cos(90-yawAngle); # "Left" side body frame acceleration.
+   #         northAccel = yhat*Math.Cos(90-yawAngle); # xhat component is zero:  xhat*sin(90-psi)
+   #         eastAccel = -yhat*Math.Sin(90-yawAngle); # xhat component is zero:  xhat*cos(90-psi)
+   #         
+   #         Vec3 x_ddot_WCS = plat.LocationWCS();
+   #         double x_ddot_WCS_Mag = x_ddot_WCS.Magnitude();
+   #         if (x_ddot_WCS_Mag!=0)
+   #         {
+   #         x_ddot_WCS.Scale(1.0/x_ddot_WCS_Mag);
+   #         x_ddot_WCS.Scale(northAccel);
+   #         }
+   #         
+   #         Vec3 y_ddot_WCS = plat.LocationWCS();
+   #         double y_ddot_WCS_Mag = y_ddot_WCS.Magnitude();
+   #         if (y_ddot_WCS_Mag!=0)
+   #         {
+   #         y_ddot_WCS.Scale(1.0/y_ddot_WCS_Mag);
+   #         y_ddot_WCS.Scale(eastAccel);
+   #         }
+   #         
+   #         Vec3 lateral_accel = Vec3.Subtract(Vec3.Subtract(lateral_heading_Accel,x_ddot_WCS),y_ddot_WCS);
+   
+         plat_accWCS = lateral_heading_Accel;
+      }        
+      #plat_accWCS = Vec3.Construct(0,0,0);  
+      double X, Y, Z;
+      Vec3 plat_vel = plat.VelocityWCS();
+      Vec3 plat_location = plat.LocationWCS();
+      X =  plat_location.X() + plat_vel.X() * forward_time + plat_accWCS.X() * forward_time * forward_time / 2;
+      Y =  plat_location.Y() + plat_vel.Y() * forward_time + plat_accWCS.Y() * forward_time * forward_time / 2;
+      Z =  plat_location.Z() + plat_vel.Z() * forward_time + plat_accWCS.Z() * forward_time * forward_time / 2;
+      Vec3 end_loc = Vec3();
+      end_loc.SetX(X);
+      end_loc.SetY(Y);
+      end_loc.SetZ(Z);
+      WsfGeoPoint end_location = WsfGeoPoint();
+      end_location.SetWCS(end_loc);
+      end_location.SetAltitudeAGL(plat.Altitude());
+      return end_location;
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+   end_script
+   
+   script OutmatchThreatTrajectory plat_future_location_const_alt_curved(WsfPlatform plat, double forward_time, double headingRate)
+      #####################################################################################################################
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      ### Propagate threat trajectory to a future point in time, towards a give target.
+      # Created on: 5/2/2022  by: Ryan Fisher
+      #     
+      #  Description:
+      #     This function takes a given platform (threat) and propagates its location to a future point in time.
+      #     The method of propagation uses the position, velocity, and accleration in the WCS coordinate frame, 
+      #     subtract out  the downward component of acceleration. This threat is then propagated by a delta_t forward,
+      #     using x = x_0 + v_0*t + (1/2)*(t^2)*a_0 for propagation. This propagation method manually forces altitude 
+      #     to remain constant as we currently cannot predict change in altitude easily (things often go into the Earth).
+      #     This propagation method uses an assumed heading rate to try and propagate threats in a curved manner towards
+      #     a target, where the target is the PLATFORM running this processor. This gives a better estimate than a 
+      #     straight line propagation. If the trajectory has been previously computed, the function attempts to locate 
+      #     a previously computed state history for the threat: this saves signifant computation time. This can be 
+      #     disabled if desired, by setting the alreadyHaveTrajectory to false. 
+      #
+      #  Inputs:
+      #     plat: The threat platform, of type WsfPlatform, that will be propagated.
+      #     forward_time: the time in which the function will propagate to (within delta_t)
+      #
+      #  Outputs:
+      #     threatTrajectory: returns a script_structure of type threatTrajectory, containing information about the 
+      #        end state of the trajectory, and desired components. Definition further above in file.
+      #
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      #####################################################################################################################
+      
+      WsfPlatform tempPlat = plat;
+      Vec3 originalThreatVelocityNED = tempPlat.VelocityNED();
+      Vec3 originalThreatVelocityWCS = tempPlat.VelocityWCS();
+      double originialThreatAltitudeAGL = tempPlat.Altitude();
+      Vec3 endLocationVec = PLATFORM.LocationWCS();
+      WsfGeoPoint endPlatLocation = WsfGeoPoint();
+      endPlatLocation.SetWCS(endLocationVec);
+      
+      
+   	   Vec3 plat_accWCS = plat.AccelerationWCS();
+      Vec3 plat_accNED = plat.AccelerationNED();
+      double yawAngle = plat.OrientationNED().X();
+      double northAccel = plat_accNED.X();
+      double eastAccel = plat_accNED.Y(); 
+      # Check if we need to remove downard component of acceleration
+      if ( plat_accNED[2] > 0.1 || plat_accNED[2] < -0.1 )
+      {
+         double accelDown = plat_accNED.Z(); # Get Z componenet
+         Vec3 downVec = plat.LocationWCS(); # Get location w.r.t. 0,0,0
+         double downMag = downVec.Magnitude(); # Get vector magnitude
+         if (downMag!=0)
+         {
+         downVec.Scale(-1.0/downMag); # Get unit vector (inverted because down and +Z in WCS are backwards)
+         downVec.Scale(accelDown); # Scale by total accelaration downward
+         }
+         Vec3 lateral_heading_Accel = Vec3().Subtract(plat_accWCS,downVec); # Subtract out the NED down component from WCS frame via the unit vector
+         plat_accWCS = lateral_heading_Accel; # re-establish platform acceleartion in WCS
+      }        
+      
+      #plat_accWCS = Vec3.Construct(0,0,0);  
+      
+      ### Establish a bunch of intitial values
+      double original_plat_heading = plat.Heading();
+      double original_plat_relative_heading = plat.RelativeBearingTo(endPlatLocation);
+      double plat_relative_heading = plat.RelativeBearingTo(endPlatLocation);
+      double myNewTrueBearing = 0;
+      double myOldTrueBearing = 0;
+      double deltaBearingFromDeltaPosition = 0;
+      Vec3 plat_vel = plat.VelocityWCS();
+      Vec3 plat_location = plat.LocationWCS();
+      double old_time = 0;
+      double new_time = 0;
+      double newX = 0;
+      double newY= 0;
+      double newZ = 0;
+      double accel_to_apply_NED = 0;
+      double myNewRelativeHeading = 0;
+      double northVel, eastVel;
+      double X = plat_location.X();
+      double Y = plat_location.Y();
+      double Z = plat_location.Z();  
+      double Xdot = plat_vel.X();
+      double Ydot = plat_vel.Y();
+      double Zdot = plat_vel.Z();  
+      Vec3 WCSUnitVector = Vec3.Construct(0,0,0); 
+      bool onCorrectHeading = false;
+      Vec3 temp_end_loc = Vec3();
+      WsfGeoPoint temp_end_location = WsfGeoPoint();
+      myNewRelativeHeading = original_plat_relative_heading; 
+      Vec3 previousVelocityVectorWCS = originalThreatVelocityWCS;
+      Vec3 myNewVecLocation = Vec3();
+      bool threatReachedCloseApproach = false;
+      double timeKey;
+      OutmatchThreatTrajectory threatTrajectoryEntry = OutmatchThreatTrajectory();
+      string keyEntry = "";
+      bool alreadyHaveTrajectory = false;
+      
+      #### Inputs:
+      if (headingRate<=0)
+      {
+         headingRate = heading_rate_default; # deg/s  # This establishes the rate at which a threat will turn
+      }
+      
+      double delta_t = 1; # Frequency at which we integrate the trajectory
+      
+      # Find the largest possible key for a given foward time 
+      for(int i=0;i<forward_time; i=i+delta_t)
+      {
+         timeKey = TIME_NOW*100000 + i; # Get the time component of the key
+         keyEntry = plat.Name()+"_"+ (string)(int)(timeKey); # Build the key for indexing
+      }
+      
+      # Check to see if this trajectory state was previously saved off. If so, get it and set alreadyHaveTrajectory to true. 
+      if (myThreatTrajectory.Get(keyEntry))
+      {
+         threatTrajectoryEntry = myThreatTrajectory.Get(keyEntry);
+         X =  threatTrajectoryEntry.X;
+         Y =  threatTrajectoryEntry.Y;
+         Z =  threatTrajectoryEntry.Z;
+         Xdot =  threatTrajectoryEntry.Xdot;
+         Ydot =  threatTrajectoryEntry.Ydot;
+         Zdot =  threatTrajectoryEntry.Zdot;
+         onCorrectHeading = threatTrajectoryEntry.onCorrectHeading;
+         myNewRelativeHeading = threatTrajectoryEntry.myNewRelativeHeading;
+         alreadyHaveTrajectory = true;
+      }
+         
+      ### Start propagating forward in time.
+      for(int i=0;i<forward_time; i=i+delta_t)
+      {
+         # Check if the traejctory exists first. If so, don't execute iteration. 
+         if (alreadyHaveTrajectory)
+         {
+            break;
+         }
+         
+         timeKey = TIME_NOW*100000 + i; # Get the time component of the key
+         keyEntry = plat.Name()+"_"+ (string)(int)(timeKey); # Build the key for indexing
+         new_time = i;
+         
+         #######################################################################################################################################
+   #         ### Compute the yaw angle for getting NED components of velocity and acceleration. NOT CURRENTLY USED. SAVE FOR FUTURE ITERATIONS.         
+   #         yawAngle = tempPlat.OrientationNED().X() + (original_plat_relative_heading - myNewRelativeHeading);  # Get the current yaw angle in NED
+   #         
+   #         ### Compute the body frame components of acceleration, using xhat (out the nose) and yhat (out the left wing) 
+   #         double xhat = tempPlat.AccelerationNED().Y()*Math.Cos(90-yawAngle) + tempPlat.AccelerationNED().X()*Math.Sin(90-yawAngle);  # Heading component of acceleration
+   #         double yhat = -1*tempPlat.AccelerationNED().Y()*Math.Sin(90-yawAngle) + tempPlat.AccelerationNED().X()*Math.Cos(90-yawAngle); # "Left" side body frame acceleration.
+   #         northAccel = yhat*Math.Cos(90-yawAngle) + xhat*Math.Sin(90-yawAngle); # xhat component is zero:  xhat*sin(90-psi)
+   #         eastAccel = -yhat*Math.Sin(90-yawAngle) + xhat*Math.Cos(90-yawAngle) + 9.81*2; # xhat component is zero:  xhat*cos(90-psi)
+   #         
+   #         ### Compute the body frame components of velocity, using xhat (out the nose) and yhat (out the left wing)
+   #         xhat = tempPlat.VelocityNED().Y()*Math.Cos(90-yawAngle) + tempPlat.VelocityNED().X()*Math.Sin(90-yawAngle);  # Heading component of acceleration
+   #         yhat = -1*tempPlat.VelocityNED().Y()*Math.Sin(90-yawAngle) + tempPlat.VelocityNED().X()*Math.Cos(90-yawAngle); # "Left" side body frame acceleration.
+   #         northVel= yhat*Math.Cos(90-yawAngle) + xhat*Math.Sin(90-yawAngle); # xhat component is zero:  xhat*sin(90-psi)
+   #         eastVel = -yhat*Math.Sin(90-yawAngle) + xhat*Math.Cos(90-yawAngle) + 9.81*2; # xhat component is zero:  xhat*cos(90-psi)
+         #######################################################################################################################################
+         
+         ### Lower the heading rate if we are converging on the correct relative heading.
+         if (myNewRelativeHeading<5 && myNewRelativeHeading>-5)
+         {
+            headingRate = 0.1;
+         }
+         ### Simulate the threat rotating in the direction towards target
+         if(myNewRelativeHeading>0.1  && !onCorrectHeading )
+         {
+            #myNewRelativeHeading = myNewRelativeHeading - Math.Fabs(Vec3.AngleWith(previousVelocityVectorWCS,tempPlat.VelocityWCS()));
+            tempPlat.SetHeading(original_plat_heading + (original_plat_relative_heading - myNewRelativeHeading));
+         }
+         else if(myNewRelativeHeading<-0.1 && !onCorrectHeading)
+         {
+            #myNewRelativeHeading = myNewRelativeHeading + Math.Fabs(Vec3.AngleWith(previousVelocityVectorWCS,tempPlat.VelocityWCS()));
+            tempPlat.SetHeading(original_plat_heading + (original_plat_relative_heading - myNewRelativeHeading));
+         }
+         
+         # Establish the previous velocity vector in WCS before we modify it
+         previousVelocityVectorWCS = tempPlat.VelocityWCS();
+         
+         # Establish my new location
+         WsfGeoPoint myNewGeoLocation = WsfGeoPoint();
+         myNewVecLocation.SetX(X);
+         myNewVecLocation.SetY(Y);
+         myNewVecLocation.SetZ(Z);
+         myNewGeoLocation.SetWCS(myNewVecLocation);
+         
+         # Your position has changed, so find what your new true bearing is. This adds a delta component to heading. 
+         myNewTrueBearing = myNewGeoLocation.TrueBearingTo(endPlatLocation);
+         if (i==0){myOldTrueBearing=myNewTrueBearing;} # If we happen to be on the first iteration, set myOldTrueBearing to newTrueBearing. 
+         deltaBearingFromDeltaPosition = myNewTrueBearing - myOldTrueBearing;
+         myNewRelativeHeading = myNewRelativeHeading - deltaBearingFromDeltaPosition;
+         
+         # Check that the threat is not orientated at the target, yet.
+         if((tempPlat.RelativeBearingTo(endPlatLocation))>0.1  && !onCorrectHeading)
+         {
+            # With the new heading set, establish a velocity in body frame.            
+            tempPlat.SetVelocityECS(originalThreatVelocityNED.Magnitude(),0,0);
+            myNewRelativeHeading = myNewRelativeHeading - delta_t*headingRate;  # Update the heading for use in next iteration
+   
+         }
+         else if((tempPlat.RelativeBearingTo(endPlatLocation))<-0.1  && !onCorrectHeading) # Check that the threat is not orientated at the target, yet.
+         {
+            # With the new heading set, establish a velocity in body frame.  
+            tempPlat.SetVelocityECS(originalThreatVelocityNED.Magnitude(),0,0);
+            myNewRelativeHeading = myNewRelativeHeading + delta_t*headingRate;  # Update the heading for use in next iteration
+         }
+         #}
+         else # We are oriented within one degree now
+         {
+            onCorrectHeading = true;
+            accel_to_apply_NED = 0;
+            #tempPlat.SetVelocityECS(xhat,yhat+accel_to_apply_NED*delta_t,tempPlat.VelocityNED().Z());
+            
+            Vec3 deltaVelVector = Vec3.Subtract(Vec3.Construct(X,Y,Z),endLocationVec);
+            double deltaVectorMag = deltaVelVector.Magnitude();
+            if (deltaVectorMag!=0)
+            {
+            deltaVelVector.Scale(1/deltaVectorMag);
+            deltaVelVector.Scale(tempPlat.VelocityNED().Magnitude());
+            }
+            # Set the heading and velocity to be be on the "truth" towards our target
+            #tempPlat.SetHeading(original_plat_heading + (original_plat_relative_heading));
+            double relative_bearing_correction = original_plat_heading + (original_plat_relative_heading) - myNewGeoLocation.TrueBearingTo(endPlatLocation);
+            #tempPlat.SetHeading(original_plat_heading + (original_plat_relative_heading) + relative_bearing_correction);
+            
+            if (myNewGeoLocation.GroundRangeTo(endPlatLocation) < 5000 && !threatReachedCloseApproach)
+            {
+               threatReachedCloseApproach = true;
+            }
+            else if (myNewGeoLocation.GroundRangeTo(endPlatLocation) > 5500 && !threatReachedCloseApproach)
+            {
+               tempPlat.SetHeading(myNewGeoLocation.TrueBearingTo(endPlatLocation));
+            }
+            
+            tempPlat.SetVelocityECS(deltaVelVector.Magnitude(),0,0);
+         }
+         plat_location = tempPlat.LocationWCS();
+         plat_vel = tempPlat.VelocityWCS();
+         Vec3 deltaAccelVector = Vec3.Subtract(plat_location,endLocationVec);
+         double deltaVectorMag = deltaAccelVector.Magnitude();
+         if (deltaVectorMag!=0)
+         {
+         deltaAccelVector.Scale(-1.0/deltaVectorMag);
+         deltaAccelVector.Scale(plat_accWCS.Magnitude());
+         }
+         #writeln("myNewRelativeHeading: ", myNewRelativeHeading);
+   
+         # If on the correct heading, propagate with no accelaration 
+         if (onCorrectHeading)
+         {
+            X =  X + plat_vel.X() * delta_t + 0;
+            Y =  Y + plat_vel.Y() * delta_t + 0;
+            Z =  Z + plat_vel.Z() * delta_t + 0;
+         }
+         else # If not on the correct heading, propagate with accelaration 
+         {
+            X =  X + plat_vel.X() * delta_t + plat_accWCS.X() * delta_t * delta_t / 2;
+            Y =  Y + plat_vel.Y() * delta_t + plat_accWCS.Y() * delta_t * delta_t / 2;
+            Z =  Z + plat_vel.Z() * delta_t + plat_accWCS.Z() * delta_t * delta_t / 2;
+         }
+         myOldTrueBearing = myNewTrueBearing;
+         old_time = new_time; # Set old time for iteration       
+         temp_end_loc.SetX(X); # Establish the new X point
+         temp_end_loc.SetY(Y); # Establish the new Y point
+         temp_end_loc.SetZ(Z); # Establish the new Z point
+         temp_end_location.SetWCS(temp_end_loc); # Establish the GeoPoint
+         temp_end_location.SetAltitudeAGL(originialThreatAltitudeAGL); # Keep altitude the same
+         
+         # Set X,Y,Z again to correct for altitude
+         X = temp_end_location.X();
+         Y = temp_end_location.Y();
+         Z = temp_end_location.Z();
+         
+         # Store off the trajectory for later use
+         threatTrajectoryEntry = OutmatchThreatTrajectory();
+         threatTrajectoryEntry.X = X;
+         threatTrajectoryEntry.Y = Y;
+         threatTrajectoryEntry.Z = Z;
+         threatTrajectoryEntry.Xdot = plat_vel.X();
+         threatTrajectoryEntry.Ydot = plat_vel.Y();
+         threatTrajectoryEntry.Zdot = plat_vel.Z();
+         threatTrajectoryEntry.onCorrectHeading = onCorrectHeading;
+         threatTrajectoryEntry.myNewRelativeHeading = myNewRelativeHeading;
+         
+         # Store the trajectory in the map
+         myThreatTrajectory.Set(keyEntry,threatTrajectoryEntry);
+         
+         #writeln("This is my position: ",temp_end_location.Latitude(),",",temp_end_location.Longitude());
+   #         if (PLATFORM.Name().Contains("Group4_std"))
+   #         { 
+   #         ###############################
+   #         ### Draw Intercept Location ###
+   #         WsfDraw dr2 = WsfDraw();
+   #         dr2.SetDuration(5);
+   #         dr2.SetColor(255,192,203);
+   #         dr2.SetPointSize(2);
+   #         dr2.BeginPoints();
+   #         dr2.Vertex(temp_end_location);
+   #         dr2.End();
+   #         ###############################
+   #         }
+      }
+      
+      # Set the final WCS location
+      Vec3 end_loc = Vec3();
+      end_loc.SetX(X);
+      end_loc.SetY(Y);
+      end_loc.SetZ(Z);
+      WsfGeoPoint end_location = WsfGeoPoint();
+      end_location.Set(end_loc);
+      Vec3 end_vel = Vec3();
+      end_vel.SetX(plat_vel.X());
+      end_vel.SetY(plat_vel.Y());
+      end_vel.SetZ(plat_vel.Z());
+      
+      end_location.SetWCS(end_loc);
+      end_location.SetAltitudeAGL(originialThreatAltitudeAGL);  # Set the alititude to be what it was previously
+      
+      # Reset platform back to its original state
+      tempPlat.SetVelocityNED(originalThreatVelocityNED.X(),originalThreatVelocityNED.Y(),originalThreatVelocityNED.Z());
+      tempPlat.SetHeading(original_plat_heading);
+      
+      # Return the latest threatTrajectoryEntry giving the final desired state history.
+      return threatTrajectoryEntry;
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+   end_script
+   
+   script OutmatchThreatTrajectory multi_threat_track_propagator(WsfPlatform plat, double forward_time, string propagation_type)
+      #####################################################################################################################
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      ### Propagate threat trajectory to a future point in time, towards a give target.
+      # Created on: 5/2/2022  by: Ryan Fisher
+      #     
+      #  Description:
+      #     This function acts as the wrapper to route the target platform and desired intercept time to a specified
+      #     propagator. The method of propagation can be selected by the user. If the propagation method is not identified,
+      #     the function will report an error to the user. 
+      #
+      #  Inputs:
+      #     plat: The threat platform, of type WsfPlatform, that will be propagated.
+      #     forward_time: the time in which the function will propagate to (within delta_t)
+      #     propagation_type: the method of propagation for the threat; see individual method calls for functionality
+      #        Available propagation methods: 
+      #           - ballistic : propagates threat ballistically using the targets position, 
+      #                         velocity, accelearion (generally gravity)
+      #           - constant_altitude_curved : propagates threat using a constant altitude 
+      #                                        assumption towards the launcher (the assumed defended asset) 
+      #                                        in a curved manner using a fixed yaw rate
+      #           - constant_altitude : propagates threat using a constant altitude assumption
+      #
+      #  Outputs:
+      #     threatTrajectory: returns a script_structure of type threatTrajectory, containing information about the 
+      #        end state of the trajectory, and desired components. Definition further above in file.
+      #
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      #####################################################################################################################
+      OutmatchThreatTrajectory outThreatTrajectoryEntry = OutmatchThreatTrajectory();
+      propagation_type = propagation_type.Lower();
+      if (propagation_type.Contains("ballistic"))
+      {
+         WsfGeoPoint end_location = plat_future_location(plat, forward_time);  
+         outThreatTrajectoryEntry.X = end_location.X();
+         outThreatTrajectoryEntry.Y = end_location.Y();
+         outThreatTrajectoryEntry.Z = end_location.Z();
+         outThreatTrajectoryEntry.Xdot = -999999.0;
+         outThreatTrajectoryEntry.Ydot = -999999.0;
+         outThreatTrajectoryEntry.Zdot = -999999.0;
+         outThreatTrajectoryEntry.onCorrectHeading = false;
+         outThreatTrajectoryEntry.myNewRelativeHeading = -999999.0;  
+      }
+      else if (propagation_type.Contains("constant_altitude_curved"))
+      {
+         outThreatTrajectoryEntry = plat_future_location_const_alt_curved(plat, forward_time, heading_rate);  
+      }
+      else if (propagation_type.Contains("constant_altitude"))
+      {
+         WsfGeoPoint end_location = plat_future_location_const_alt(plat, forward_time);
+         outThreatTrajectoryEntry.X = end_location.X();
+         outThreatTrajectoryEntry.Y = end_location.Y();
+         outThreatTrajectoryEntry.Z = end_location.Z();
+         outThreatTrajectoryEntry.Xdot = -999999.0;
+         outThreatTrajectoryEntry.Ydot = -999999.0;
+         outThreatTrajectoryEntry.Zdot = -999999.0;
+         outThreatTrajectoryEntry.onCorrectHeading = false;
+         outThreatTrajectoryEntry.myNewRelativeHeading = -999999.0;  
+      }
+      else
+      {
+         writeln_error("****ERROR: There was an issue in determining the propagation method in function: multi_threat_track_propagator \n",
+         " The following method does not exist: ",propagation_type);
+      }
+      #********************************************************************************************
+      # DO NOT DIRECTLY MODIFY FUNCTION WITHOUT CONSENT OF CREATORS
+      # --> If modifications desired, copy function, rename, and mark appropriately.
+      #********************************************************************************************
+      return outThreatTrajectoryEntry;
+   end_script
+
+end_processor

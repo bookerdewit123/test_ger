@@ -1,0 +1,150 @@
+
+#include_once utils/spawningScript.txt
+include_once routes/routes.txt
+
+
+script_variables
+
+   ##########################################
+   # E2D Locations
+   ##########################################
+   # Made up locations, an attempt to optimize coverage
+   string e2dSpawnLocations = "43:45n 121:00w 0 m";
+
+   ##########################################
+   # Fighter CAP Locations
+   ##########################################
+   # Made up locations
+   
+   Array<string> fighterFlightSpawnLocations = {
+   
+      # Back fighters
+      "44:30n 122:00w 0 m",
+      "43:20n 120:00w 0 m",
+   };
+   
+   # OCA Fighters (optional OCA flag in startup.txt)
+   Array<string> ocaFighterFlightSpawnLocations = {
+      "43:15n 124:00w 35000 ft",
+      "42:25n 123:20w 35000 ft",
+      "43:15n 124:10w 35000 ft",
+      "42:35n 123:20w 35000 ft",
+      "43:15n 123:50w 35000 ft",
+      "42:15n 123:20w 35000 ft",
+      
+      "43:25n 124:00w 35000 ft",
+      "42:25n 123:10w 35000 ft",
+      "43:25n 124:10w 35000 ft",
+      "42:35n 123:10w 35000 ft",
+      "43:25n 123:50w 35000 ft",
+      "42:15n 123:10w 35000 ft",
+   };
+   
+   # OCA Fighters (optional OCA flag in startup.txt)
+   # Spawned in reload.txt
+   Array<string> ocaDroneSpawnLocations = {
+      "42:25n 124:00w 5000 ft",
+      "42:25n 122:00w 5000 ft",
+      "42:25n 123:00w 5000 ft",
+      "42:35n 124:00w 5000 ft",
+      "42:35n 122:00w 5000 ft",
+      "42:35n 123:00w 5000 ft",
+   };
+   
+   # Fighter CAP Headings  
+   Array<double> fighterCAPHeading = {-20, -60};
+   Array<double> ocaFighterCAPHeading = {
+      -20, -60, -20, -60, -20, -60,
+      -20, -60, -20, -60, -20, -60};
+   
+   ##########################################
+   # Initialize variables
+   ##########################################
+   int numBlueIADS = 0;
+   int numE2D = $<NUM_E2D: 0>$;
+   Map<string,double> mapFighterHeading = Map<string,double>();
+   
+end_script_variables
+
+#execute at_time 30 nanosecond absolute 
+#   
+#   if ("$<E2D:NO>$" != "YES") return;
+#   
+#   ################################
+#   # E2D
+#   ################################
+#   # Primary Role: Early Warning & Cueing
+#   # Random location, but not too close to other E2D
+#   WsfGeoPoint loc = WsfGeoPoint.Construct(e2dSpawnLocations);
+#   loc.SetAltitudeAGL(25000*MATH.M_PER_FT());
+#   
+#   # Create E2D Platform
+#   WsfPlatform  e2d = WsfSimulation.CreatePlatform("E2D");
+#   e2d.SetLocation(loc);
+#   e2d.SetRoute("E2D_CAP");
+#   WsfRoute r = e2d.Route().Copy();
+#   r.Transform(0,0,45);
+#   e2d.SetRoute(r);
+#   e2d = WsfSimulation.AddPlatform(e2d, "");      
+#
+#
+#
+#
+#   ################################
+#   # DCA BLUE FIGHTERS
+#   ################################
+#   # Role: Shooter down missiles
+#   # Create chosen laydown
+#   for (int ii = 0; ii < fighterFlightSpawnLocations.Size(); ii += 1)
+#   {  
+#      
+#      # Each flight has four ac, but is represented by two
+#      for (int jj = 0; jj < 2; jj += 1)
+#      {
+#         # Random location, but not too close to other E2D
+#         WsfGeoPoint loc = WsfGeoPoint.Construct(fighterFlightSpawnLocations[ii]);
+#         loc.SetAltitudeAGL(45000*MATH.M_PER_FT());
+#         loc.Offset(fighterCAPHeading[ii],jj*20*MATH.M_PER_NM(),jj*MATH.M_PER_NM(),0);
+#         
+#         # Create E-2D Platform
+#         WsfPlatform fighter = WsfSimulation.CreatePlatform("BLUE_FIGHTER");
+#         fighter.SetLocation(loc);
+#         fighter.SetHeading(fighterCAPHeading[ii] + 180*jj);
+#         fighter.SetRoute("fighter_cap");
+#         WsfRoute r = fighter.Route().Copy();
+#         fighter.SetRoute(r);
+#         fighter = WsfSimulation.AddPlatform(fighter, ""); 
+#         
+#         fighter.SetCommander(e2d); # CAC Assume 1 E2D
+#         
+#         mapFighterHeading[fighter.Name()] = fighterCAPHeading[ii];
+#      }
+#   }
+#   
+#   if ("$<OCA:NO>$" == "YES") {
+#      ################################
+#      # OCA BLUE FIGHTERS
+#      ################################
+#      # Role: Shooter down Red Fighters
+#      # Create chosen laydown
+#      for (int ii = 0; ii < $<BLUE_OCA_FIGHTER_COUNT:-1>$; ii += 1) {  
+#         
+#         #FIGHTER STUFF
+#         WsfPlatform ocaFighter = WsfSimulation.CreatePlatform("BLUE_FIGHTER_OCA");
+#         WsfGeoPoint ocaFighterSpawnLocation = WsfGeoPoint.Construct(ocaFighterFlightSpawnLocations[ii]);
+#         ocaFighter.SetLocation(ocaFighterSpawnLocation);
+#         ocaFighter.SetHeading(ocaFighterCAPHeading[ii]);
+#      
+#         #ROUTE STUFF
+#         WsfRoute ocaFighterRoute = WsfRoute.CopyGlobal("homeCircuit");
+#         ocaFighterRoute.SetSpeed(ocaFighter.AuxDataDouble("speed") * MATH.MPS_PER_NMPH());
+#         ocaFighterRoute.SetAltitude(ocaFighter.Altitude());
+#         ocaFighter.FollowRoute(ocaFighterRoute);
+#         
+#         #ADD PLATFORM STUFF
+#         ocaFighter = WsfSimulation.AddPlatform(ocaFighter, "");   
+#         ocaFighter.SetCommander(e2d); # CAC Assume 1 E2D
+#      }
+#   }
+#end_execute
+#

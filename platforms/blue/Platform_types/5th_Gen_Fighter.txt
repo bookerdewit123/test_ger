@@ -1,0 +1,42 @@
+include_once sensors/AN_APG-81.txt
+
+# TO DO: Need realistic mover parameters
+platform_type 5thGenFighter BLUE_FIGHTER
+   icon f-35
+   side blue
+   category 5thGenFighter
+
+   route
+      position 53n 14e
+      altitude 25000 feet
+      speed 509 knots
+      heading $<STARTING_HEADING:90>$ degrees
+   end_route
+
+
+
+   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
+   edit weapon aam
+   quantity 0 #TODO: Change back to quantity 
+   end_weapon 
+   
+   sensor AN/APG-81_SMALL AN_MPQ-81_SMALL
+      on
+      internal_link data_mgr
+   end_sensor
+
+   sensor AN/APG-81_MEDIUM AN_MPQ-81_MEDIUM
+      on
+      internal_link data_mgr
+   end_sensor
+
+   sensor AN/APG-81_LARGE AN_MPQ-81_LARGE
+      on
+      internal_link data_mgr
+   end_sensor
+   
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().SMALL; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+
+end_platform_type

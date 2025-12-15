@@ -1,0 +1,1080 @@
+# These are all the functions (so far) for commucnations processor for comms stuff
+
+script_variables
+   Array<string> blueSidePlatforms = Array<string>();
+   Map<string, Array<string>> commandChainList = Map<string, Array<string>>();
+   Map<string, Array<string>> platformComms = Map<string, Array<string>>();
+   Map<string, Array<string>> commList = Map<string, Array<string>>();
+   Map<string, Array<string>> platformSubs = Map<string, Array<string>>();
+   Map<string, Array<string>> platformCommanders = Map<string, Array<string>>();
+   Map<string, Array<string>> platformPeers = Map<string, Array<string>>();
+   Map<string, Map<string, int>> canSendToList = Map<string, Map<string, int>>();
+   bool debugOutput = false;
+end_script_variables
+
+script Array<string> GetAllBluePlatforms()
+      Array<string> plats = Array<string>();
+      int simPlatCount = WsfSimulation.PlatformCount();
+      for(int i=0;i<simPlatCount; i=i+1)
+      {
+         WsfPlatform platRef = WsfSimulation.FindPlatform(i);
+         if(platRef.IsValid())
+         {
+            if(platRef.Side() == "blue")
+            {
+               plats.PushBack(platRef.Name());
+            }
+         }
+      }
+
+   return plats;
+end_script
+
+script int FindStringInArray(string inFindPlatform, Array<string> inPlatforms)
+   int index = -1;
+   int returnVal = -1;
+   foreach(string plat in inPlatforms)
+   {
+      index = index + 1;
+      if(plat == inFindPlatform)
+      {
+         returnVal = index;
+         return returnVal;
+      }
+   }
+   
+   return returnVal;
+end_script
+
+script string GetNextStringInArray(string inFindPlatform, Array<string> inPlatforms)
+   bool stop = false;
+   foreach(string plat in inPlatforms)
+   {
+      if(stop == true)
+      {
+         return plat;
+      }
+   
+      if(plat == inFindPlatform)
+      {
+         stop = true;
+      }
+   }
+   
+   return "";
+end_script
+
+script Array<string> GetAllSubs(WsfPlatform inPlatform)
+   WsfPlatformList subList = inPlatform.Subordinates();
+   Array<string> subs = Array<string>();
+   
+   if(subList.Count() > 0)
+   {
+      foreach(WsfPlatform sub in subList)
+      {  
+         if(sub.IsValid())
+         {       
+            subs.PushBack(sub.Name());
+            Array<string> tempList = GetAllSubs(sub);
+            foreach(string temp in tempList)
+            {
+               subs.PushBack(temp);
+            }
+         }
+      }
+   }
+   
+   return subs;
+end_script
+
+script Array<string> GetAllPeers(WsfPlatform inPlatform)
+   WsfPlatformList peerList = inPlatform.Peers();
+   Array<string> peers = Array<string>();
+   
+   if(peerList.Count() > 0)
+   {
+      foreach(WsfPlatform peer in peerList)
+      {  
+         if(peer.IsValid())
+         {       
+            peers.PushBack(peer.Name());
+         }
+      }
+   }
+   
+   return peers;
+end_script
+
+script Array<string> GetAllCommanders(WsfPlatform inPlatform)
+   WsfPlatform commander = inPlatform.Commander();
+   WsfPlatform prevCommander = inPlatform;
+   Array<string> commanders = Array<string>();
+   
+   commanders.PushBack(commander.Name());
+   prevCommander = commander;
+   commander = commander.Commander();
+
+   while(commander.IsValid() && commander != prevCommander)
+   {
+      commanders.PushBack(commander.Name());
+      prevCommander = commander;
+      commander = commander.Commander();
+   }
+   
+   return commanders;
+end_script
+
+script bool GetPlatformIsSub(WsfPlatform inSelf, WsfPlatform inFindPlatform)
+   Array<string> subList = platformSubs.Get(inSelf.Name());
+
+   foreach(string sub in subList)
+   {
+      if(sub == inFindPlatform.Name())
+      {
+         return true;
+      }
+   }
+   
+   return false;
+end_script
+
+script bool GetPlatformIsPeer(WsfPlatform inSelf, WsfPlatform inFindPlatform)
+   foreach(WsfPlatform peer in inSelf.Peers())
+   {
+      if(peer.IsValid())
+      {
+         if(peer == inFindPlatform)
+         {
+            return true;
+         }
+      }
+   }
+   
+   return false;
+end_script
+
+script bool GetPlatformIsACommander(WsfPlatform inSelf, WsfPlatform inFindPlatform)
+   Array<string> commanderList = platformCommanders.Get(inSelf.Name());
+
+   foreach(string commander in commanderList)
+   {
+      if(commander == inFindPlatform.Name())
+      {
+         return true;
+      }
+   }
+   
+   return false;
+end_script
+
+script Array<string> GetPlatformIsSameChain(WsfPlatform inSelf, WsfPlatform inFindPlatform)
+   int chainCount = commandChainList.Size();
+   Array<string> chains = Array<string>();
+
+   for(int c=0;c<chainCount;c=c+1)
+   {
+      int plat1 = false;
+      int plat2 = false;
+      
+      string key = (string)commandChainList.ElementKeyAtIndex(c);
+      Array<string> platsInChain = commandChainList.Get(key);
+      
+      plat1 = FindStringInArray(inSelf.Name(), platsInChain);
+      plat2 = FindStringInArray(inFindPlatform.Name(), platsInChain);
+      
+      if(plat1 > -1 && plat2 > -1)
+      {
+         chains.PushBack(key);
+      }
+   }
+   
+   return chains;
+end_script
+
+script bool GetPlatformHasSameCommander(WsfPlatform inSelf, WsfPlatform inFindPlatform)
+   Array<string> commanders1 = platformCommanders.Get(inSelf.Name());
+   Array<string> commanders2 = platformCommanders.Get(inFindPlatform.Name());
+
+   if(commanders1.IsValid() && commanders2.IsValid())
+   {
+      if(commanders1.Size() > 0 && commanders2.Size() > 0)
+      {
+         foreach(string commander1 in commanders1)
+         {
+            foreach(string commander2 in commanders2)
+            {
+               if(commander1 == commander2)
+               {
+                  return true;
+               }
+            }
+         }
+      }
+   }
+   
+   return false;
+end_script
+
+script string GetPossibleCommLinkForMessage(WsfPlatform inSender, WsfPlatform inRecipient)
+   string possibleComm = "";
+   
+   if(inRecipient.IsValid() && inSender.IsValid())
+   {
+      Array<string> senderComms = platformComms.Get(inSender.Name());
+      Array<string> recipientComms = platformComms.Get(inRecipient.Name());
+        
+      if(senderComms.IsValid() && recipientComms.IsValid())
+      {
+         foreach(string commName in senderComms)
+         {
+            WsfComm senderComm = inSender.Comm(commName);
+            WsfComm recipientComm = inRecipient.Comm(commName);
+            if(recipientComm.IsValid() && senderComm.IsValid())
+            {
+               if(senderComm.CanSendTo(recipientComm) == true) ##&& inSender.Comm(commName).IsConnectedTo(inRecipient.Comm(commName).GetAddress()) == true)
+               {
+                  if(senderComm.IsConnectedTo(recipientComm.GetAddress()) == true)
+                  {                     
+                     possibleComm = commName;
+                     break;
+                  }
+               
+                  else
+                  {
+                     bool added = senderComm.AddConnection(recipientComm.GetAddress());
+                     if(added == true)
+                     {
+                        bool enabled = senderComm.IsConnectionEnabled(recipientComm.GetAddress());
+                        if(enabled == false)
+                        {
+                           bool haveEnabled = senderComm.EnableConnection(recipientComm.GetAddress());
+                           if(haveEnabled == true)
+                           {
+                              possibleComm = commName;
+                              break;
+                           }
+                        }
+                        else
+                        {
+                           possibleComm = commName;
+                           break;
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+   return possibleComm;
+end_script
+
+script bool CheckCurrentRouteIsValid(Array<string> inRoute)
+   int routeCount = inRoute.Size();
+   WsfPlatform currentPlatform;
+   int index = -1;
+   foreach(string platName in inRoute)
+   {
+      index = index + 1;
+      
+      if(index == routeCount - 1)
+      {
+         return true;
+      }
+      else
+      {
+         currentPlatform = WsfSimulation.FindPlatform(platName);
+         WsfPlatform nextPlatform = WsfSimulation.FindPlatform(inRoute.Get(index + 1));
+         if(currentPlatform.IsValid() && nextPlatform.IsValid())
+         {
+            if(GetPossibleCommLinkForMessage(currentPlatform,nextPlatform) == "")
+            {
+               return false;
+            }
+         }
+         else
+         {
+            return false;
+         }
+      }
+   }
+   
+   return false;
+end_script
+
+script Array<string> GetPlatformsCanSendToWithinList(WsfPlatform inSender, Array<string> inPlatforms)
+   Array<string> platsThatSenderCanSendTo = Array<string>();
+   foreach(string platName in inPlatforms)
+   {
+      WsfPlatform PlatRef = WsfSimulation.FindPlatform(platName);
+      if(PlatRef.IsValid())
+      {
+         if(PlatRef != inSender)
+         {
+            if(GetPossibleCommLinkForMessage(inSender, PlatRef) != "")
+            {
+               platsThatSenderCanSendTo.PushBack(platName);
+            }
+         }
+      }
+   }
+   return platsThatSenderCanSendTo;
+end_script
+
+script Array<string> GetToCommanderRoute(WsfPlatform inSub, WsfPlatform inCommander)
+   bool done = false;
+   bool foundPath = false;
+   Array<string> route = Array<string>();
+   route.PushBack(inSub.Name());
+   
+   WsfPlatform upPlatform = inSub.Commander();
+   if(upPlatform.IsValid())
+   {
+      if(upPlatform == inCommander)
+      {
+         string commName = GetPossibleCommLinkForMessage(inSub, inCommander);
+         if(commName != "")
+         {
+            route.PushBack(inCommander.Name());
+            return route;
+         }
+      }
+      
+      WsfPlatform previousPlatform = inSub;
+      upPlatform = previousPlatform.Commander();
+      
+      while(done == false && foundPath == false)
+      {
+         if(upPlatform.IsValid())
+         {
+            if(upPlatform != previousPlatform)
+            {
+               if(upPlatform == inCommander)
+               {
+                  #writeln("FOUND COMMANDER, ROUTE STOPS HERE!");
+                  string commName = GetPossibleCommLinkForMessage(previousPlatform, upPlatform);
+                  if(commName != "")
+                  {
+                     route.PushBack(upPlatform.Name());
+                     foundPath = true;
+                     done = true;
+                  }
+                  else
+                  {
+                     foundPath = false;
+                     done = true;
+                  }
+               }
+               else
+               {
+                  string commName = GetPossibleCommLinkForMessage(previousPlatform, upPlatform);
+                  if(commName != "")
+                  {
+                     route.PushBack(upPlatform.Name());
+                     previousPlatform = upPlatform;
+                     upPlatform = previousPlatform.Commander();
+                  }
+                  else
+                  {
+                     done = true;
+                  }
+               }
+            }
+            else
+            {
+               done = true;
+            }
+         }
+         else
+         {
+            done = true;
+         }
+      }
+
+      if(foundPath == false)
+      {
+         route.Clear();
+         # Find another way besides down the chain
+         #writeln("CANT FIND DIRECT CHAIN PATH FROM SUB TO COMMANDER, SEEING IF WE CAN FIND DIFFERENT PATH!");
+         return route;
+      }
+      else
+      {
+         return route;
+      } 
+   }
+   
+   else
+   {
+      route.Clear();
+      return route;
+   }
+end_script
+
+script Array<string> GetNextPlatformInRoute(WsfPlatform inSender, WsfPlatform inRecipient, Array<string> inPlatforms)
+   Array<string> tempRoute = Array<string>();
+   Array<string> newPlatformList = inPlatforms;
+   #Array<string> newPlatformList = Array<string>();
+   
+   string commName = GetPossibleCommLinkForMessage(inSender, inRecipient);
+   if(commName != "")
+   {
+      tempRoute.PushBack(inSender.Name());
+      tempRoute.PushBack(inRecipient.Name());
+      return tempRoute;
+   }
+   
+#   foreach(string add in inPlatforms)
+#   {
+#      newPlatformList.PushBack(add);
+#   }
+   
+   Array<string> platsThatSenderCanSendTo = GetPlatformsCanSendToWithinList(inSender,inPlatforms); 
+   
+   foreach(string canSendTo in platsThatSenderCanSendTo)
+   {
+      newPlatformList.Erase(canSendTo);
+   }
+   
+   tempRoute.PushBack(inSender.Name());
+   
+   if(platsThatSenderCanSendTo.Size() > 0)
+   {
+      foreach(string platName in platsThatSenderCanSendTo)
+      {  
+         WsfPlatform platRef = WsfSimulation.FindPlatform(platName);
+         if(platRef.IsValid())
+         { 
+            if(newPlatformList.Size() > 0)
+            { 
+               Array<string> tempRoute2 = GetNextPlatformInRoute(platRef, inRecipient, newPlatformList);
+               if(FindStringInArray(inRecipient.Name(), tempRoute2) > -1)
+               {
+                  foreach(string newPlatName in tempRoute2)
+                  {
+                     tempRoute.PushBack(newPlatName);
+                  }
+                  return tempRoute;
+               }
+            }
+         }
+      }
+   }
+   
+   tempRoute.Clear();
+   return tempRoute;
+end_script
+
+script Array<string> FindNextLevel(Map<int, Array<string>> inRoutes, string inRecipient, Array<string> inPlatformList)
+	Array<string> newPlatformList = inPlatformList;
+	Map<int, Array<string>> newRoutes = Map<int, Array<string>>();
+	
+   if(newPlatformList.Size() > 0)
+   {
+   	int routeSize = inRoutes.Size();
+      if(routeSize > 0)
+      {
+      	for(int i=0;i<routeSize;i=i+1)
+      	{
+            int key = (int)inRoutes.ElementKeyAtIndex(i);
+      		Array<string> currentRoute = (Array<string>)inRoutes.Get(key);
+      		string lastPlatInRoute = currentRoute.Get(currentRoute.Size()-1);
+            WsfPlatform lastPlatInRoutePlatRef = WsfSimulation.FindPlatform(lastPlatInRoute);
+         
+            if(lastPlatInRoutePlatRef.IsValid())
+            {
+         		Array<string> platsThatSenderCanSendTo = GetPlatformsCanSendToWithinList(lastPlatInRoutePlatRef,newPlatformList);
+         		foreach(string canSendTo in platsThatSenderCanSendTo)
+         	   {
+         			if(canSendTo == inRecipient)
+         			{
+                     Array<string> tempRoute = Array<string>();
+                     foreach(string platInRoute in (Array<string>)inRoutes.Get(key))
+                     {
+                        tempRoute.PushBack(platInRoute);
+                     }
+               
+         				tempRoute.PushBack(canSendTo);
+         				return tempRoute;
+         			}
+         			else
+         			{
+                     Array<string> tempRoute = Array<string>();
+                     foreach(string platInRoute in (Array<string>)inRoutes.Get(key))
+                     {
+                        tempRoute.PushBack(platInRoute);
+                     }
+         				newPlatformList.Erase(canSendTo);
+         				tempRoute.PushBack(canSendTo);
+         				newRoutes.Set(newRoutes.Size() + 1,tempRoute);
+         			}
+         		}
+            }
+      	}
+      
+   		if(newPlatformList.Size() > 0)
+         {
+         	Array<string> tempRoutes = FindNextLevel(newRoutes, inRecipient, newPlatformList);
+         	return tempRoutes;
+         }
+         else
+         {
+            Array<string> tempRoutes = Array<string>();
+            return tempRoutes;
+         }
+      }
+   }
+   
+   Array<string> tempRoutes = Array<string>();
+   return tempRoutes;
+end_script
+
+script Array<string> GetBestRoute(WsfPlatform inSender, WsfPlatform inRecipient)
+   #writeln(TIME_NOW, ": ", inSender.Name(), " finding best route for ", inRecipient.Name());
+
+   Array<string> chosenRoute = Array<string>();
+
+	Array<string> allBluePlatforms = Array<string>();
+	foreach(string plat in GetAllBluePlatforms())
+	{
+		allBluePlatforms.PushBack(plat);
+	}
+   allBluePlatforms.Erase(inSender.Name());
+		
+   Map<int, Array<string>> routes = Map<int, Array<string>>();
+		
+	Array<string> platsThatSenderCanSendTo = GetPlatformsCanSendToWithinList(inSender,allBluePlatforms);
+	foreach(string canSendTo in platsThatSenderCanSendTo)
+   {
+		if(canSendTo == inRecipient.Name())
+		{
+			chosenRoute.PushBack(inSender.Name());
+         chosenRoute.PushBack(canSendTo);
+         #writeln("   PATH FROM ", inSender.Name(), " TO ", inRecipient.Name(), " IS:");
+         if(chosenRoute.Size() > 0)
+         {
+            foreach(string path in chosenRoute)
+            {
+               #writeln("      ", path);
+            }
+         }
+         return chosenRoute;
+		}
+		else
+		{
+			allBluePlatforms.Erase(canSendTo);
+			routes.Set(routes.Size() + 1,{inSender.Name(), canSendTo});
+		}
+	}
+		
+	Array<string> tempRoute = FindNextLevel(routes, inRecipient.Name(), allBluePlatforms);
+   if(FindStringInArray(inRecipient.Name(), tempRoute) == -1)
+   {
+      tempRoute.Clear();
+      #writeln("   NO PATH POSSIBLE");
+      return tempRoute;
+   }
+   else
+   {
+      chosenRoute = tempRoute;
+      if ($<IBCS_VERBOSE:true>$) writeln("   PATH FROM ", inSender.Name(), " TO ", inRecipient.Name(), " IS:");
+      if(chosenRoute.Size() > 0)
+      {
+         foreach(string path in chosenRoute)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", path);
+         }
+      }
+      return chosenRoute;
+   }
+end_script
+
+script Array<string> GetAnyRoute(WsfPlatform inSender, WsfPlatform inRecipient)
+   bool done = false;
+   bool foundPath = false;
+   Array<string> route = Array<string>();
+   
+   if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", inSender.Name(), " finding route for ", inRecipient.Name());
+   
+   Array<string> allBluePlatforms = Array<string>();
+   foreach(string plat in GetAllBluePlatforms())
+   {
+      allBluePlatforms.PushBack(plat);
+   }
+   allBluePlatforms.Erase(inRecipient.Name());
+   
+   route.PushBack(inSender.Name());
+   
+   #writeln(TIME_NOW, ": ", inSender.Name(), " finding ANY route for ", inRecipient.Name());
+   Array<string> tempRoute2 = GetNextPlatformInRoute(inSender, inRecipient, allBluePlatforms);
+   if(FindStringInArray(inRecipient.Name(), tempRoute2) == -1)
+   {
+      tempRoute2.Clear();
+   }
+   else
+   {
+      route = tempRoute2;
+      if ($<IBCS_VERBOSE:true>$) writeln("   PATH FROM ", inSender.Name(), " TO ", inRecipient.Name(), " IS:");
+      if(route.Size() > 0)
+      {
+         foreach(string path in route)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", path);
+         }
+         return route;
+      }
+   }
+   
+   if ($<IBCS_VERBOSE:true>$) writeln("      NO PATH POSSIBLE");
+   route.Clear();
+   return route;
+end_script
+
+script Array<string> GetMessageRoute(WsfPlatform inSender, WsfPlatform inRecipient)
+   bool done = false;
+   bool foundPath = false;
+   Array<string> route = Array<string>();
+   
+   WsfProcessor commsProcRef = inSender.Processor("comms_proc");
+   if(commsProcRef.IsValid())
+   {
+      bool best = false;
+      best = commsProcRef.ExecuteScript("GetBestRouteOnly");
+      if(best == true)
+      {
+         route = GetBestRoute(inSender, inRecipient);
+         return route;
+      }
+   
+      else
+      {
+         if(GetPlatformHasSameCommander(inSender, inRecipient) == true)
+         {
+            if(GetPlatformIsPeer(inSender, inRecipient) == true)
+            {
+               string commName = GetPossibleCommLinkForMessage(inSender, inRecipient);
+               if(commName != "")
+               {
+                  route.PushBack(inSender.Name());
+                  route.PushBack(inRecipient.Name());
+                  return route;
+               }
+            }
+   
+            if(GetPlatformIsSub(inSender, inRecipient) == true)
+            {
+               Array<string> tempRoute = GetToCommanderRoute(inRecipient, inSender);
+               if(tempRoute.Size() > 0)
+               {
+                  route = tempRoute;
+                  route.Reverse();
+                  return route;
+               }
+            }
+   
+            if(GetPlatformIsACommander(inSender, inRecipient) == true)
+            {
+               Array<string> tempRoute = GetToCommanderRoute(inSender, inRecipient);
+               if(tempRoute.Size() > 0)
+               {
+                  route = tempRoute;
+                  return route;
+               }
+            }
+         
+            route = GetBestRoute(inSender, inRecipient);
+            return route;
+         }
+         else
+         {
+            route = GetBestRoute(inSender, inRecipient);
+            return route;
+         }
+      }
+   }
+   return route;
+end_script
+
+script void AddPlatformForComms(WsfPlatform inPlatform)
+   if(inPlatform.IsValid())
+   {
+      if(inPlatform.Side() == "blue")
+      {
+         if ($<IBCS_VERBOSE:true>$) writeln(inPlatform.Name());
+         if ($<IBCS_VERBOSE:true>$) writeln(inPlatform.Commander());
+      
+         # Add to blue side
+         string platName = inPlatform.Name();
+         blueSidePlatforms.PushBack(platName);
+         
+         # Add to sub list
+         Array<string> subList = GetAllSubs(inPlatform);
+         platformSubs.Set(platName,subList);
+         
+         # Add to commander list
+         Array<string> commanderList = GetAllCommanders(inPlatform);
+         platformCommanders.Set(platName,commanderList);
+         
+         # Add to peer list
+         Array<string> peerList = GetAllPeers(inPlatform);
+         platformPeers.Set(platName,peerList);
+      
+         # Add platform chain list
+         int chainCount = inPlatform.CommandChainCount();
+         for(int chain=0;chain<chainCount; chain=chain+1)
+         {
+            string chainName = inPlatform.CommandChainEntry(chain).Name();
+            if(commandChainList.Exists(chainName) == true)
+            {
+               Array<string> tempList = commandChainList.Get(chainName);
+               tempList.PushBack(inPlatform.Name());
+               # Add to chain
+               commandChainList.Set(chainName,tempList);
+            }
+            else
+            {
+               Array<string> tempList = Array<string>();
+               tempList.PushBack(inPlatform.Name());
+               # Add to chain
+               commandChainList.Set(chainName,tempList);
+            }
+         }
+         
+         # Add platform and its list of comms to commList and platform and its comms
+         int commCount = inPlatform.CommCount();
+         for(int comm=0;comm<commCount; comm=comm+1)
+         {
+            string commName = inPlatform.CommEntry(comm).Name();
+            if(commName == "track_comms" || commName == "in" || commName == "out")
+            {
+               #writeln("DONT ADD");
+            }
+            else
+            {
+               if(platformComms.Exists(inPlatform.Name()) == true)
+               {
+                  Array<string> tempList = platformComms.Get(inPlatform.Name());
+                  tempList.PushBack(commName);
+                  # Add to comms
+                  platformComms.Set(inPlatform.Name(),tempList);
+               
+                  if(commList.Exists(commName) == true)
+                  {
+                     Array<string> tempList = commList.Get(commName);
+                     tempList.PushBack(inPlatform.Name());
+                     # Add to comms
+                     commList.Set(commName,tempList);
+                  }
+                  else
+                  {
+                     Array<string> tempList = Array<string>();
+                     tempList.PushBack(inPlatform.Name());
+                     # Add to comms
+                     commList.Set(commName,tempList);
+                  }
+               }
+               else
+               {
+                  Array<string> tempList = Array<string>();
+                  tempList.PushBack(commName);
+                  # Add to comms
+                  platformComms.Set(inPlatform.Name(),tempList);
+               
+                  if(commList.Exists(commName) == true)
+                  {
+                     Array<string> tempList = commList.Get(commName);
+                     tempList.PushBack(inPlatform.Name());
+                     # Add to comms
+                     commList.Set(commName,tempList);
+                  }
+                  else
+                  {
+                     Array<string> tempList = Array<string>();
+                     tempList.PushBack(inPlatform.Name());
+                     # Add to comms
+                     commList.Set(commName,tempList);
+                  }
+               }
+            }
+         }
+      }
+   }
+end_script
+
+execute at_time 0.1 sec absolute
+   int simPlatCount = WsfSimulation.PlatformCount();
+   for(int i=1;i<=simPlatCount; i=i+1)
+   {
+      WsfPlatform platRef = WsfSimulation.FindPlatform(i);
+      if(platRef.IsValid())
+      {
+         if(platRef.Side() == "blue")
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln(platRef.Name());
+         
+            # Add to blue side
+            string platName = platRef.Name();
+            blueSidePlatforms.PushBack(platName);
+            
+            # Add to sub list
+            Array<string> subList = GetAllSubs(platRef);
+            platformSubs.Set(platName,subList);
+            
+            # Add to commander list
+            Array<string> commanderList = GetAllCommanders(platRef);
+            platformCommanders.Set(platName,commanderList);
+            
+            # Add to peer list
+            Array<string> peerList = GetAllPeers(platRef);
+            platformPeers.Set(platName,peerList);
+         
+            # Add platform chain list
+            int chainCount = platRef.CommandChainCount();
+            for(int chain=0;chain<chainCount; chain=chain+1)
+            {
+               string chainName = platRef.CommandChainEntry(chain).Name();
+               if(commandChainList.Exists(chainName) == true)
+               {
+                  Array<string> tempList = commandChainList.Get(chainName);
+                  tempList.PushBack(platRef.Name());
+                  # Add to chain
+                  commandChainList.Set(chainName,tempList);
+               }
+               else
+               {
+                  Array<string> tempList = Array<string>();
+                  tempList.PushBack(platRef.Name());
+                  # Add to chain
+                  commandChainList.Set(chainName,tempList);
+               }
+            }
+            
+            # Add platform and its list of comms to commList and platform and its comms
+            int commCount = platRef.CommCount();
+            for(int comm=0;comm<commCount; comm=comm+1)
+            {
+               string commName = platRef.CommEntry(comm).Name();
+               if(commName == "track_comms" || commName == "in" || commName == "out")
+               {
+                  #writeln("DONT ADD");
+               }
+               else
+               {
+                  if(platformComms.Exists(platRef.Name()) == true)
+                  {
+                     Array<string> tempList = platformComms.Get(platRef.Name());
+                     tempList.PushBack(commName);
+                     # Add to comms
+                     platformComms.Set(platRef.Name(),tempList);
+                  
+                     if(commList.Exists(commName) == true)
+                     {
+                        Array<string> tempList = commList.Get(commName);
+                        tempList.PushBack(platRef.Name());
+                        # Add to comms
+                        commList.Set(commName,tempList);
+                     }
+                     else
+                     {
+                        Array<string> tempList = Array<string>();
+                        tempList.PushBack(platRef.Name());
+                        # Add to comms
+                        commList.Set(commName,tempList);
+                     }
+                  }
+                  else
+                  {
+                     Array<string> tempList = Array<string>();
+                     tempList.PushBack(commName);
+                     # Add to comms
+                     platformComms.Set(platRef.Name(),tempList);
+                  
+                     if(commList.Exists(commName) == true)
+                     {
+                        Array<string> tempList = commList.Get(commName);
+                        tempList.PushBack(platRef.Name());
+                        # Add to comms
+                        commList.Set(commName,tempList);
+                     }
+                     else
+                     {
+                        Array<string> tempList = Array<string>();
+                        tempList.PushBack(platRef.Name());
+                        # Add to comms
+                        commList.Set(commName,tempList);
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+#   
+#   
+#   # Connect Comms
+#   int commCount = commList.Size();
+#   for(int c=0;c<commCount; c=c+1)
+#   {
+#      string commName = (string)commList.ElementKeyAtIndex(c);
+#      #writeln("   ", commName, ": ");
+#      Array<string> tempList = commList.Get(commName);
+#      foreach(string plat in tempList)
+#      {
+#         Array<string> tempList2 = commList.Get(commName);
+#         foreach(string plat2 in tempList2)
+#         {
+#            if(plat != plat2)
+#            {
+#               WsfPlatform platRef = WsfSimulation.FindPlatform(plat);
+#               WsfPlatform plat2Ref = WsfSimulation.FindPlatform(plat2);
+#               
+#               if(platRef.IsValid() && plat2Ref.IsValid())
+#               {
+#                  if(plat2Ref.Comm(commName).IsConnectedTo(platRef.Comm(commName).GetAddress()) == true)
+#                  {                     
+#                     writeln("Comms are connected");
+#                  }
+#            
+#                  else
+#                  {
+#                     bool added = plat2Ref.Comm(commName).AddConnection(platRef.Comm(commName).GetAddress());
+#                     if(added == true)
+#                     {
+#                        bool enabled = plat2Ref.Comm(commName).IsConnectionEnabled(platRef.Comm(commName).GetAddress());
+#                        if(enabled == false)
+#                        {
+#                           bool haveEnabled = plat2Ref.Comm(commName).EnableConnection(platRef.Comm(commName).GetAddress());
+#                           if(haveEnabled == true)
+#                           {
+#                              writeln("Enabled connection");
+#                           }
+#                        }
+#                        else
+#                        {
+#                           writeln("Connection already enabled");
+#                        }
+#                     }
+#                     else
+#                     {
+#                        writeln("Could not connect comms");
+#                     }
+#                  }
+#               }
+#            }
+#         }
+#      }
+#   }
+   
+   
+   if(debugOutput == true)
+   {
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("TOTAL BLUE SIDE PLATFORMS:");
+      foreach(string plat in blueSidePlatforms)
+      {
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", plat);
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("CHAIN LIST:");
+   
+      int keyCount = commandChainList.Size();
+      for(int k=0;k<keyCount; k=k+1)
+      {
+         string chainName = (string)commandChainList.ElementKeyAtIndex(k);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", chainName, ": ");
+         Array<string> tempList = commandChainList.Get(chainName);
+         foreach(string plat in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", plat);
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("PLATFORM SUBS LIST:");
+   
+      keyCount = platformSubs.Size();
+      for(int k=0;k<keyCount; k=k+1)
+      {
+         string platName = (string)platformSubs.ElementKeyAtIndex(k);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", platName, ": ");
+         Array<string> tempList = platformSubs.Get(platName);
+         foreach(string sub in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", sub);
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("PLATFORM PEERS LIST:");
+   
+      keyCount = platformPeers.Size();
+      for(int k=0;k<keyCount; k=k+1)
+      {
+         string platName = (string)platformPeers.ElementKeyAtIndex(k);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", platName, ": ");
+         Array<string> tempList = platformPeers.Get(platName);
+         foreach(string peer in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", peer);
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("PLATFORM COMMANDERS LIST:");
+   
+      keyCount = platformCommanders.Size();
+      for(int k=0;k<keyCount; k=k+1)
+      {
+         string platName = (string)platformCommanders.ElementKeyAtIndex(k);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", platName, ": ");
+         Array<string> tempList = platformCommanders.Get(platName);
+         foreach(string commander in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", commander);
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("PLATFORM COMM LIST:");
+   
+      int platCount = platformComms.Size();
+      for(int p=0;p<platCount; p=p+1)
+      {
+         string platName = (string)platformComms.ElementKeyAtIndex(p);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", platName, ": ");
+         Array<string> tempList = platformComms.Get(platName);
+         WsfPlatform platRef = WsfSimulation.FindPlatform(platName);
+         foreach(string comm in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", comm, "(", platRef.Comm(comm).GetAddress(), ")");
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("COMM PLATFORM LIST:");
+   
+      int commCount = commList.Size();
+      for(int c=0;c<commCount; c=c+1)
+      {
+         string commName = (string)commList.ElementKeyAtIndex(c);
+         if ($<IBCS_VERBOSE:true>$) writeln("   ", commName, ": ");
+         Array<string> tempList = commList.Get(commName);
+         foreach(string plat in tempList)
+         {
+            if ($<IBCS_VERBOSE:true>$) writeln("      ", plat);
+         }
+      }
+   
+      if ($<IBCS_VERBOSE:true>$) writeln("");
+   }
+end_execute
+
+#####################################################################################################################

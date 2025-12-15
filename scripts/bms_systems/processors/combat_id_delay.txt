@@ -1,0 +1,300 @@
+
+##################################
+# COMBAT ID DELAY
+##################################
+/**
+Add a X sec delay for combat ID for one target at a time per Operator.
+
+This script represents a IBCS EOC Operator which would be physically 
+located near each IADS. Each EOC has a radar operator performaing 
+combat ID. Once a threat is processed, it is processes everywhere
+ and for all time.
+*/
+processor COMBAT_ID_DELAY WSF_SCRIPT_PROCESSOR 
+   script_debug_writes false
+   
+   script_variables  
+      # Toggle to draw colors, visualize three states
+      bool draw = true;
+      
+      # Import variables from assumptions.txt 
+      double processingDelay = $<BLUE_COMBAT_ID_DELAY_SEC:0>$; 
+      double timeOutDelay = 30; # Mimic track drop
+      
+      # List of sensor platforms
+      Array<WsfPlatform> sensingPlatforms = Array<WsfPlatform>(); 
+      
+      # Temporary list of target platforms
+      Array<WsfPlatform> targets = Array<WsfPlatform>();
+      
+      # Which operator is processing this target
+      # INPUT: Target  OUTPUT: Assigned Operator/Sensor
+      Map<string, string> target2OperatorMap = Map<string, string>();
+      
+      Map<string,string> typeProcessorMap = {
+         "BLUE_PATRIOT_RADAR":"pre_combat_id_tracker",
+         "E2D":"data_mgr"
+      };
+      
+      Map<string,int> typeNumOperatorMap = {
+         "BLUE_PATRIOT_RADAR":1,
+         "E2D":4
+      };
+   end_script_variables
+   
+   
+   ##############################################
+   # EXECUTE
+   ##############################################
+   # Fill vairables sensingPlatforms with all platforms with sensors
+   execute at_time 50 nsec relative
+      # Look through all platforms in the simluation
+      for (int ii = 0; ii < WsfSimulation.PlatformCount(); ii += 1)
+      {
+         # Extract this platform
+         WsfPlatform iPlatform = WsfSimulation.PlatformEntry(ii);
+         
+         # Only want platforms with sensors
+         if (iPlatform.SensorCount() == 0) continue;
+         
+         # Only want blue platforms
+         if (iPlatform.Side() != "blue") continue;
+         
+         # Only want certain types
+         if (!typeProcessorMap.KeySet().Exists(iPlatform.Type())) continue;
+         
+         # add this platform to the list
+         sensingPlatforms.PushBack(iPlatform);
+      }
+   end_execute
+   
+   
+   ##############################################
+   # ASSIGN TO AVAILABLE OPERATOR
+   ##############################################
+   # Fictitious Operator works in EOC, but represented by sensor platforms 
+   # since that is where the operator's information is.
+   script WsfPlatform NextAvailableOperator(WsfPlatform aTarget)
+      
+      # IADS to be selected
+      WsfPlatform assignedOperator;
+      
+      # Check all sensors to represent an operator present
+      foreach (WsfPlatform iSensorPlatform in sensingPlatforms)
+      {
+         # If operator is dead, then no slots are available
+         if (iSensorPlatform.IsNull()) continue;
+         
+         # FREE TO TRACK: The aux data indicates that it is processing, then it is not available
+         if (iSensorPlatform.AuxDataExists("PROCESSING_TIME_SLOTS"))
+         {
+            # Extract time slot map
+            Map<string,double> xTimeSlotMap = (Map<string,double>)iSensorPlatform.AuxDataObject("PROCESSING_TIME_SLOTS");
+            
+            # Clean out expired tracks
+            foreach (string iTargetName in xTimeSlotMap.KeySet())
+            {
+               WsfPlatform iTarget = WsfSimulation.FindPlatform(iTargetName);
+               
+               # Remove null elements
+               if (iTarget.IsNull())
+               {
+                  # Free up slot
+                  xTimeSlotMap.Erase(iTargetName);
+                  
+                  continue;
+               }
+               
+               # If processing for too long, then track has expired/timed out
+               if (xTimeSlotMap[iTargetName] + timeOutDelay < TIME_NOW)
+               {
+                  # Free up slot
+                  xTimeSlotMap.Erase(iTargetName);
+                  
+                  iTarget.DeleteAuxData("PROCESSING_STARTED");
+                  
+                  writeln_d("T = " + (string)TIME_NOW + "  Track expired for [" + iTargetName + "]");
+               }
+               
+            }
+            
+            iSensorPlatform.SetAuxData("PROCESSING_TIME_SLOTS", xTimeSlotMap);
+            
+            # Skip if operator's processing slots are full
+            int maxSlotCount = typeNumOperatorMap[iSensorPlatform.Type()];
+            if (xTimeSlotMap.Size() >= maxSlotCount) continue;
+            
+         }
+         
+         # Only certain types should process
+         if (!typeProcessorMap.Exists(iSensorPlatform.Type())) continue;
+         
+         # If it cannot sense, then it shouldn't process
+         string trackProcessorName = typeProcessorMap[iSensorPlatform.Type()];
+         if (!DoesPlatformHaveTrack(iSensorPlatform, trackProcessorName, aTarget)) continue;
+         
+         # This is a valid choice;
+         assignedOperator = iSensorPlatform;
+         
+         # stop looking
+         break;
+      }
+      
+      return assignedOperator;
+   end_script
+   
+   
+   ##############################################
+   # ASSIGN TARGET TO OPERATOR
+   ##############################################
+   # Add target to operator map and vice versa
+   script void AssignTarget2Operator(WsfPlatform aTarget, WsfPlatform aOperator)
+      
+      # Initialize variable
+      Map<string,double> xTimeSlotMap = Map<string,double>();
+      
+      # Pull operator's list, if exists
+      if (aOperator.AuxDataExists("PROCESSING_TIME_SLOTS")) 
+      {
+         # Extract time slot map
+         xTimeSlotMap = (Map<string,double>)aOperator.AuxDataObject("PROCESSING_TIME_SLOTS");
+      }
+       
+      # Add target to list
+      xTimeSlotMap[aTarget.Name()] = TIME_NOW + processingDelay;
+      aOperator.SetAuxData("PROCESSING_TIME_SLOTS", xTimeSlotMap);
+      
+      # Update Target map
+      target2OperatorMap[aTarget.Name()] = aOperator.Name();
+      
+      # Set processing flag on target object
+      aTarget.SetAuxData("PROCESSING_STARTED", true);
+      
+   end_script
+   
+   
+   
+   ##############################################
+   # ON MESSAGE
+   ##############################################
+   on_message
+      type WSF_TRACK_MESSAGE
+      script
+         
+         # Extract Target
+         WsfTrackMessage mMessage = (WsfTrackMessage)MESSAGE;
+         WsfTrack mTrack = mMessage.Track();
+         WsfPlatform mTarget = mTrack.Target();
+         
+         #==================================
+         # Filter for relevant tracks
+         #==================================
+         if (mTrack.IsNull() || mTarget.IsNull()) return;
+         if (!redWeaponTypes.Exists(mTarget.Type())) return;
+         
+         #==================================
+         # Don't reprocess tracks
+         #==================================
+         # Processing happens once, is done forever once completed
+         if (mTarget.AuxDataExists("THREAT_IDENTIFIED"))
+         {
+            # Draw green circle on platform
+            #DrawCircleOnScreenPlatform(mTarget, 100, 5, 0, 1, 0);
+            return;
+         }
+         
+         #==================================
+         # Process N tracks at a time, suppress all others
+         #==================================
+         
+         # If map key doesn't exist, then this target has not been processed
+         if (!mTarget.AuxDataExists("PROCESSING_STARTED"))
+         {
+            # This track has not been processed yet
+            # Look for next avilale IADS for this track
+            WsfPlatform nextOperator = NextAvailableOperator(mTarget);
+            mTarget.SetAuxData("OPERATOR_ASSIGNED", nextOperator.IsValid());
+           
+            if (nextOperator.IsNull())
+            {
+               #----------------------
+               # CASE 1: No Operators avilable
+               #----------------------
+               
+               # Draw orange circle on platform
+#               DrawCircleOnScreenPlatform(mTarget, 10, 10, 1, 0.5, 0);
+               
+            }
+            else
+            {
+               #----------------------
+               # CASE 2: Operators available
+               #----------------------
+               
+               # Assign target to operator
+               AssignTarget2Operator(mTarget, nextOperator);
+               
+               # Draw yellow circle on platform]
+#               DrawCircleOnScreenPlatform(mTarget, 10, 10, 1, 1, 0);
+               
+               # Record RED_WEAPON_START_PROCESSING event
+#               if(Cluster_Report.IsValid()) RecordDataRed(Cluster_Report, "WEAPON_START_PROCESSING", mTarget, "first");
+#               
+#               writeln_d("T = " + (string)TIME_NOW + "  Start processing [" + mTarget.Name() + "] by [" + nextOperator.Name() + "]");
+               
+            }
+            
+            # do not send this track yet, wait for next message
+            PROCESSOR.SuppressMessage();
+         }
+         else
+         {
+            # Get processing operator
+            string operatorName = target2OperatorMap[mTarget.Name()];
+            WsfPlatform assignedOperator = WsfSimulation.FindPlatform(operatorName);
+            
+            # Validate operator
+            if (assignedOperator.IsNull()) return;
+            
+            # Get time
+            Map<string,double> xTimeSlotMap = (Map<string,double>)assignedOperator.AuxDataObject("PROCESSING_TIME_SLOTS");
+            double timeProcessed = xTimeSlotMap[mTarget.Name()];
+            
+            # This target has started processing
+            if (TIME_NOW < timeProcessed)
+            {
+               
+               #----------------------
+               # CASE 3: Processing this target
+               #----------------------
+               
+               # do not send, wait until time elapses
+               PROCESSOR.SuppressMessage();
+               
+               # Draw yellow circle on platform
+#               DrawCircleOnScreenPlatform(mTarget, 10, 10, 1, 1, 0);
+               
+            }
+            else
+            {
+               
+               #----------------------
+               # CASE 4: Just finished processing
+               #----------------------
+               mTarget.SetAuxData("THREAT_IDENTIFIED", true);
+               
+               # Stop processing this track
+               xTimeSlotMap.Erase(mTarget.Name());
+               assignedOperator.SetAuxData("PROCESSING_TIME_SLOTS", xTimeSlotMap);
+               
+               # Record RED_WEAPON_START_PROCESSING event
+               #if(Cluster_Report.IsValid()) RecordDataRed(Cluster_Report, "WEAPON_END_PROCESSING", mTarget, "first"); # CAC let processing happen only once
+               
+               writeln_d("T = " + (string)TIME_NOW + "  End processing [" + mTarget.Name() + "] by [" + assignedOperator.Name() + "]");
+               
+            }
+         }
+         
+      end_script
+   end_on_message
+end_processor

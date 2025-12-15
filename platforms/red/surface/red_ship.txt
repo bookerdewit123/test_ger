@@ -1,0 +1,39 @@
+
+include_once sensors/radar/generic_omni_radar.txt
+
+radar_signature RED_SHIP_RADAR_SIGNATURE
+   constant 50 dBsm # (1)
+end_radar_signature
+
+optical_signature RED_SHIP_OPTICAL_SIG
+   constant 100 m2
+end_optical_signature
+
+infrared_signature RED_SHIP_INFRARED_SIG
+    constant 100 w/sr
+end_infrared_signature
+
+platform_type RED_SHIP WSF_PLATFORM
+   icon ddg
+   side red 
+   category DESTROYER
+   radar_signature RED_SHIP_RADAR_SIGNATURE
+   optical_signature RED_SHIP_OPTICAL_SIG
+   infrared_signature RED_SHIP_INFRARED_SIG   
+   
+   comm uplink GENERIC_DATALINK 
+      network_name uplink
+   end_comm
+   
+   sensor omni_lrusv OMNI_RADAR
+      reports_location
+      internal_link data_mgr
+   end_sensor
+   
+   mover WSF_SURFACE_MOVER
+      maximum_speed 260 kts # (2)
+      default_linear_acceleration 20 m/s^2
+      turn_rate_limit .1 degrees/second # Assumed
+   end_mover
+     
+end_platform_type

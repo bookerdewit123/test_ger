@@ -1,0 +1,12 @@
+# New file created by AFSIM Wizard
+include_once weapons/ssm/df-21b.txt
+
+platform_type DF-21 WSF_PLATFORM
+   icon df-21_missile#Scud_Launcher
+   side red
+   mover WSF_GROUND_MOVER end_mover
+   
+   weapon DF21 DF-21B
+      quantity 30
+   end_weapon
+end_platform_type

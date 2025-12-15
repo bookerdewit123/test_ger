@@ -1,0 +1,142 @@
+include_once comms/GENERIC_COMMS_DEVICE.txt
+include_once sensors/radar/generic_omni_radar.txt
+
+# --------------------------------------------------------------
+#                         Generic Datalink
+# --------------------------------------------------------------
+comm GENERIC_DATALINK WSF_COMM_TRANSCEIVER
+#   transfer_rate      100 mbits/sec
+end_comm
+
+# --------------------------------------------------------------
+#                         Generic RF Comms (COMM_TYPE_4)
+# --------------------------------------------------------------
+antenna_pattern RADIO_ANTENNA_PATTERN
+   uniform_pattern
+      peak_gain 10 dB
+   end_uniform_pattern
+end_antenna_pattern
+
+comm RF_COMM WSF_RADIO_TRANSCEIVER
+   transfer_rate 5 mbits/sec
+   transmit_mode intermittent
+   
+   packet_loss_time 10 sec
+   
+   transmitter
+      power 20 w
+      antenna_pattern RADIO_ANTENNA_PATTERN
+      frequency 1.0875 GHz //960-1215 MHz according to Wikipedia
+      bandwidth 5.0 MHz
+   end_transmitter
+   
+   receiver
+      antenna_pattern RADIO_ANTENNA_PATTERN
+      frequency 1.0875 GHz
+      bandwidth 1 MHz
+   end_receiver
+   
+end_comm
+
+platform_type GENERIC_TRACK_GENERATOR WSF_PLATFORM
+   mover WSF_AIR_MOVER
+   end_mover
+   
+sensor omni_tracker WSF_RADAR_SENSOR 
+   on
+   one_m2_detect_range 10000 km
+   ignore_same_side
+   frame_time                     1 sec
+
+   transmitter
+      power                       10000.0 kw
+      frequency                   10000 mhz
+      internal_loss               0 db
+      pulse_width                 35 usec
+      pulse_repetition_interval   350 usec
+   end_transmitter
+
+   receiver
+      bandwidth                   100.0 mhz
+      noise_power                 -160 dBw  # will be calibrated for 1 m^2
+      internal_loss               0 dB
+   end_receiver
+
+   hits_to_establish_track        3 5
+   hits_to_maintain_track         1 3
+
+   track_quality                  0.8      # 'weapons' cue quality
+   update_interval 3 sec
+end_sensor
+end_platform_type
+
+platform_type blue_track_generator GENERIC_TRACK_GENERATOR
+   comm blue_track_reporter COMM_GENERIC_XCVR
+      on
+      network_name blue_comms_generic_net
+      internal_link perception
+      internal_link data_mgr
+   end_comm
+
+   processor data_mgr WSF_TRACK_PROCESSOR      #dmaster tracks NOT in a specific processor on-board (for tasking/global tracker?)
+      on
+      report_to peers via blue_track_reporter
+      report_method             on_update
+      report_interval           3.0 secs            # RPT-RATE 1.0 (1/SEC)
+      purge_interval            30.0 secs           # TIME-BEFORE-DROP
+      fused_track_reporting     off
+      circular_report_rejection true
+   end_processor
+   
+    processor perception WSF_PERCEPTION_PROCESSOR
+      on
+      report_interval 5.0 sec
+      reporting_self false
+      report_to peers via blue_track_reporter
+      asset_perception status_messages
+      asset_update_interval 5.0 sec
+   end_processor
+   
+   execute at_time 300 s absolute
+      PLATFORM.TurnSensorOff("omni_tracker");
+      PLATFORM.TurnCommOff("blue_track_reporter");
+      PLATFORM.TurnProcessorOff("data_mgr");
+      PLATFORM.TurnProcessorOff("perception");
+   end_execute
+end_platform_type
+
+platform_type red_track_generator GENERIC_TRACK_GENERATOR
+   comm red_track_reporter COMM_GENERIC_XCVR
+      on
+      network_name red_comms_generic_net
+      internal_link perception
+      internal_link data_mgr
+   end_comm
+
+   processor data_mgr WSF_TRACK_PROCESSOR      #dmaster tracks NOT in a specific processor on-board (for tasking/global tracker?)
+      on
+      report_to peers via red_track_reporter
+      report_method             on_update
+      report_interval           3.0 secs            # RPT-RATE 1.0 (1/SEC)
+      purge_interval            30.0 secs           # TIME-BEFORE-DROP
+      fused_track_reporting     off
+      circular_report_rejection true
+      $<LINK_TO_GLOBTRACK:>$
+   end_processor
+   
+    processor perception WSF_PERCEPTION_PROCESSOR
+      on
+      report_interval 5.0 sec
+      reporting_self false
+      report_to peers via red_track_reporter
+      asset_perception status_messages
+      asset_update_interval 5.0 sec
+   end_processor
+
+   execute at_time 300 s absolute
+      PLATFORM.TurnSensorOff("omni_tracker");
+      PLATFORM.TurnCommOff("red_track_reporter");
+      PLATFORM.TurnProcessorOff("data_mgr");
+      PLATFORM.TurnProcessorOff("perception");
+   end_execute
+end_platform_type

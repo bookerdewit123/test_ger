@@ -1,0 +1,28 @@
+# New file created by AFSIM Wizard
+#include_once weapons/ssm/df-21b.txt
+
+include sensors/an_red_lrsam.txt
+
+platform_type RED_LRSAM RCS_PLATFORM_BASE
+   icon df-21_missile#Scud_Launcher
+   side red
+   mover WSF_GROUND_MOVER end_mover
+   
+   #weapon DF21 DF-21B
+   #   quantity 30
+   #end_weapon
+
+
+
+   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
+
+   sensor AN/RED_LRSAM AN_RED_LRSAM
+      on
+      internal_link data_mgr
+   end_sensor 
+   
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+
+end_platform_type

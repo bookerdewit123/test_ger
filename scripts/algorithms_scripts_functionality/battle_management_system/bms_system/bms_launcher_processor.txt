@@ -1,0 +1,1320 @@
+
+script_struct threatLog
+   script_variables
+      int bidID = -1;
+      string threatState = "";
+      double launchTime = -1;
+      double endLaunchTime = -1;
+      double interceptTime = -1;
+      fireSolutionStruct fireSolution = fireSolutionStruct();
+   end_script_variables
+end_script_struct
+
+script_struct launchLog
+   script_variables
+      double launchTime = -1;
+      double endLaunchTime = -1;
+      double interceptTime = -1;
+      fireSolutionStruct fireSolution = fireSolutionStruct();
+   end_script_variables
+end_script_struct
+
+processor BMS_LAUNCHER_PROCESSOR OUTMATCH_LAUNCHER_PROCESSOR
+   update_interval 5 sec
+   
+   script_variables
+      # Declare
+      bool autoFire = false;
+      string shotManager = "";
+      string localShotManager = "";
+      bool shouldLaunchOnNoResponse = false; # If no response is given to bid, then launch on solution
+      bool canQuickLaunch = false; # Should launch if there isnt enough time to ask for permission from shot manager
+      double minTrackQuality = .98;
+      int maxEngagements = -1; # Amount fo track it can calculate solutions for per solve interval. Set to -1 for infinite
+      double launchDelay = 1;
+      double salvoSize = 1;
+      double maxLaunchDelay = 0; #(sec)
+      double solveInterval = 0.1; #(sec)
+      bool bidOnlyOnEarliestAvailable = false;
+      
+      bool canReload = false;
+      Array<int> reload_time ={}; #sec per one ammo
+      Array<int> reload_inv_multiplier = {}; #If base quantity equals 2 then you have 4 in inventory 
+      Array<double> forced_reload_times =  {}; #This is more of a hard coded value for the launcher to reload (Dont have to use)
+      
+      # Logic
+      bool firstTime = true;
+      Array<WsfWeapon> processorWeapons = Array<WsfWeapon>();
+      Map<string, fireSolutionStruct> localFireSolutions = {};
+      int solutionID = 0;
+      int solveCount = 0;
+      Map<string, launchLog> launchScheduleInfo = Map<string, launchLog>();
+      Map<string, threatLog> myThreatInfo = Map<string, threatLog>();
+      Map<int, threatLog> myBidInfo = Map<int, threatLog>();
+      
+      bool isReloading = false; 
+      double finishReloadTime = 0;
+      Array<int> finish_reload_counts = Array<int>();
+      Array<int> current_reload_inv = Array<int>(); 
+      Array<int> start_weapon_counts = Array<int>(); 
+   end_script_variables
+   
+   on_initialize2 
+      if(launchDelay < 0)
+      {
+         launchDelay = 0;
+         maxLaunchDelay = 0;
+      }
+      
+      if (maxLaunchDelay < launchDelay)
+      {
+         writeln("WARNING: ", PLATFORM.Name(), " max delay on launch processor was less than or equal to launch delay, setting it equal.");
+         maxLaunchDelay = launchDelay;
+      }
+      
+      if(maxEngagements == 0)
+      {
+         writeln(PLATFORM.Name(), " Launcher Processor had max engagement count == 0. Defaulting to Inf.");
+         maxEngagements = 999999999;
+      }
+      if(maxEngagements == -1)
+      {
+         maxEngagements = 999999999;
+      }
+      
+      # solutionID = PLATFORM.Index() * 100000;
+      solutionID = 0;
+   end_on_initialize2
+      
+   #********************************************************************************************
+   #
+   #********************************************************************************************  
+   
+   script int GetNewBidID(WsfPlatform inPlatform, WsfPlatform tgtPlatform, int inMessageCount)
+      double platformIndex = inPlatform.Index();
+      double tgtIndex = tgtPlatform.Index();
+      platformIndex = (double)((string)(double)(platformIndex) + (string)(double)(tgtIndex));
+      
+      int platformIndexLen = platformIndex / 10;
+      int uniqueID = 0;
+      if(platformIndexLen < 1)
+      {
+         uniqueID = platformIndex * 1000000;
+      }
+      else if(1 <= platformIndexLen && platformIndexLen < 10)
+      {
+         uniqueID = platformIndex * 100000;
+      }
+      else if(10 <= platformIndexLen && platformIndexLen < 100)
+      {
+         uniqueID = platformIndex * 10000;
+      }
+      else if(100 <= platformIndexLen)
+      {
+         uniqueID = platformIndex * 1000;
+      }
+      int msgID = inMessageCount;
+      #writeln(uniqueID);
+      int bidID = uniqueID + inMessageCount;
+      #writeln(bidID);
+   
+      return bidID;
+   end_script  
+   
+   script bidMessageStruct CreateBidStructure(WsfPlatform inPlatform, fireSolutionStruct inCurrentSolution)
+      WsfTrackId currentTrackID = WsfTrackId();
+      string originator = inPlatform.Name();
+      int trackNumber = inCurrentSolution.trackNumber;
+      currentTrackID.SetName(originator);
+      currentTrackID.SetNumber(trackNumber);
+
+      double delayTime = inCurrentSolution.launchTime - TIME_NOW;
+      double pbs_Value = inCurrentSolution.Pk;
+
+      Array<weaponInvStruct> tempWeaponInvStruct = Array<weaponInvStruct>();
+      string platID = inCurrentSolution.weapon.AuxDataString("platformID");
+      if(inCurrentSolution.weapon.WeaponCount() > 0)
+      {
+         for(int wep=0; wep<inCurrentSolution.weapon.WeaponCount(); wep = wep+1)
+         {
+            string weaponID = inCurrentSolution.weapon.AuxDataString("weaponID");
+            int weaponCount = inCurrentSolution.weapon.WeaponEntry(wep).QuantityRemaining();
+
+            weaponInvStruct weaponItem = weaponInvStruct();   
+            weaponItem.platformID = platID;
+            weaponItem.weaponID = weaponID;
+            weaponItem.weaponCount = weaponCount;                     
+
+            tempWeaponInvStruct.PushBack(weaponItem);
+         }
+      }
+
+      bidMessageStruct tempBidStruct = {};        
+      tempBidStruct.sentTime = TIME_NOW;
+      tempBidStruct.threatName = inCurrentSolution.threat.Name();
+      tempBidStruct.TrackId = currentTrackID;                
+      tempBidStruct.timeBaseValue = TIME_NOW;
+      tempBidStruct.bmID = inCurrentSolution.weapon.Commander().Index();
+      tempBidStruct.platID = inCurrentSolution.weapon.AuxDataString("platformID");
+      tempBidStruct.weaponID = inCurrentSolution.weapon.AuxDataString("weaponID");
+      tempBidStruct.lenEff = inCurrentSolution.weapon.AuxDataInt("lenEff");
+      tempBidStruct.pbS = pbs_Value;
+      tempBidStruct.pcEff = inCurrentSolution.weapon.AuxDataDouble("pcEff");
+      tempBidStruct.startTimeDelay = delayTime;
+      tempBidStruct.plat_t = inCurrentSolution.interceptTime;
+      tempBidStruct.launchTime = inCurrentSolution.launchTime;
+      tempBidStruct.interceptTime = inCurrentSolution.interceptTime;
+      tempBidStruct.bidShotCnt = 1;
+      tempBidStruct.bidGroupID = inCurrentSolution.threat.Index();
+      tempBidStruct.weaponInventory = tempWeaponInvStruct;
+      tempBidStruct.fireSolution = inCurrentSolution;
+   
+      return tempBidStruct;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************    
+      
+   script string GetGlobalShotManager()
+      return shotManager;
+   end_script
+   
+   script string GetLocalShotManager()
+      return localShotManager;
+   end_script
+   
+   script double GetShotManagerDecisionTime(string inShotManagerName)
+      double shotMgrDecisionTime = 1;
+      if(inShotManagerName != "")
+      {
+         WsfPlatform shotMgrPlat = WsfSimulation.FindPlatform(inShotManagerName);
+         if(shotMgrPlat.IsValid())
+         {
+            WsfProcessor shotProc = shotMgrPlat.Processor("shot_dec_mgr");
+            if(shotProc.IsValid())
+            {
+               shotMgrDecisionTime = (double)shotProc.Execute("GetDecisionTime");
+            }
+         }
+      }
+      return shotMgrDecisionTime;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #******************************************************************************************** 
+   script bool PacInterceptInRadarUplinkRange(WsfPlatform commander, WsfGeoPoint interceptLocation)
+      #********************************************************************************************
+      ### Evaluate PAC intercept location relative to uplink radars in command chain.
+      # Created on: 4/26/2024  by: Ryan Fisher
+      #  Description:
+      #     This function takes a given intercept point and computes whether the intercept location falls within
+      #     an uplink radar's (AN/MPQ-65 for PAC) relative az/el scan limits. It is required that PAC-3 have a
+      #     continuous uplink from the radar to the launched platform through out flight until the seeker turns
+      #     on. This function helps approximate whether the criterion is met by assessing if the intercept point
+      #     falls within the radar's uplink limits. This function checks all possible uplink radars that are 
+      #     designated subordinates of the input commander.
+      #
+      #  Inputs:
+      #     commander: A WsfPlatform that's subordinates will be evaluated for an uplink sensor (AN/MPQ-65).
+      #     interceptLocation: A WsfGeoPoitn that marks the expected intercept location of the target.
+      #
+      #  Outputs:
+      #     bool: returns True or False if the intercept point falls within a subordinate radar's uplink volume.
+      #
+      #********************************************************************************************
+      
+      WsfPlatformList platformList = commander.Subordinates();
+      WsfSensor platformSensor;
+      double sensorRelativeBearingToInterceptPoint;
+      double sensorRelativeElevationToInterceptPoint;
+      double sensorRelativeBearingToLauncher;
+      double sensorRelativeElevationToLauncher;
+
+      foreach(WsfPlatform platform in platformList) # Iterate over all subordinates
+      {
+         # Iterate over sensors on a platform
+         for(int sensorCount=0; sensorCount<platform.SensorCount(); sensorCount=sensorCount+1)
+         {
+            string sensorType = platform.SensorEntry(sensorCount).Type(); # Get the type
+            if(sensorType.Upper().Contains("MPQ") && sensorType.Contains("65")) # Check if AN/MPQ-65 for PAC
+            {
+               platformSensor = platform.SensorEntry(sensorCount); # Get the sensors
+               sensorRelativeBearingToInterceptPoint = platform.RelativeBearingTo(interceptLocation); # Get relative bearing to intercept point
+               sensorRelativeElevationToInterceptPoint = platform.RelativeElevationOf(interceptLocation); # Get relative elevation to intercept point
+               sensorRelativeBearingToLauncher = platform.RelativeBearingTo(PLATFORM.Location()); # Get relative bearing to intercept point
+               sensorRelativeElevationToLauncher = platform.RelativeElevationOf(PLATFORM.Location()); # Get relative elevation to intercept point
+               
+               # Check if the intercept point is within az/el scan limits of the radar
+               # Restrict an additional 1 degree on each side of the scan limits for safety and expected reduce uplink performance
+               if((sensorRelativeBearingToInterceptPoint > (platformSensor.ScanMinimumAzimuth()+1)) 
+                  && (sensorRelativeBearingToInterceptPoint < (platformSensor.ScanMaximumAzimuth()-1))
+                  && (sensorRelativeElevationToInterceptPoint > (platformSensor.ScanMinimumElevation()+1))
+                  && (sensorRelativeElevationToInterceptPoint < (platformSensor.ScanMaximumElevation()-1))
+                  && (sensorRelativeBearingToLauncher > (platformSensor.ScanMinimumAzimuth()+1)) 
+                  && (sensorRelativeBearingToLauncher < (platformSensor.ScanMaximumAzimuth()-1))
+                  && (sensorRelativeElevationToLauncher > (platformSensor.ScanMinimumElevation()+1))
+                  && (sensorRelativeElevationToLauncher < (platformSensor.ScanMaximumElevation()-1)))
+               {
+                  return true; # Interceptor can likely be guided to the intercept point with continuous uplink
+               }
+            }
+         }
+      }
+      return false;
+   end_script
+   #********************************************************************************************
+   #
+   #******************************************************************************************** 
+   
+   script int GetTotalWeaponCount()
+      int weaponQuantity = 0;
+      if(PLATFORM.WeaponCount() > 0)
+      {
+         for(int wep = 0; wep < PLATFORM.WeaponCount(); wep = wep + 1)
+         {
+            WsfWeapon weaponRef = PLATFORM.WeaponEntry(wep);
+            weaponQuantity = weaponRef.QuantityRemaining() + weaponQuantity;
+         }
+      }
+      
+      return weaponQuantity;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************   
+   
+      script void RemoveBidFromLog(int inBidID)
+      if(myBidInfo.Exists(inBidID))
+      {
+         
+         myBidInfo.Remove(inBidID);
+      }
+   end_script
+   
+   #********************************************************************************************
+   #
+   #******************************************************************************************** 
+   
+   script bool Engageable(WsfLocalTrack inTrack)
+      bool engageable = false;
+      
+      if(inTrack.Target().IsValid())
+      {
+         if (!inTrack.Target().AuxDataExists("THREAT_IDENTIFIED") 
+            && !inTrack.Target().AuxDataBool("THREAT_IDENTIFIED")){
+            return false;
+         }
+         bool isScheduled = launchScheduleInfo.Exists(inTrack.Target().Name());
+         bool isAssigned = myThreatInfo.Exists(inTrack.Target().Name());
+         
+         # ---- set to false to allow contiuous bidding from launcher that already has a solution scheduled
+         # ---- for a particular threat
+         
+#         bool isScheduled = false; 
+#         bool isAssigned = false;
+         
+         bool isBidded = false;
+         
+         int bidInfoCount = myBidInfo.Size();
+         for(int i=0;i<bidInfoCount;i=i+1)
+         {
+            int key = (int)myBidInfo.ElementKeyAtIndex(i);
+            threatLog log = myBidInfo.Get(key);
+            fireSolutionStruct fireSolutionRef = log.fireSolution;
+            if (fireSolutionRef.threat.IsValid())
+            {
+               string threatName = fireSolutionRef.threat.Name();
+               if(threatName == inTrack.Target().Name())
+               {
+                  isBidded = true;
+                  break;
+               }
+            }
+            else
+            {
+               #writeln("Threat platform is no longer valid.");
+               RemoveBidFromLog(key);
+               break;
+            }
+         }
+         
+         
+         int totalWeapons = GetTotalWeaponCount();
+         int pendingLaunches = launchScheduleInfo.Size();
+         int pendingBids = myBidInfo.Size();
+         int weaponCount = totalWeapons - pendingLaunches; # Removed "- pendingBids" do to large number of bids genereted;
+         string trackThreatName = inTrack.Target().Name();
+         if (inTrack.BelievedAlive() == true && isScheduled == false && isAssigned == false && 
+               isBidded == false) # Removed "&& weaponCount > 0" as we may be told to stand down 
+         {
+            engageable = true;
+         }
+         
+         return engageable;
+      }
+      
+      return false;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+
+   script void AddWeapons(WsfPlatform inPlatform)
+      if(inPlatform.WeaponCount() > 0)
+      {
+         for(int wep = 0; wep < inPlatform.WeaponCount(); wep = wep + 1)
+         {
+            WsfWeapon weaponRef = inPlatform.WeaponEntry(wep);
+            processorWeapons.PushBack(weaponRef);
+            #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Added: ", weaponRef.Name(), " from ", inPlatform.Name());
+         }
+      }
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script double GetBidMessageDelayTime()
+      double delay = 0;
+      
+      WsfProcessor commsProcRef = PLATFORM.Processor("comms_proc");
+      if(commsProcRef.IsValid())
+      {
+         delay = (double)commsProcRef.Execute("GetMessageTypeDelayValue", {"BidMessage"});
+      }
+      
+      return delay;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script bool GetLaunchTimeAvailable(double inLaunchTime, double launchDuration)
+      int launchesScheduled = launchScheduleInfo.Size();
+      for(int i=0;i<launchesScheduled;i=i+1)
+      {
+         string key = (string)launchScheduleInfo.ElementKeyAtIndex(i);
+         #writeln_d("   (DEBUG) Checking available launch time (key) = ", key);
+         launchLog log = launchScheduleInfo.Get(key);
+         double launchTime = log.launchTime;
+         double endTime = log.launchTime;
+         if(inLaunchTime > endTime + .01 || inLaunchTime + launchDuration < launchTime - .01)
+         {
+            
+         }
+         else
+         {
+            writeln_d(inLaunchTime, " > ", (string)(endTime+.01));
+            writeln_d((string)(inLaunchTime + launchDuration), " < ", (string)(launchTime-.01));
+            return false;
+         }
+      }
+      
+      int bidInfoCount = myBidInfo.Size();
+      for(int i=0;i<bidInfoCount;i=i+1)
+      {
+         int key = (int)myBidInfo.ElementKeyAtIndex(i);
+         threatLog log = myBidInfo.Get(key);
+         double launchTime = log.launchTime;
+         double endTime = log.launchTime;
+         if(inLaunchTime > endTime + .01 || inLaunchTime + launchDuration < launchTime - .01)
+         {
+         }
+         else
+         {
+            return false;
+         }
+      }
+      
+      return true;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script double GetLaunchDuration(WsfWeapon inWeapon)
+      double duration = 1;
+      if(inWeapon.IsValid())
+      {
+         duration = inWeapon.FiringInterval() * salvoSize;
+      }
+
+      return duration;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************   
+   
+   script void RemoveThreatFromLog(string inThreatName, double inInterceptTime)
+      if(myThreatInfo.Exists(inThreatName))
+      {
+         if(MATH.Fabs(myThreatInfo.Get(inThreatName).interceptTime - inInterceptTime) < .1)
+         {
+            myThreatInfo.Remove(inThreatName);
+         }
+      }
+   end_script
+   
+   #********************************************************************************************
+   # Create this function to prevent the build up of threats and fire control solutions in memory
+   #********************************************************************************************
+
+   script void RemoveThreatFromLogIfPastTime()
+      Set<string> myKeySet = myThreatInfo.KeySet();
+      foreach(string inThreatName in myKeySet)
+      {
+         if(myThreatInfo.Exists(inThreatName))
+         {
+            if(MATH.Fabs(myThreatInfo.Get(inThreatName).interceptTime + 100) < TIME_NOW)
+            {
+               myThreatInfo.Remove(inThreatName);
+            }
+         }
+      }
+      
+   end_script
+   #********************************************************************************************
+   #
+   #********************************************************************************************   
+   
+
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+  script void DrawInterceptLocation(WsfGeoPoint location, int type, WsfPlatform target, double pointSize, double myDuration)
+      int colorValueRed = 0;
+      int colorValueGreen = 0;
+      int colorValueBlue = 0;
+      
+      WsfDraw dr = WsfDraw();
+	   dr.SetDuration(myDuration);
+
+      if(type)
+      {
+         dr.SetColor(255, 0, 0, 0.6);
+         writeln_d(TIME_NOW, ": (DEBUG-InterceptPoint) ", PLATFORM.Name(), " Trying to draw: ", location, " for target: ", target);
+      }
+      else
+      {
+         #writeln_d(TIME_NOW, ": (DEBUG-PIP) ", PLATFORM.Name(), " Trying to draw: ", location, " for target: ", target.Name());
+         if (PLATFORM.Name().Contains("std_missile_launcher"))
+         {
+         	  dr.SetColor(255,255,255,0.6);
+         }
+         else
+         {
+          dr.SetColor(0,255,0,0.6);  # True LC.interceptPoint is yellow,  estimated is green
+         }
+      }
+
+	        dr.SetPointSize(pointSize);
+	        dr.BeginPoints();
+	        dr.Vertex(location);
+	        dr.End();
+
+  end_script
+  
+   script void RemoveScheduledLaunch(string inThreatName)
+      if(launchScheduleInfo.Exists(inThreatName))
+      {
+         launchScheduleInfo.Remove(inThreatName);
+      }
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script void ExecuteLaunch(fireSolutionStruct inFireSolution)
+      WsfTrackId trackID = WsfTrackId();
+      trackID.SetName(inFireSolution.trackID);
+      trackID.SetNumber(inFireSolution.trackNumber);
+      WsfLocalTrack LocalTrack = PLATFORM.MasterTrackList().Find(trackID);
+      #writeln("TRYING TO LAUNCH");
+      #writeln(LocalTrack);
+      if( null != LocalTrack )
+      {
+         string targetName = LocalTrack.TargetName();
+         WsfWeapon i_weapon = processorWeapons[inFireSolution.weaponID];
+         #writeln("T= ", TIME_NOW, " ************************************ FIRE ***********************************");
+         #writeln("GOT HERE");
+
+         if (LocalTrack.BelievedAlive() && LocalTrack.IsValid() && PLATFORM.ActiveWeaponPlatformsFor(LocalTrack.TrackId()).Empty())
+         {
+
+            int salcount = SalvosFiredAt(trackID);
+            #writeln(salcount);
+               
+            if(null != launchScheduleInfo.Get(targetName))
+            {
+               if(launchScheduleInfo.Get(targetName).fireSolution.solutionID == inFireSolution.solutionID # Check if the bid ID we want to launch on matches the scheduled bid 
+                  && !myThreatInfo.Exists(targetName)) # Check that we are not currently firing at the threat
+               {
+                  launchLog log = launchScheduleInfo.Get(targetName);
+                  #writeln_d(" (DEBUG) launchScheduleInfo = ", log);
+                  
+                  fireSolutionStruct tempSol = log.fireSolution;
+                  #writeln_d(" (DEBUG) fireSolution = ", tempSol);
+                  
+                  double launchTime = tempSol.launchTime;
+                  double interceptTime = tempSol.interceptTime;
+                  WsfGeoPoint interceptLocation = tempSol.interceptPosition;
+                  #writeln_d(TIME_NOW,"(DEBUG-InterceptPoint) ", PLATFORM.Name() ," Trying to draw: ", interceptLocation); 
+                  ###############################
+                  ### Draw Intercept Location ###
+                  WsfDraw dr2 = WsfDraw();
+                  dr2.SetDuration(60);
+                  dr2.SetColor(255,0,0,0.6);
+                  dr2.SetPointSize(20);
+                  dr2.BeginPoints();
+                  dr2.Vertex(interceptLocation);
+                  dr2.End();
+                  ###############################
+                  
+                  #SALVO SIZE: actual update salvo size for execute launch
+                  if(i_weapon.Type() == "AIM-9X" && targetName == "strike-1_alv_1" )
+                  {
+                     salvoSize = 2;
+                  }
+                  else
+                  {
+                     salvoSize = 1;
+                  }  
+                  
+
+                  if(i_weapon.CanIntercept(LocalTrack, 0))
+                  {
+                     bool Launched = FireAt(LocalTrack, "FIRE", i_weapon.Name(), salvoSize, PLATFORM);
+                     if ($<IBCS_VERBOSE:true>$) writeln("T= ", TIME_NOW, ": ", PLATFORM.Name(), " ** FIRE **  ", LocalTrack.TargetName(), " Equals: ", Launched);
+
+
+                     ExecuteAtTime(TIME_NOW + GetLaunchDuration(i_weapon) + .1, "RunCheckReload", {false});
+                     ExecuteAtTime(TIME_NOW, "RemoveScheduledLaunch", {targetName});
+                     threatLog threatLogEntry = threatLog();
+                     threatLogEntry.threatState = "Engaged";
+                     threatLogEntry.interceptTime = inFireSolution.interceptTime;
+                     myThreatInfo.Set(targetName, threatLogEntry);
+                     ExecuteAtTime(inFireSolution.interceptTime, "RemoveThreatFromLog", {targetName, inFireSolution.interceptTime});
+                  }
+                  else
+                  {
+                     # If we can no longer intercept, we need to remove the threat from all logs now so we can begin re-bidding on the threat
+                     ExecuteAtTime(TIME_NOW, "RemoveScheduledLaunch", {targetName});
+                     ExecuteAtTime(TIME_NOW, "RemoveThreatFromLog", {targetName, inFireSolution.interceptTime});
+                  }
+               }
+            }
+         }
+         
+#         ExecuteAtTime(TIME_NOW + GetLaunchDuration(i_weapon) + .1, "RunCheckReload", {false});
+#         ExecuteAtTime(TIME_NOW, "RemoveScheduledLaunch", {targetName});
+#         threatLog threatLogEntry = threatLog();
+#         threatLogEntry.threatState = "Engaged";
+#         threatLogEntry.interceptTime = inFireSolution.interceptTime;
+#         myThreatInfo.Set(targetName, threatLogEntry);
+#         ExecuteAtTime(inFireSolution.interceptTime, "RemoveThreatFromLog", {targetName, inFireSolution.interceptTime});
+         
+      }
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************   
+   
+   script void ScheduleLaunch(fireSolutionStruct inFireSolution)
+      double launchTime = inFireSolution.launchTime;
+      if(launchTime >= TIME_NOW && inFireSolution.threat.IsValid())
+      {
+         launchLog tempLaunchEntry = launchLog();
+         tempLaunchEntry.launchTime = inFireSolution.launchTime;
+         WsfWeapon weaponRef = PLATFORM.WeaponEntry(inFireSolution.weaponID);
+         tempLaunchEntry.endLaunchTime = TIME_NOW + GetLaunchDuration(weaponRef);
+         fireSolutionStruct newFireSolution = inFireSolution;
+         tempLaunchEntry.interceptTime = inFireSolution.interceptTime;
+         tempLaunchEntry.fireSolution = newFireSolution;
+         
+            launchScheduleInfo.Set(inFireSolution.threat.Name(), tempLaunchEntry);
+         
+            ExecuteAtTime(inFireSolution.launchTime,"ExecuteLaunch",{inFireSolution});
+      }
+
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script void CheckSentBid(string inThreatName, int inBidID)
+      if(myBidInfo.Exists(inBidID))
+      {
+         threatLog threatEntryRef = myBidInfo.Get(inBidID);
+         if(threatEntryRef.bidID == inBidID)
+         {
+            if(threatEntryRef.threatState == "Bid")
+            {
+               if(shouldLaunchOnNoResponse == true)
+               {
+                  ScheduleLaunch(threatEntryRef.fireSolution);
+               }
+            }
+         }
+      }
+   end_script
+   
+
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   script bool FindLaunchSolution(WsfLocalTrack inTrack)
+      # Clear out backend history of threat state for this platform
+      # Assume we have an updated track
+      ClearOutmatchThreatTrajectoryCache(); # Clear backend cache to prevent memory build up
+      
+      double soonerShotTime = 0; # Establish a value if we want to shoot X seconds earlier do to an uncertainty
+
+      if(firstTime == true)
+      {
+         if(PLATFORM.WeaponCount() > 0)
+         {
+            AddWeapons(PLATFORM);
+         }
+
+#         if(solveForDirectSubs == true)
+#         {
+#            foreach(WsfPlatform subRef in PLATFORM.Subordinates())
+#            {
+#               if(subRef.WeaponCount() > 0)
+#               {
+#                  AddWeapons(subRef);
+#               }
+#            }
+#         }
+      
+         if(canReload == true)
+         {
+            int weaponTypeCounts = PLATFORM.WeaponCount();
+      
+            if(weaponTypeCounts != reload_time.Size() || weaponTypeCounts != reload_inv_multiplier.Size())
+            {
+               writeln("WARNING: ", PLATFORM.Name(), " DOES NOT HAVE THE RELOAD PARAMETERS SET CORRECTLY CHECK AGAIN. DEFAULTING TO CANT RELOAD.");
+               canReload = false;
+            }
+         
+            if(canReload == true)
+            {
+               if(PLATFORM.WeaponCount() > 0)
+               {
+                  for(int wep=0; wep<PLATFORM.WeaponCount(); wep = wep+1)
+                  {
+                     string weaponID = PLATFORM.AuxDataString("weaponID");
+                     int weaponCount = PLATFORM.WeaponEntry(wep).QuantityRemaining(); 
+                     int weaponMultiplier = reload_inv_multiplier.Get(wep);
+                     current_reload_inv.PushBack(weaponCount * weaponMultiplier);
+                     start_weapon_counts.PushBack(weaponCount);                        
+                  }
+               
+                  foreach(double reloadTime in forced_reload_times)
+                  {
+                     if(reloadTime > 0)
+                     {
+                        ExecuteAtTime(reloadTime, "RunCheckReload", {true});
+                     }
+                  }
+               }
+            }
+         }
+      }
+      firstTime = false;
+   
+      #writeln ("reached script 'Find_Launch_Solution'");
+      bool LaunchSolutionFound = false;
+
+      string targetName = inTrack.TargetName();
+      WsfPlatform tgt = inTrack.Target();
+      bool computerCanIntercept = false;
+      #writeln_d(TIME_NOW, ": Attempting Finding Solution for ", PLATFORM.Name());
+      double colorValue = 0;
+      #writeln(PROCESSOR_WEAPONS.Size());
+      int N = processorWeapons.Size();
+
+      for (int i = 0; i < N; i+=1)
+      {
+         WsfWeapon i_weapon = processorWeapons[i];
+         #writeln ("i_weapon.IsValid: ", i_weapon.IsValid(), " i_weapon.Platform().GroundRangeTo(trk): ", i_weapon.Platform().GroundRangeTo(trk));
+         if (!i_weapon.IsValid()) # hold on calculating shots until things get closer. Arbitrary number chosen
+         {
+            #writeln ("still too far!");
+            continue;
+         }
+         
+         if(i_weapon.QuantityRemaining() == 0)
+         {
+            continue;
+         }
+
+         bool weaponOn = i_weapon.IsTurnedOn();
+         bool trackValid = inTrack.IsValid();
+         int weapQuant = i_weapon.QuantityRemaining();
+         
+         #SALVO SIZE: need this check to see if there is enough quantiy for salvo size
+         if(i_weapon.Type() == "AIM-9X" && targetName == "strike-1_alv_1" )
+         {
+            salvoSize = 2;
+         }
+         else
+         {
+            salvoSize = 1;
+         }  
+
+         #writeln ("Weapon: ", i_weapon.Name(), " weaponon: ", weaponOn, " trackValid: ", trackValid, " weapQuant: ", weapQuant, " salvosize: ", salvoSize);
+
+         double distanceCheck = 2000000; # Do not look at threats if they are this far out
+         if (weaponOn && trackValid && weapQuant >= salvoSize && PLATFORM.GroundRangeTo(inTrack) < distanceCheck)
+         {
+            bool computerHasValidLaunchTime = false;
+            WsfLaunchComputer computer = i_weapon.LaunchComputer();
+            double start =  launchDelay;
+            double delayTime = -1;
+            double launchTime = -1;
+            double end = PLATFORM.GroundRangeTo(tgt)/tgt.Speed()*0.8;
+            int numberOfPips = 50;
+
+            ########
+            # If desired here we can add custom logic, on a per threat type basis, of how to compute the end point and number of pips (i.e. what factor of safety)
+            ########
+
+            solveInterval = end/numberOfPips;
+            
+            #writeln_d(TIME_NOW, "  (DEBUG) ", PLATFORM.Name(), " checking canIntercept on: ", inTrack.Target().Name(), " with end time of: ", end);
+            
+            #################################################################################################################################
+            ### Check in reverse order to see what is the latest time we can shoot first... trying to get bids for global shot manager first.
+            # Establish some bools to check if we got global or local shot manager bids.
+            bool haveGlobalShotManagerSolutions = false;
+            bool haveLocalShotManagerSolutions = false;
+            
+            for(double t=end;t>=start;t=t-solveInterval)
+            {
+               #writeln_d(" (DEBUG) t = ", t);
+               #computer.ComputeLaunchWindows();                    # Where launch windows are computed
+               double usingDefaultAFSIMInterceptPoint = false;
+               WsfTrack myNewTrack = WsfTrack(inTrack);
+	            WsfGeoPoint defaultPoint = WsfGeoPoint.Construct(0,0,0);#"00:00:00.0n 00:00:00.0e 0 m");
+               WsfGeoPoint futureLocation = WsfGeoPoint(); 
+               WsfGeoPoint futureInterceptLocation = WsfGeoPoint(); 
+	            Vec3 futureVelocity = tgt.VelocityWCS(); 
+               OutmatchThreatTrajectory threatTrajectoryEntry = OutmatchThreatTrajectory();
+               
+              if (!usingDefaultAFSIMInterceptPoint)
+   	         {       
+	               # Check what type of target this is before propagating, to determine best propagation method.                             
+	               if(tgt.Type() == "ALV" || tgt.Type() == "FIGHTER_BOMBER" || tgt.CategoryMemberOf("cruise"))
+	               {
+	                     #writeln_d("    (DEBUG) Calculating constant alt future location for target: ", tgt);
+
+                        SetOutmatchCurvedTrajectoryHeadingRate(1); # Used to set the curved rate of change in heading (deg/s)
+	                     threatTrajectoryEntry = multi_threat_track_propagator(tgt, t,"$<PROPAGATION_METHOD:constant_altitude>$");
+                        # Set the final WCS location
+                        Vec3 end_loc = Vec3();
+                        end_loc.SetX(threatTrajectoryEntry.X);
+                        end_loc.SetY(threatTrajectoryEntry.Y);
+                        end_loc.SetZ(threatTrajectoryEntry.Z);
+                        futureLocation.Set(end_loc);
+                        
+                        # Set the new velocity based on the returned predicted velocity, assuming bad values not returned 
+                        if ((threatTrajectoryEntry.Xdot != -999999) && (threatTrajectoryEntry.Ydot != -999999) && (threatTrajectoryEntry.Zdot != -999999))
+                        {
+                           futureVelocity = futureVelocity.Construct(threatTrajectoryEntry.Xdot, threatTrajectoryEntry.Ydot, threatTrajectoryEntry.Zdot);
+                        }
+                        
+	               }
+	               else
+	               {
+	                     #writeln_d("    (DEBUG) Calculating future location for target: ", tgt);
+                        threatTrajectoryEntry = multi_threat_track_propagator(tgt, t,"ballistic");
+                        Vec3 end_loc = Vec3();
+                        end_loc.SetX(threatTrajectoryEntry.X);
+                        end_loc.SetY(threatTrajectoryEntry.Y);
+                        end_loc.SetZ(threatTrajectoryEntry.Z);
+                        futureLocation.Set(end_loc);
+	               }
+		         }
+               else
+               {
+                  usingDefaultAFSIMInterceptPoint = true;
+                  futureLocation = computer.InterceptPoint();
+               }
+               # writeln_d("t: ", t, " slantRange: ",PLATFORM.SlantRangeTo(futureLocation));
+
+               ### Adding in sanity check for AIM-9X using unclassified max range value of 35.4km
+               if (i_weapon.Type()=="AIM-9X" && PLATFORM.SlantRangeTo(futureLocation)>35400)
+               {
+                  computerCanIntercept = false;
+                  continue;
+               }
+               
+               # Set the new predicted location
+               myNewTrack.SetLocation(futureLocation);
+               myNewTrack.SetVelocityWCS(futureVelocity.X(),futureVelocity.Y(),futureVelocity.Z());
+               
+               computer.ComputeEndPoint();
+               computerCanIntercept = computer.CanIntercept(myNewTrack, 0);  # Where computer calculates if it can intercept the target
+               double timeOfFlight = computer.InterceptTime() - TIME_NOW;
+               double timeOfFlightUncertainty = timeOfFlight*0.1; # Add a factor of uncertainty for the intercept time. Default 10%. 
+               
+               if (PLATFORM.Name().Contains("ifpc"))
+               {
+                  timeOfFlightUncertainty = 1; # Add a 1 second uncertainty for IFPC shots
+               }
+
+               if(computerCanIntercept == true && (computer.InterceptTime() + t < TIME_NOW + end)) # Check if we can intercept and if intercept time before predicted threat end time
+               {
+                  #writeln_d("  (DEBUG) ", PLATFORM.Name(), " targeting ", myNewTrack.Target().Name()," with intercept time ", computer.InterceptTime(), " with Intercept Altitude of: ", futureLocation.Altitude());
+                  
+                  double tempLaunchTime = TIME_NOW + t;
+
+                  #writeln_d("  (DEBUG) computer.launchTime + t: ", tempLaunchTime);
+                  
+                  if(computer.LaunchTime() == -1) #double check computer.LaunchTime just because
+                  {
+                     tempLaunchTime = TIME_NOW + t;
+		                #writeln_d("  launchTime (TIME_NOW + t): ", launchTime, " (", TIME_NOW, " + ", t, ")");
+                  }
+                  else
+                  {
+                     tempLaunchTime = computer.LaunchTime() + t - soonerShotTime; # The "LaunchTime()" function assumes we are launching now. We tricked it, so we need to add t, which is our own delay.  
+                     #writeln_d("  computer.LaunchTime(): ", computer.LaunchTime());
+                  }
+                  
+                  bool launchAvailable = GetLaunchTimeAvailable(tempLaunchTime, GetLaunchDuration(i_weapon));
+                  if(launchAvailable == true)
+                  {
+                     ############################## This needs to be the same as above to compute the true PIP ##############################
+                     if (!usingDefaultAFSIMInterceptPoint)
+                     {       
+                        # Check what type of target this is before propagating, to determine best propagation method.                             
+                        if(tgt.Type() == "ALV" || tgt.Type() == "FIGHTER_BOMBER" || tgt.CategoryMemberOf("cruise"))
+                        {
+                              #writeln_d("    (DEBUG) Calculating constant alt future location for target: ", tgt);
+
+                              SetOutmatchCurvedTrajectoryHeadingRate(1); # Used to set the curved rate of change in heading (deg/s)
+                              threatTrajectoryEntry = multi_threat_track_propagator(tgt, computer.InterceptTime() - TIME_NOW + t,"$<PROPAGATION_METHOD:constant_altitude>$");
+                              # Set the final WCS location
+                              Vec3 end_loc = Vec3();
+                              end_loc.SetX(threatTrajectoryEntry.X);
+                              end_loc.SetY(threatTrajectoryEntry.Y);
+                              end_loc.SetZ(threatTrajectoryEntry.Z);
+                              futureInterceptLocation.Set(end_loc);
+                              futureVelocity = futureVelocity.Construct(threatTrajectoryEntry.Xdot, threatTrajectoryEntry.Ydot, threatTrajectoryEntry.Zdot);
+                              
+                        }
+                        else
+                        {
+                              #writeln_d("    (DEBUG) Calculating future location for target: ", tgt);
+                              threatTrajectoryEntry = multi_threat_track_propagator(tgt, computer.InterceptTime() - TIME_NOW + t,"ballistic");
+                              Vec3 end_loc = Vec3();
+                              end_loc.SetX(threatTrajectoryEntry.X);
+                              end_loc.SetY(threatTrajectoryEntry.Y);
+                              end_loc.SetZ(threatTrajectoryEntry.Z);
+                              futureInterceptLocation.Set(end_loc);
+                        }
+                     }
+                     else
+                     {
+                        usingDefaultAFSIMInterceptPoint = true;
+                        futureInterceptLocation = computer.InterceptPoint();
+                     }
+                     ############################## This needs to be the same as above to compute the true PIP ##############################
+
+                     launchTime = tempLaunchTime;
+                     delayTime = t;
+
+                     if(delayTime >= 0 && launchTime >=0)
+                     {
+                        WsfPlatform weaponPlat = i_weapon.Platform();
+                        string weaponPlatName = weaponPlat.Name();
+                        string threatName = targetName;
+                        solutionID = solutionID + 1;
+  		                  int bidID = GetNewBidID(PLATFORM, tgt, solutionID);
+
+                        fireSolutionStruct tempFireStruct = {};
+                        # Solution Data
+                        tempFireStruct.solutionID = bidID;
+                        tempFireStruct.interceptRange = weaponPlat.SlantRangeTo(tgt);
+                        tempFireStruct.interceptPosition = futureInterceptLocation;
+                        tempFireStruct.interceptTime = computer.InterceptTime() + t + timeOfFlightUncertainty;
+                        tempFireStruct.launchTime = launchTime;
+                        tempFireStruct.P1Index = 1; #Dont know what this is
+                        tempFireStruct.P2Index = 1; #Dont know what this is
+                        tempFireStruct.Pc = 1; #Dont know what this is
+                        tempFireStruct.Pk = GetPK(weaponPlat, tgt, futureInterceptLocation);
+                        tempFireStruct.shotType = 1; #Dont know what this is
+                        tempFireStruct.threat = tgt;
+                        tempFireStruct.threatRangeAtIntercept = weaponPlat.SlantRangeTo(futureInterceptLocation);
+                        tempFireStruct.timeCalculated = TIME_NOW;
+                        tempFireStruct.trackID = inTrack.TrackId().Name();
+                        tempFireStruct.trackNumber = inTrack.TrackId().Number();
+                        tempFireStruct.qos = inTrack.Quality();
+                        tempFireStruct.trackOriginator = inTrack.Originator().Name();
+                        tempFireStruct.weapon = weaponPlat;
+                        tempFireStruct.weaponID = i;
+                               
+                        if(autoFire == true)
+                        {
+                           if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Auto fire is set, launching and not repoting");
+                           
+                           ScheduleLaunch(tempFireStruct);
+                           break;
+                        }
+                        
+                        double shotMgrDecisionTime = GetShotManagerDecisionTime(shotManager);
+                        double localMgrDecisionTime = GetShotManagerDecisionTime(localShotManager);
+                        double bidMessageDelayTime = GetBidMessageDelayTime();
+                        double my_time_now = TIME_NOW;
+                        if(TIME_NOW + shotMgrDecisionTime + bidMessageDelayTime > launchTime 
+                           && TIME_NOW + localMgrDecisionTime + bidMessageDelayTime > launchTime)
+                        {
+                           if(canQuickLaunch == true)
+                           {
+                             
+                              if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Queing the launch, the launch time was sooner than the wait period");
+                           
+                              ScheduleLaunch(tempFireStruct);
+                           
+                              WsfMessage launchMsg = GetLaunchMessage(tempFireStruct, PLATFORM.Name());
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true && shotManager != "")
+                              {
+                                 processor.ExecuteScriptWithArgs("AddMessageToQue", {shotManager, launchMsg});
+                              }
+                              
+                           }
+                           #writeln_d(TIME_NOW, ": (DEBUG) ", PLATFORM.Name(), ": DecisionTime + DelayTimes are too long and pass launchTime");
+                        }
+                        
+                        else
+                        {
+                           #writeln_d("  (DEBUG) Generating bids.");
+                           bidMessageStruct tempBidStruct = CreateBidStructure(PLATFORM, tempFireStruct);
+                                          
+                           if(tempBidStruct.CheckBidIsValid() == true)
+                           {
+                              WsfMessage msg = GetBidMessage(bidID,PLATFORM,tempBidStruct,tgt, tempFireStruct);
+                              WsfProcessor processor  = PLATFORM.Processor("comms_proc");
+                              bool hasFunction = processor.ScriptExists("AddMessageToQue");
+                              if(hasFunction == true && shotManager != "")
+                              {
+                                 if(TIME_NOW + shotMgrDecisionTime < launchTime)
+                                 {
+                                    haveGlobalShotManagerSolutions = true;
+                                    threatLog threatInfoEntry = threatLog();
+                                    threatInfoEntry.bidID = bidID;
+                                    threatInfoEntry.threatState = "Bid";
+                                    threatInfoEntry.launchTime = launchTime;
+                                    threatInfoEntry.endLaunchTime = launchTime + GetLaunchDuration(i_weapon);
+                                    threatInfoEntry.interceptTime = computer.InterceptTime() + t + timeOfFlightUncertainty;
+                                    threatInfoEntry.fireSolution = tempFireStruct;
+                                    
+                                    ### Check if Pk meets minimum threshold for the shotManager
+                                    WsfPlatform shotManagerPlatform = WsfSimulation.FindPlatform(shotManager);
+                                    if(tempFireStruct.Pk < shotManagerPlatform.Processor("shot_dec_mgr")->minPkThreshold)
+                                    {
+                                       continue;
+                                    }
+                                    
+                                    ### Assume interceptor is in radar uplink range if needed
+                                    bool intercept_in_uplink_range = true;
+                                    
+                                    ### Now check if type PAC, if the uplink is truly in the 
+                                    if(i_weapon.Type().Upper().Contains("PAC"))
+                                    {
+                                       intercept_in_uplink_range = PacInterceptInRadarUplinkRange(shotManagerPlatform, futureInterceptLocation);
+                                    }
+                                    ### Break if intercept location not in radar uplink range
+                                    if(!intercept_in_uplink_range)
+                                    {
+                                       continue;
+                                    }                                                                 
+                                    
+                                    #myThreatInfo.Set(tgt.Name(), threatInfoEntry);
+                                    myBidInfo.Set(bidID, threatInfoEntry);
+                                    ExecuteAtTime(launchTime, "CheckSentBid", {threatName, bidID});
+                                    processor.ExecuteScriptWithArgs("AddMessageToQue", {shotManager, msg});
+                                    #if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Sending BID message - ",bidID, " (", tgt.Name(), "-> LaunchT: ", launchTime, " - InterceptT: ", threatInfoEntry.interceptTime,") intended for ", shotManager);
+                                    #writeln_d("    ", TIME_NOW, ": Weapon: ", PLATFORM.Name(), " weapQuant: ", weapQuant, " salvosize: ", salvoSize);
+                                    DrawInterceptLocation(futureInterceptLocation, 0, tgt, 1, tempFireStruct.interceptTime - TIME_NOW);
+                                 }
+                                 else if(localShotManager != "" && !haveGlobalShotManagerSolutions)
+                                 {
+                                    if(TIME_NOW + localMgrDecisionTime < launchTime)
+                                    {
+                                       haveLocalShotManagerSolutions = true;
+                                       threatLog threatInfoEntry = threatLog();
+                                       threatInfoEntry.bidID = bidID;
+                                       threatInfoEntry.threatState = "Bid";
+                                       threatInfoEntry.launchTime = launchTime;
+                                       threatInfoEntry.endLaunchTime = launchTime + GetLaunchDuration(i_weapon);
+                                       threatInfoEntry.interceptTime = computer.InterceptTime() + t + timeOfFlightUncertainty;
+                                       threatInfoEntry.fireSolution = tempFireStruct;
+                                       
+                                       ### Check if Pk meets minimum threshold for the shotManager
+                                       if(tempFireStruct.Pk < WsfSimulation.FindPlatform(localShotManager).Processor("shot_dec_mgr")->minPkThreshold)
+                                       {
+                                          break;
+                                       }
+
+                                       #myThreatInfo.Set(tgt.Name(), threatInfoEntry);
+                                       myBidInfo.Set(bidID, threatInfoEntry);
+                                       ExecuteAtTime(launchTime, "CheckSentBid", {threatName, bidID});
+                                       processor.ExecuteScriptWithArgs("AddMessageToQue", {localShotManager, msg});
+                                       #if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Sending BID message - ",bidID, " (", tgt.Name(), "-> LaunchT: ", launchTime, " - InterceptT: ", threatInfoEntry.interceptTime,") intended for ", localShotManager);
+                                       #writeln_d("    ", TIME_NOW, ": Weapon: ", PLATFORM.Name(), " weapQuant: ", weapQuant, " salvosize: ", salvoSize);
+                  	                  DrawInterceptLocation(futureInterceptLocation, 0, tgt, 1, tempFireStruct.interceptTime - TIME_NOW);
+                                    }
+                                 }
+                              } 
+                           }
+                        }
+                     }
+                     
+                     if(bidOnlyOnEarliestAvailable == true)
+                     {
+                        break;
+                     }
+                     else
+                     {
+                        
+                     }
+                  }
+                  else
+                  {
+                     computerCanIntercept = false;
+                  }
+               }   
+            }
+         }
+      }
+      
+      return LaunchSolutionFound;
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script void RunCheckReload(bool isForced)
+      if(canReload == true)
+      {
+         bool launcherEmpty = true; 
+         for(int wep=0; wep<PLATFORM.WeaponCount(); wep = wep+1)
+         {
+            int weaponCount = PLATFORM.WeaponEntry(wep).QuantityRemaining();
+            if(weaponCount > 0)
+            {
+               launcherEmpty = false;
+               break;
+            }
+         }
+         
+         if((launcherEmpty == true || isForced == true) && isReloading == false)
+         {
+            double activeSolutionsPending = 0;
+            int solSize = launchScheduleInfo.Size();
+            if(solSize > 0)
+            {
+               for(int sol=0; sol<solSize; sol = sol+1)
+               {
+                  string solKey = (string)launchScheduleInfo.ElementKeyAtIndex(sol);
+                  launchLog tempSol = launchScheduleInfo.Get(solKey);
+                  double endTime = tempSol.endLaunchTime;
+
+                  if(endTime > activeSolutionsPending)
+                  {
+                     activeSolutionsPending = endTime;
+                  }
+               }
+            }
+            
+            if(activeSolutionsPending < TIME_NOW)
+            {
+               double total_reload_time = 0;
+            
+               for(int wep=0; wep<PLATFORM.WeaponCount(); wep = wep+1)
+               {
+                  int weaponCount = PLATFORM.WeaponEntry(wep).QuantityRemaining();
+                  int finishAmount = weaponCount;
+               
+                  if(weaponCount < start_weapon_counts.Get(wep))
+                  {
+                     int amountMissing = start_weapon_counts.Get(wep) - weaponCount;
+                     int amountInInventory = current_reload_inv.Get(wep);
+                  
+                     if(amountMissing > amountInInventory)
+                     {
+                        finishAmount = weaponCount + amountInInventory;
+                        current_reload_inv.Set(wep,0);                                 
+                        total_reload_time = amountInInventory * reload_time.Get(wep);
+                        finish_reload_counts.PushBack(finishAmount);
+                     }
+                  
+                     else
+                     {
+                        finishAmount = start_weapon_counts.Get(wep);
+                        int newInventory = amountInInventory - amountMissing;
+                        current_reload_inv.Set(wep, newInventory);                                
+                        total_reload_time = amountInInventory * reload_time.Get(wep);
+                        finish_reload_counts.PushBack(finishAmount);
+                     }  
+                  }
+               
+                  else
+                  {                              
+                     finish_reload_counts.PushBack(weaponCount);
+                  }
+               }
+            
+               if(total_reload_time > 0)
+               {
+                  isReloading = true;
+                  finishReloadTime = TIME_NOW + total_reload_time;
+                  if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " IS RELOADING");
+                  ExecuteScriptAtTime(TIME_NOW + total_reload_time, "FinishReload");
+               } 
+            
+               else
+               {
+                  finish_reload_counts.Clear();
+                  finishReloadTime = 0;
+               }  
+            }
+            
+            else
+            {
+               if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " CANT RELOAD DUE TO PENDING SOLUTIONS");
+               ExecuteAtTime(activeSolutionsPending + 1, "RunCheckReload", {isForced});
+            }  
+         }
+      }
+   end_script
+   
+   #********************************************************************************************
+   #
+   #********************************************************************************************
+   
+   script void FinishReload()
+      for(int wep=0; wep<PLATFORM.WeaponCount(); wep = wep+1)
+      {
+         PLATFORM.WeaponEntry(wep).SetQuantityRemaining(finish_reload_counts.Get(wep));
+      }
+      
+      finish_reload_counts.Clear();
+      finishReloadTime = 0;
+      isReloading = false;
+      
+      if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " IS DONE RELOADING");
+   end_script
+   
+   on_update
+      WsfLocalTrackList masterTrackList = PLATFORM.MasterTrackList();
+      int trackListCount = masterTrackList.Size();
+      
+      # Complete a check to make sure memory is not being filled up with threat information
+      if(myThreatInfo.Size()>0)
+      {
+         RemoveThreatFromLogIfPastTime();
+      }
+      
+      foreach(WsfLocalTrack track in masterTrackList)
+      {
+         if(solveCount <= maxEngagements)
+         {
+            if(Engageable(track))
+            {
+               solveCount = solveCount + 1;
+               FindLaunchSolution(track);
+            }
+         }
+         else
+         {
+            break;
+         }
+      }
+      
+      solveCount = 0;
+   end_on_update
+
+   on_message 
+      type BidActionMessage
+         script
+            WsfMessage msg = (WsfMessage)MESSAGE; 
+            if( null != msg )
+            {
+               int msgBidID = msg.AuxDataInt("BidID");
+               string msgAction = msg.AuxDataString("Action");
+               double msgInterceptTime = msg.AuxDataDouble("InterceptTime");
+               fireSolutionStruct fireSolution = (fireSolutionStruct)msg.AuxDataObject("FireSolution");
+               
+               if(fireSolution.threat.IsValid())
+               {
+                  string threatName = fireSolution.threat.Name();
+                  if(myBidInfo.Exists(msgBidID) == true)
+                  {
+                     if(msgAction == "Launch")
+                     {
+                        if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Received Action (bidID - ", msgBidID, ") Launching Solution on ", fireSolution.threat.Name(), 
+                                 " at ", fireSolution.launchTime, " (", msgInterceptTime,")");
+                        ExecuteAtTime(TIME_NOW, "RemoveBidFromLog", {msgBidID});
+                        ScheduleLaunch(fireSolution);                              
+                     }
+                     if(msgAction == "Hold")
+                     {
+                        #writeln(TIME_NOW, "  ", PLATFORM.Name(), " DONT LAUNCH ON ", threatPlatform.Name());
+                        #writeln_d(" (DEBUG-Processor) ", TIME_NOW, ": BidID: ", msgBidID, " - ", PLATFORM.Name(), " Received HOLD message - will not launch on ", fireSolution.threat.Name());
+                        ExecuteAtTime(TIME_NOW, "RemoveBidFromLog", {msgBidID});
+                        threatLog threatLogEntry = threatLog();
+                        threatLogEntry.threatState = "Engaged";
+                        threatLogEntry.interceptTime = msgInterceptTime;
+                     }
+                  }
+                  else
+                  {
+                     if(msgAction == "Hold")
+                     {
+                        #writeln(TIME_NOW, "  ", PLATFORM.Name(), " DONT LAUNCH ON ", threatPlatform.Name());
+                        #writeln_d(" (DEBUG-Processor - BidInfo does not exist) ", TIME_NOW, ": BidID: ", msgBidID, " - ", PLATFORM.Name(), " Received HOLD message - will not launch on ", fireSolution.threat.Name());
+                        threatLog threatLogEntry = threatLog();
+                        threatLogEntry.threatState = "Engaged";
+                        threatLogEntry.interceptTime = msgInterceptTime;
+                     }
+                     if(msgAction == "Launch")
+                     {
+                        if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": BidID: ", msgBidID, " - ", PLATFORM.Name(), " Bid Info Does not exist - Shouldn't have received launch message");                            
+                     }
+                  }
+               }
+            }
+         end_script  
+         
+         type StandDownMessage
+         script
+            WsfMessage msg = (WsfMessage)MESSAGE; 
+            if( null != msg )
+            {
+               activeSolutionsStruct standDownInfo = (activeSolutionsStruct)msg.AuxDataObject("StandDownInfo");
+               string ThreatName = (string)msg.AuxDataObject("ThreatName");
+               RemoveScheduledLaunch(ThreatName);
+            }
+         end_script
+   end_on_message   
+
+end_processor

@@ -1,0 +1,284 @@
+
+##################### BMS Struct Types ########################
+script_variables
+   double slantMin = 0;
+   double slantMax = 0;
+end_script_variables
+### Fire Solution Struct
+script_struct fireSolutionStruct
+   script_variables
+      int solutionID = -1;
+      double interceptRange = 0;
+      WsfGeoPoint interceptPosition;
+      double interceptTime = 0;
+      double launchTime = 0;
+      int P1Index = -1;
+      int P2Index = -1;
+      double Pc = 0;
+      double Pk = 0;
+      int shotType = -1;
+      WsfPlatform threat;
+      double threatRangeAtIntercept = 0;
+      double timeCalculated = 0;
+      string trackID;
+      int trackNumber;
+      double qos = 0;
+      string trackOriginator;
+      WsfPlatform weapon;
+      int weaponID = -1;
+   end_script_variables
+end_script_struct
+
+### Weapon Inventory Struct
+script_struct weaponInvStruct
+   script_variables
+      string platformID;
+      string weaponID;
+      int weaponCount;
+   end_script_variables
+   
+   ### GET Functions ###
+   script string GetPlatformID()
+      return platformID;
+   end_script
+   script string GetWeaponID()
+      return weaponID;
+   end_script
+   script int GetWeaponCount()
+      return weaponCount;
+   end_script
+end_script_struct
+
+### Bid Message Struct
+script_struct bidMessageStruct
+   script_variables
+      string weaponPlat = "";
+      double sentTime = -1;
+      string threatName = "";
+      WsfTrackId TrackId;
+      double timeBaseValue = -1;
+      int bmID = -1;
+      string platID = "";
+      int lenEff = -1;
+      string weaponID = "";
+      double pbS = -1;
+      double pcEff = -1;
+      double startTimeDelay = -1;
+      double plat_t = -1;
+      double launchTime = -1;
+      double interceptTime = -1;
+      int bidShotCnt = -1;
+      int bidGroupID = -1;
+      Array<weaponInvStruct> weaponInventory = Array<weaponInvStruct>();
+      fireSolutionStruct fireSolution = fireSolutionStruct();
+   end_script_variables
+   
+   ### GET Functions ###
+   script double GetSentTime()
+      return sentTime;
+   end_script
+   script string GetThreatName()
+      return threatName;
+   end_script
+   script WsfTrackId GetTrackID()
+      return TrackId;
+   end_script
+   script double GetTimeBaseValue()
+      return timeBaseValue;
+   end_script
+   script int GetBMID()
+      return bmID;
+   end_script
+   script string GetPlatID()
+      return platID;
+   end_script
+   script int GetLenEff()
+      return lenEff;
+   end_script
+   script string GetWeaponID()
+      return weaponID;
+   end_script
+   script double GetPBS()
+      return pbS;
+   end_script
+   script double GetPcEff()
+      return pcEff;
+   end_script
+   script double GetStartTimeDelay()
+      return startTimeDelay;
+   end_script
+   script double GetPlatTime()
+      return plat_t;
+   end_script
+   script double GetLaunchTime()
+      return launchTime;
+   end_script
+   script double GetInterceptTime()
+      return interceptTime;
+   end_script
+   script int GetBidShotCount()
+      return bidShotCnt;
+   end_script
+   script int GetBidGroupID()
+      return bidGroupID;
+   end_script
+   script Array<weaponInvStruct> GetWeaponInventory()
+      return weaponInventory;
+   end_script
+   
+   script bool CheckBidIsValid()
+      bool isValid = false;
+      if(sentTime > 0 && threatName != "" && TrackId.IsValid() && timeBaseValue > 0 && bmID > 0 && lenEff >= 0 && weaponID != ""
+         && pbS > 0 && pcEff > 0 && startTimeDelay > 0 && plat_t > 0 && launchTime > 0
+            && interceptTime > 0 && bidShotCnt > 0 && bidGroupID >= 0 && weaponInventory.Size() > 0)
+      {
+         isValid = true;
+      }
+
+      isValid = true;
+      return isValid;
+   end_script
+end_script_struct
+
+script_struct rxBids
+   script_variables
+      bidMessageStruct receivedBid;
+      string receivedBidsOriginator;
+      int receivedBidID;
+      string receivedBidThreat;
+      fireSolutionStruct receivedFireSolution;
+   end_script_variables
+end_script_struct
+
+script_struct activeSolutionsStruct
+   script_variables
+      double sentTime;
+      double interceptTime;
+      double launchTime;
+      string weaponName;
+      bool isVerified = false;
+   end_script_variables
+end_script_struct
+
+
+##### PK Function
+script double GetPK(WsfPlatform inWeapon, WsfPlatform inThreat, WsfGeoPoint inInterceptPoint)
+{
+   double Pk = .02;
+   
+   if(inWeapon.IsValid() && inThreat.IsValid())
+      {
+         WsfPlatform weapon = inWeapon;
+         WsfPlatform threat = inThreat;
+         WsfGeoPoint interceptPoint = inInterceptPoint;
+
+         double weaponHeading = weapon.Heading();
+         weapon.SetHeading(0);
+         double azimuthIntToWeapon = weapon.RelativeAzimuthOf(interceptPoint);
+         if(azimuthIntToWeapon >= 0)
+            {
+               azimuthIntToWeapon = azimuthIntToWeapon - 180;
+            }
+         else
+            {
+               azimuthIntToWeapon = azimuthIntToWeapon + 180;
+            }
+         weapon.SetHeading(weaponHeading);
+
+         double azimuthIntToThreat = threat.Heading();
+         if(azimuthIntToThreat >= 0)
+            {
+               azimuthIntToThreat = azimuthIntToThreat - 180;
+            }
+         else
+            {
+               azimuthIntToThreat = azimuthIntToThreat + 180;
+            }
+
+         double shotAngle = azimuthIntToWeapon - azimuthIntToThreat;
+         if(shotAngle > 180)
+            {
+               shotAngle = MATH.Fabs((shotAngle - 360));
+            }
+         if(shotAngle < -180)
+            {
+               shotAngle = shotAngle + 360;
+            }
+            
+         shotAngle = MATH.Fabs(shotAngle);
+            
+#         writeln(TIME_NOW, " Shot Angle = ", shotAngle);
+         
+             //if aim-9x
+         if(inWeapon.Type().Contains("IFPC")) 
+            {
+                slantMin = 1000.05;
+                slantMax = 500004;
+            } 
+         //else if pac3 mse
+         else if(inWeapon.Type().Contains("PATRIOT"))
+            {
+                slantMin = 3000; //need to update
+                slantMax = 80000; //need to update
+            }
+         //else if sm6 
+         else if(inWeapon.Type().Contains("SM-6"))
+            {
+                slantMin = 10000.5;
+                slantMax = 1.00101e+06;
+            }        
+         //else if sm3
+         else if(inWeapon.Type().Contains("SM-3"))
+            {
+                slantMin = 0; //todo did not see min, need to update if found
+                slantMax = 1800000;
+            } 
+                    
+         double slantRange = inWeapon.SlantRangeTo(inInterceptPoint);
+#         writeln("inWeapon = ", inWeapon, " inThreat = ", inThreat," inInterceptPoint = ",  inInterceptPoint, " slantrange = ", slantRange); 
+#         writeln("slantMin = ", slantMin, " slantMax = ", slantMax);                
+         double alpha = 0.2;
+         double beta = 0.3;
+         double deltaRange = slantMax - slantMin;
+         double fr = 0;
+         double thetaFactor = 0;
+         double Pk_max = 0.95;
+         double Pk_min = 0.6;
+         
+         fr = Pk_max - (Pk_max - Pk_min)*(MATH.Pow(MATH.E(), -( (slantRange - slantMin)/(0.1*deltaRange) )) 
+                                        + MATH.Pow(MATH.E(), -( (slantMax - slantRange)/(0.1*deltaRange) )) );
+         
+         if(90 <= shotAngle <= 180)
+         {
+            thetaFactor = 1+(-alpha*MATH.Fabs(MATH.Sin(shotAngle)));
+         }
+         else
+         {
+            thetaFactor = 1+(-alpha*MATH.Fabs(MATH.Sin(shotAngle)))+(-beta*MATH.Fabs(MATH.Cos(shotAngle)));
+         }
+         
+         if(thetaFactor < 0)
+         {
+            thetaFactor = 0;
+         }
+         
+         Pk = fr*thetaFactor;
+        
+         if(Pk < 0.02)
+            {
+               Pk = .02;
+            }
+         if(Pk > .99)
+            {
+               Pk = .99;
+            }
+            
+         # writeln(TIME_NOW, " Pk = ", Pk);
+
+         return Pk;
+
+      }
+     
+     return Pk;
+}
+end_script

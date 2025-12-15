@@ -1,0 +1,127 @@
+# Include the RCS Platform Base
+include_once platforms/rcs_platform_base.txt 
+
+# *********************************************************************************************** #
+# The RCS_SENSOR_BASE is an "abstract" sensor type meant to be extended by any sensor             #
+# that uses the simple Radar Cross Section algorithm for detection                                #
+#                                                                                                 #
+# When extending this sensor to a non-abstract sensor type definition:                            #
+#     * Create three sensor type definitions for large, medium, and small RCS discrimination,     #
+#       all in the same file                                                                      #
+#     * In each of these sensors add a mode whose name is that of the size ("large", "medium"     #
+#       or "small")                                                                               #
+#     * Set scan_mode to azimuth_and_elevation                                                    #
+#     * Set the azimuth_scan_limits and elevation_scan_limits as appropriate                      #
+#     * Set the maximum_range to the maximum range at which this sensor can detect a platform     #
+#       of the given size                                                                         #
+# *********************************************************************************************** #
+sensor RCS_SENSOR_BASE WSF_RADAR_SENSOR
+  
+   # Special handling of RCS Values for Sensors and Platforms - returns true if the RCS
+   # detection algorithm determines that the target can be detected
+   script bool OnSensorDetectionAttempt(WsfPlatform aTarget, WsfSensorInteraction aInteraction)
+      # Is the target an RCS_PLATFORM? If not, then skip this check and allow normal detection to occur 
+      if(!WsfPlatform.IsA_TypeOf(aTarget.Type(), "RCS_PLATFORM_BASE"))
+         return true;
+      
+      # Get the RCS size of the target
+      int target_rcs = aTarget->xRCS_I;
+      
+      # Get the range to the target in nautical miles
+      double target_range_nm = aInteraction.RcvrToTargetRange()/Math.M_PER_NM();
+      
+      # Based on the previous data, can this sensor detect the target?
+      bool detected = false;
+      string rcs_sensor_mode = CurrentMode();
+      double sensor_range = FOV_MaximumRange();
+      if(rcs_sensor_mode == "large")
+         detected = ( target_rcs >= RCS_SIZE_ENUM().LARGE && target_range_nm <= sensor_range); 
+      else if(rcs_sensor_mode == "medium")
+         detected = ( target_rcs >= RCS_SIZE_ENUM().MEDIUM && target_range_nm <= sensor_range); 
+      else if(rcs_sensor_mode == "small")
+         detected = ( target_rcs >= RCS_SIZE_ENUM().SMALL && target_range_nm <= sensor_range); 
+      
+      # TODO: I believe we need may to populate the SensorInteraction, but we'll figure that out later...
+      
+      return detected;
+      
+   end_script
+   
+   script
+      # This script renders the inner shell of a radar volume
+      void render_sensor( WsfDraw draw, double az_min, double az_max, double el_min, double el_max, double step, double range_nm)
+      {
+      bool drawEnable = false;
+      if(drawEnable == true){
+         for( int az = az_min; az < az_max; az = az+step)
+         {
+            for( int el = el_min; el < el_max; el = el+step)
+            {
+               # It appears that the renderer for sensor volumes has a bug where it is 1 degree off rendering the az/el values
+               # In order to ensure the drawing here matches the sensor volume, we compensate the effective values
+               int az_eff = az - 1;
+               int el_eff = el - 1;
+               //draw.SetDuration(3);
+               draw.BeginPolyline();
+               draw.VertexECS( PLATFORM,
+                               range_nm*Math.Cos(el_eff)*Math.Cos(az_eff), 
+                               range_nm*Math.Cos(el_eff)*Math.Sin(az_eff), 
+                               range_nm*Math.Sin(el_eff));
+               draw.VertexECS( PLATFORM,
+                               range_nm*Math.Cos(el_eff+step)*Math.Cos(az_eff),
+                               range_nm*Math.Cos(el_eff+step)*Math.Sin(az_eff),
+                               range_nm*Math.Sin(el_eff+step));
+               draw.VertexECS( PLATFORM,
+                               range_nm*Math.Cos(el_eff+step)*Math.Cos(az_eff+step),
+                               range_nm*Math.Cos(el_eff+step)*Math.Sin(az_eff+step),
+                               range_nm*Math.Sin(el_eff+step));
+               draw.VertexECS( PLATFORM,
+                               range_nm*Math.Cos(el_eff)*Math.Cos(az_eff+step),
+                               range_nm*Math.Cos(el_eff)*Math.Sin(az_eff+step),
+                               range_nm*Math.Sin(el_eff));
+               draw.VertexECS( PLATFORM,
+                               range_nm*Math.Cos(el_eff)*Math.Cos(az_eff), 
+                               range_nm*Math.Cos(el_eff)*Math.Sin(az_eff), 
+                               range_nm*Math.Sin(el_eff));
+               draw.End();      
+            }
+         }  
+        }    
+      }
+   end_script
+
+   on_initialize2
+      # Add WsfDraw for RCS Sensor
+      WsfDraw draw = WsfDraw();
+
+      int cSTEP_SIZE = 10; # Degrees
+
+      string rcs_sensor_mode = CurrentMode();
+      double az_min = ScanMinimumAzimuth();
+      double az_max = ScanMaximumAzimuth();
+      double el_min = ScanMinimumElevation();
+      double el_max = ScanMaximumElevation();
+      double sensor_range = FOV_MaximumRange();
+
+      // DRAW inner shell wireframes based on RCS
+      if(rcs_sensor_mode == "large")
+      {
+         draw.SetLayer(PLATFORM.Name() + " Large");
+         draw.SetColor(1.0, 0.0, 0.0, 0.5); # Red
+         render_sensor(draw, az_min, az_max, el_min, el_max, cSTEP_SIZE, sensor_range);
+      }
+      else if(rcs_sensor_mode == "medium")
+      {
+         draw.SetLayer(PLATFORM.Name() + " Medium");
+         draw.SetColor(0.9, 0.5, 0.1, 0.5); # Orange
+         render_sensor(draw, az_min, az_max, el_min, el_max, cSTEP_SIZE, sensor_range);
+      }
+      else if(rcs_sensor_mode == "small")
+      {
+         draw.SetLayer(PLATFORM.Name() + " Small");
+         draw.SetColor(0.0, 1.0, 0.0, 0.5); # Green
+         render_sensor(draw, az_min, az_max, el_min, el_max, cSTEP_SIZE, sensor_range);
+      }
+   end_on_initialize2
+      
+end_sensor

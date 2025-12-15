@@ -1,0 +1,8 @@
+### CUSTOM_RF_TYPES ###
+include sensors/AN_MPQ-65.txt
+
+##### Weapons #####
+# include $(IBCS_PROJECT)/algorithms_scripts_functionality/show_spent_stages.txt #DBH NOTE: could not find file. im guessing this was meant to be removed.
+include weapons/blue/pac-3_mse/pac-3_mse.txt
+#include $(IBCS_PROJECT)/weapons/effectors/endo_interceptors/exo_t_a_common_new.txt
+

@@ -1,0 +1,127 @@
+# Ref 1 - 
+# *********************************************************************************************** #
+
+launch_computer PAC-3_MSE_SCRIPT_LAUNCH_COMPUTER WSF_SCRIPT_LAUNCH_COMPUTER
+
+script double getPac3FlyTime(double aRange)
+   # Returns the approximated flight time to get to a certaion range based off a 
+   # 2nd degree polynomial fit to a flyout table. 
+   return (1.82854266e-08 * aRange * aRange) + (6.03255874e-04 * aRange) + 0.1;
+end_script
+
+script double getPac3FlightPathAngle(double aRange)
+   # Returns the approximated flight path angle required to achieve a specific range
+   # using a 4th degree polynomial fit to a flyout table. 
+   double computed_flight_path_angle = (9.88976329e-18 * MATH.Pow(aRange,4))
+                                     + (-1.97594592e-12 * MATH.Pow(aRange,3)) 
+                                     + (1.26176912e-07 * MATH.Pow(aRange,2)) 
+                                     + (-3.90387997e-03 * aRange) 
+                                     + 9.99240051e+01;
+   return computed_flight_path_angle;
+end_script
+
+
+script WsfGeoPoint plat_future_location_const_alt(WsfPlatform plat, double forward_time)
+   Vec3 plat_accWCS = plat.AccelerationWCS();
+   Vec3 plat_accNED = plat.AccelerationNED();
+   bool large_g_manuever = false;
+
+   if(plat_accWCS.Magnitude()/9.81 > 8) # If acceleration greater than 8g... don't propogate
+   {
+	   large_g_manuever = true;
+   }
+   double yawAngle = plat.OrientationNED().X();
+   double northAccel = plat_accNED.X();
+   double eastAccel = plat_accNED.Y();
+   if(plat_accNED[2] > 0.1 || plat_accNED[2] < -0.1)
+   {
+      double accelDown = plat_accNED.Z();
+      Vec3 downVec = plat.LocationWCS();
+		double downMag = downVec.Magnitude();
+		if(downMag!=0)
+		{
+			downVec.Scale(-1.0/downMag);
+			downVec.Scale(accelDown);
+		}
+		Vec3 lateral_heading_Accel = Vec3().Subtract(plat_accWCS, downVec);
+		plat_accWCS = lateral_heading_Accel;
+	}
+   double X, Y, Z;
+   Vec3 plat_vel = plat.VelocityWCS();
+   Vec3 plat_location = plat.LocationWCS();
+   
+   if(!large_g_manuever)
+   {
+   	# Compute new location with acceleration: ensure threat acceleration profile appears nominal
+   	X = plat_location.X() + plat_vel.X() * forward_time + plat_accWCS.X() * forward_time * forward_time /2;
+   	Y = plat_location.Y() + plat_vel.Y() * forward_time + plat_accWCS.Y() * forward_time * forward_time /2;
+   	Z = plat_location.Z() + plat_vel.Z() * forward_time + plat_accWCS.Z() * forward_time * forward_time /2;
+   }
+   else
+   {
+   	# Compute new location without acceleration: needed for threats with buggy accelaration profile
+   	X = plat_location.X() + plat_vel.X() * forward_time;
+   	Y = plat_location.Y() + plat_vel.Y() * forward_time;
+   	Z = plat_location.Z() + plat_vel.Z() * forward_time;
+   }
+   Vec3 end_loc = Vec3();
+   end_loc.SetX(X);
+   end_loc.SetY(Y);
+   end_loc.SetZ(Z);
+   WsfGeoPoint end_location = WsfGeoPoint();
+   end_location.SetWCS(end_loc);
+   end_location.SetAltitudeAGL(plat.Altitude());
+   return end_location;
+end_script
+
+
+script void compute_intercept(WsfTrack aTrack, double aLaunchDelay)
+	WsfGeoPoint end_location;
+	double forward_time;
+	double future_slant_range;
+	double fly_time;
+	bool badSolution = false;
+
+	if(aTrack.BelievedAlive() && aTrack.IsValid() && aTrack.Target().Side() != "blue")
+	{
+		forward_time = 10;
+		end_location = plat_future_location_const_alt(aTrack.Target(), forward_time);
+		end_location.SetAltitudeAGL(aTrack.Target().Altitude());
+		future_slant_range = PLATFORM.SlantRangeTo(end_location);
+		fly_time = getPac3FlyTime(future_slant_range);
+		while(fly_time > forward_time)
+		{
+			forward_time= forward_time + 10;
+			end_location = plat_future_location_const_alt(aTrack.Target(), forward_time);
+			end_location.SetAltitudeAGL(aTrack.Target().Altitude());
+			future_slant_range = PLATFORM.SlantRangeTo(end_location);
+      #print("future_slant_range = ", future_slant_range);
+			fly_time = getPac3FlyTime(future_slant_range);
+      #print("fly_time = ", fly_time);
+			if(fly_time > 500 || future_slant_range > 200000 || future_slant_range < 3000 || end_location.Altitude() > 30000 || end_location.Altitude() < 0)
+			{ 
+				badSolution = true;
+				break;
+			}
+      }
+	if(badSolution)
+	{
+		#SetInterceptPoint(WsfGeoPoint());
+		#SetLaunchTime(-1);
+		#SetTimeOfFlight(-1);
+	}
+	else
+	{
+     
+		SetInterceptTime(TIME_NOW + fly_time + aLaunchDelay);
+		SetLaunchTime(TIME_NOW + aLaunchDelay);
+		SetTimeOfFlight(fly_time - aLaunchDelay);
+		SetInterceptPoint(end_location);
+
+     # Set loft angle required if guidance computer uses this functionality
+     #SetLoftAngle(getPac3FlightPathAngle(future_slant_range));
+	}
+   }
+end_script
+
+end_launch_computer

@@ -1,0 +1,173 @@
+include_once scripts/Design_Variables_$(VIGNETTE).txt
+script_variables
+## Monte Carlo Simulation Inputs ##
+# Latitude are degrees north and Longitude are degrees east
+#.1 is 6 nmi
+ double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; //- 1.5;
+ double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ -1.1; // - 1.9; //13.1;
+ 
+ double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; //+ $<BLUE_OFFSET:.5>$;
+ double mcLongitudeInput4thGen_Group1 = mcLongitudeInput5thGen - .3; //13;
+
+ double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen - $<BLUE_OFFSET:.28>$; //.54; //mcLatitudeInput5thGen - ($<BLUE_OFFSET:.5>$ + 2.1); //+ ($<BLUE_OFFSET:.5>$+.15); //($<BLUE_OFFSET:.5>$+.15);
+ double mcLongitudeInput4thGen_Group2 = mcLongitudeInput5thGen - .3; //13
+
+ double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen; //+ ($<BLUE_OFFSET:.5>$+.2); //($<BLUE_OFFSET:.5>$+.2);
+ double mcLongitudeInputBlueAEW = mcLongitudeInput5thGen - 1.6; //12.5
+ 
+ double mcLatitudeInputREDAEW = $<RED_WRL_LAT:54>$ - 1;
+ double mcLongitudeInputREDAEW = $<RED_WRL_LON:15>$ + 1; //16
+
+ double mcLatitudeInputRedFighter = $<RED_WRL_LAT:54>$ - .8;
+ double mcLongitudeInputRedFighter = $<RED_WRL_LON:15>$ +.5; //14.5
+ 
+# double mcLatitudeInputRedBomber = 30.5;
+# double mcLongitudeInputRedBomber = 124;
+
+ global double mcRange = 0; //.1; //1;
+
+#extern double mcLatitudeInput5thGen;      # Refer to design_variables_(region).txt
+#extern double mcLongitudeInput5thGen;     # Refer to design_variables_(region).txt
+#extern double mcLatitudeInput4thGen_Group1;      # Refer to design_variables_(region).txt
+#extern double mcLongitudeInput4thGen_Group1;     # Refer to design_variables_(region).txt
+#extern double mcLatitudeInput4thGen_Group2;      # Refer to design_variables_(region).txt
+#extern double mcLongitudeInput4thGen_Group2;     # Refer to design_variables_(region).txt
+#extern double mcLatitudeInputRedFighter;  # Refer to design_variables_(region).txt
+#extern double mcLongitudeInputRedFighter; # Refer to design_variables_(region).txt
+#extern double mcLatitudeInputRedBomber;   # Refer to design_variables_(region).txt
+#extern double mcLongitudeInputRedBomber;  # Refer to design_variables_(region).txt
+#extern double mcLatitudeInputBlueAEW;
+#extern double mcLongitudeInputBlueAEW;
+#extern double mcLatitudeInputREDAEW;
+#extern double mcLongitudeInputREDAEW;
+#extern double mcRange;                    # Refer to design_variables_(region).txt
+ bool MC_flag = true;                      # Set MC_flag in startup file
+
+# Setting up Random location of BLUE 5thGen Fighters 
+double lat_5thGen = WsfRandom.Uniform(mcLatitudeInput5thGen, mcLatitudeInput5thGen+mcRange);
+double lon_5thGen = WsfRandom.Uniform(mcLongitudeInput5thGen, mcLongitudeInput5thGen+mcRange);
+double latSep_5thGen = 0.16; # lateral seperation of 10 min
+
+Array<double> latlon_5thGen_001 = {lat_5thGen, lon_5thGen};
+Array<double> latlon_5thGen_002 = {lat_5thGen+latSep_5thGen, lon_5thGen};
+Array<double> latlon_5thGen_003 = {lat_5thGen+(latSep_5thGen*2), lon_5thGen};
+Array<double> latlon_5thGen_004 = {(lat_5thGen+(latSep_5thGen*3)), lon_5thGen};
+
+# Setting up Random location of BLUE 4thGen Fighters 
+double lat_4thGen_Group1 = WsfRandom.Uniform(mcLatitudeInput4thGen_Group1, mcLatitudeInput4thGen_Group1+mcRange);
+double lon_4thGen_Group1 = WsfRandom.Uniform(mcLongitudeInput4thGen_Group1, mcLongitudeInput4thGen_Group1+mcRange);
+double latSep_4thGen = 0.16; # lateral seperation of 10 min
+
+# Setting up Random location of BLUE 4thGen Fighters 
+double lat_4thGen_Group2 = WsfRandom.Uniform(mcLatitudeInput4thGen_Group2, mcLatitudeInput4thGen_Group2+mcRange);
+writeln("MIKE" , lat_4thGen_Group2);
+#double lon_4thGen_Group2 = WsfRandom.Uniform(mcLongitudeInput4thGen_Group2, mcLongitudeInput4thGen_Group1+mcRange);
+
+###MIKE Change: Keep same longitude for all 4th gen
+double lon_4thGen_Group2 = lon_4thGen_Group1;
+
+Array<double> latlon_4thGen_001 = {lat_4thGen_Group1, lon_4thGen_Group1};
+Array<double> latlon_4thGen_002 = {lat_4thGen_Group1+latSep_4thGen, lon_4thGen_Group1};
+
+Array<double> latlon_4thGen_003 = {lat_4thGen_Group2, lon_4thGen_Group2};
+Array<double> latlon_4thGen_004 = {(lat_4thGen_Group2+latSep_4thGen), lon_4thGen_Group2};
+
+#Array<double> latlon_4thGen_003 = {lat_4thGen_Group2, lon_4thGen_Group2};
+#Array<double> latlon_4thGen_004 = {(lat_4thGen_Group2+latSep_4thGen), lon_4thGen_Group2};
+
+#### MIKE Change: Original positions with longitude separation
+#Array<double> latlon_4thGen_001 = {lat_4thGen, lon_4thGen};
+#Array<double> latlon_4thGen_002 = {lat_4thGen+latSep_4thGen, lon_4thGen+latSep_4thGen};
+#Array<double> latlon_4thGen_003 = {lat_4thGen+(latSep_4thGen*2), lon_4thGen+(latSep_4thGen*2)};
+#Array<double> latlon_4thGen_004 = {(lat_4thGen+(latSep_4thGen*3)), lon_4thGen+(latSep_4thGen*3)};
+
+# Setting up Random location of BLUE AEW
+double lat_AEWGen = WsfRandom.Uniform(mcLatitudeInputBlueAEW, mcLatitudeInputBlueAEW+mcRange);
+double lon_AEWGen = WsfRandom.Uniform(mcLongitudeInputBlueAEW, mcLongitudeInputBlueAEW+mcRange);
+Array<double> latlon_AEW_C2 = {lat_AEWGen, lon_AEWGen};
+
+# Setting up Random altitude of All BLUE Fighters 
+double blue_fighter_alt_ft = WsfRandom.Uniform(25000,30000);
+double blue_fighter_alt = blue_fighter_alt_ft * 0.3048; # ft to meters
+
+# Setting up Random location of the IADs
+
+# Setting up Random location of RED AEW
+double lat_RED_AEW = WsfRandom.Uniform(mcLatitudeInputREDAEW, mcLatitudeInputREDAEW+mcRange);
+double lon_RED_AEW = WsfRandom.Uniform(mcLongitudeInputREDAEW, mcLongitudeInputREDAEW+mcRange);
+Array<double> latlon_RED_AEW = {lat_RED_AEW, lon_RED_AEW};
+
+# Setting up Random location of RED Fighters
+double lat_RedFighter = WsfRandom.Uniform(mcLatitudeInputRedFighter, mcLatitudeInputRedFighter+mcRange);
+double lon_RedFighter = WsfRandom.Uniform(mcLongitudeInputRedFighter, mcLongitudeInputRedFighter+mcRange);
+double latSep_RedFighter = 0.16;
+
+Array<double> latlon_RedFighter_001 = {lat_RedFighter, lon_RedFighter};
+Array<double> latlon_RedFighter_002 = {lat_RedFighter+latSep_RedFighter, lon_RedFighter};
+Array<double> latlon_RedFighter_003 = {lat_RedFighter+(latSep_RedFighter*2), lon_RedFighter};
+Array<double> latlon_RedFighter_004 = {(lat_RedFighter+(latSep_RedFighter*3)), lon_RedFighter};
+Array<double> latlon_RedFighter_005 = {(lat_RedFighter+(latSep_RedFighter*4)), lon_RedFighter};
+Array<double> latlon_RedFighter_006 = {(lat_RedFighter+(latSep_RedFighter*5)), lon_RedFighter};
+Array<double> latlon_RedFighter_007 = {(lat_RedFighter+(latSep_RedFighter*6)), lon_RedFighter};
+Array<double> latlon_RedFighter_008 = {(lat_RedFighter+(latSep_RedFighter*7)), lon_RedFighter};
+
+## Setting up Random location of RED Bombers
+#double lat_RedBomber = WsfRandom.Uniform(mcLatitudeInputRedBomber, mcLatitudeInputRedBomber+mcRange);
+#double lon_RedBomber = WsfRandom.Uniform(mcLongitudeInputRedBomber, mcLongitudeInputRedBomber+mcRange);
+#double latSep_RedBomber = 1;
+
+#Array<double> latlon_RedBomber_001 = {lat_RedBomber, lon_RedBomber};
+#Array<double> latlon_RedBomber_002 = {lat_RedBomber+latSep_RedBomber, lon_RedBomber};
+
+end_script_variables
+
+
+#TO DO: Place platforms in appropriate positions, give blue enough time to set up and CAP 
+execute at_time .01 s absolute
+   if(MC_flag == true) {
+      double alt =  blue_fighter_alt;
+#      double num_plats = WsfSimulation.PlatformCount();
+#      int plat_number = 1;
+#      for(i=0; i < num_plats; i= i+1) {
+#         WsfPlatform curr_plat = WsfSimulation.FindPlatform(i);
+#         if(curr_plat.IsValid()) {
+#            if(curr_plat.Type() == "F-35") {
+#               curr_plat.SetLocation(lat_5thGen, lon_5thGen, alt);
+#            }
+#         }
+#      }
+   # Setting new location of 5th Gen Fighters
+   WsfSimulation.FindPlatform("5thGen1_Group1").SetLocation(latlon_5thGen_001[0], latlon_5thGen_001[1], alt);
+   WsfSimulation.FindPlatform("5thGen2_Group1").SetLocation(latlon_5thGen_002[0], latlon_5thGen_002[1], alt);
+   
+   
+   # Setting new location of 4th Gen Fighters
+   WsfSimulation.FindPlatform("EuroFighter1_Group1").SetLocation(latlon_4thGen_001[0], latlon_4thGen_001[1], alt);
+   WsfSimulation.FindPlatform("EuroFighter2_Group1").SetLocation(latlon_4thGen_002[0], latlon_4thGen_002[1], alt);
+   WsfSimulation.FindPlatform("EuroFighter3_Group2").SetLocation(latlon_4thGen_003[0], latlon_4thGen_003[1], alt);
+   WsfSimulation.FindPlatform("EuroFighter4_Group2").SetLocation(latlon_4thGen_004[0], latlon_4thGen_004[1], alt);
+   
+   # Setting new location of Blue AEW
+   WsfSimulation.FindPlatform("AEW_C2").SetLocation(latlon_AEW_C2[0], latlon_AEW_C2[1], alt);
+   
+   # Setting new location of RED AEW
+   WsfSimulation.FindPlatform("RED_AEW").SetLocation(latlon_RED_AEW[0], latlon_RED_AEW[1], alt);
+
+   
+   # Setting new location of RED Fighters
+   WsfSimulation.FindPlatform("Su34_1").SetLocation(latlon_RedFighter_001[0], latlon_RedFighter_001[1], alt);
+   WsfSimulation.FindPlatform("Su35_1").SetLocation(latlon_RedFighter_002[0], latlon_RedFighter_002[1], alt);
+   WsfSimulation.FindPlatform("Su34_2").SetLocation(latlon_RedFighter_003[0], latlon_RedFighter_003[1], alt);
+   WsfSimulation.FindPlatform("Su35_2").SetLocation(latlon_RedFighter_004[0], latlon_RedFighter_004[1], alt);
+#   WsfSimulation.FindPlatform("Red-05").SetLocation(latlon_RedFighter_005[0], latlon_RedFighter_005[1], alt);
+#   WsfSimulation.FindPlatform("Red-06").SetLocation(latlon_RedFighter_006[0], latlon_RedFighter_006[1], alt);
+#   WsfSimulation.FindPlatform("Red-07").SetLocation(latlon_RedFighter_007[0], latlon_RedFighter_007[1], alt);
+#   WsfSimulation.FindPlatform("Red-08").SetLocation(latlon_RedFighter_008[0], latlon_RedFighter_008[1], alt);
+   
+   # Setting new location of RED Bombers
+#   WsfSimulation.FindPlatform("Red_A2G_1").SetLocation(latlon_RedBomber_001[0], latlon_RedBomber_001[1], alt);
+#   WsfSimulation.FindPlatform("Red_A2G_2").SetLocation(latlon_RedBomber_002[0], latlon_RedBomber_002[1], alt);
+         # Draw assignments by line
+
+   }
+end_execute

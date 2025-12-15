@@ -1,0 +1,143 @@
+     
+#      # Define Formation based on type list
+      Array<double> offsetRange = {5, 10, 10, 10, 10, 0}; # (Nautical Miles) Distance to group center
+      Array<double> offsetBearing = {180, -45, -15, 15, 45, 0}; # (Degrees) What direction to offset relative to center
+      Array<double> offsetOrientation = {0, -45, -15, 15, 45, 0}; # (Degrees) What heading this platform has
+
+#TO DO MIKE CHANGE: This placed all of the SAM platforms on top of each other
+
+      # Define Formation based on type list
+#      Array<double> offsetRange = {0, 0, 0, 0, 0, 0}; # (Nautical Miles) Distance to group center
+#      Array<double> offsetBearing = {180, -45, -15, 15, 45, 0}; # (Degrees) What direction to offset relative to center
+#      Array<double> offsetOrientation = {90, 45, 15, -15, -45, 0}; # (Degrees) What heading this platform has
+      
+   end_script_variables
+   
+   
+   ###############################
+   # GET LOCATION
+   ###############################
+   script WsfGeoPoint GetLocation()
+      return location;
+   end_script
+   
+   
+   ###############################
+   # GENERATE PLATFORM NAMES
+   ###############################
+   # Automatically generates names with numberings for 
+   # repeat types
+   script void GeneratePlatformNames(string aGroupName)
+      
+      # Count how many of each type
+      Map<string,int> typeCount = Map<string,int>();
+      for (int ii = 0; ii < platformTypes.Size(); ii += 1)
+      {
+         string type = platformTypes[ii];
+         if (typeCount.Exists(type))
+         {
+            # Increment
+            typeCount[type] = typeCount[type] + 1;
+         }
+         else
+         {
+            # Initialize
+            typeCount[type] = 1;
+         }
+         platformNames[ii] = aGroupName + "_" + type + (string)typeCount[type];
+      }
+   end_script
+   
+   
+   
+   ################################
+   # ASSIGN COMMANDER
+   ################################
+   # Set local commander as global commander
+   script void ChangeCommander(string localCommanderName)
+      
+      # Try all platforms
+      foreach (string iName in platformNames)
+      {
+         WsfPlatform iPlatform = WsfSimulation.FindPlatform(iName);
+         Array<string> hardReportToArray = {localCommanderName};
+         
+         # Change commander for SENSOR_DATA on RADAR
+         WsfProcessor mProcessor = iPlatform.Processor("sensor_data");
+         if (mProcessor.IsValid()) {
+            mProcessor->hardReportTo = hardReportToArray;
+         }
+         
+         # Change commander for SYS_TRACK_MGR on ALL PLATFORMS
+         mProcessor = iPlatform.Processor("sys_track_mgr");
+         if (mProcessor.IsValid()) {
+            mProcessor->hardReportTo = hardReportToArray;
+         }
+         
+         # Change commander for all platforms
+         WsfPlatform aLocalCommander = WsfSimulation.FindPlatform(localCommanderName);
+         if (aLocalCommander.IsValid()) iPlatform.SetCommander(aLocalCommander);
+      }
+      
+   end_script
+   
+   
+   
+   ################################
+   # SET SHOT MANAGER
+   ################################
+   script void SetShotManager(string aShotMgr)
+      
+      # Try all platforms
+      foreach (string iName in platformNames)
+      {
+         # Get launcher processor
+         WsfPlatform iPlatform = WsfSimulation.FindPlatform(iName);
+         WsfProcessor mProcessor = iPlatform.Processor("launcher_mgr");
+         
+         # Change commander for LAUNCHER_MGR on LAUNCHER
+         if (mProcessor.IsValid()) {
+            mProcessor->shotManager = aShotMgr;
+         }
+      }
+      
+   end_script
+   
+   ###############################
+   # CREATE GROUP
+   ###############################
+   # Automatically generates platforms based on formation data above
+   # and group inputs below
+   script void CreateGroup(string aGroupName, string aLocation, double aHeading)
+      name = aGroupName;
+      location = WsfGeoPoint.Construct(aLocation);
+      heading = aHeading;
+      
+      # Deconflict names
+      GeneratePlatformNames(name);
+      
+      # Create Platforms
+      for (int ii = 0; ii < platformTypes.Size(); ii += 1)
+      {
+         # Set Location
+         WsfGeoPoint offset_location = WsfGeoPoint.Construct(aLocation);
+         offset_location.OffsetRBE(offsetRange[ii]*MATH.M_PER_NM(), heading+offsetBearing[ii], 0);
+         
+         # Set Orientation
+         double offset_heading = heading + offsetOrientation[ii];
+         
+         # Create Platform
+         WsfPlatform iPlatform = WsfSimulation.CreatePlatform(platformTypes[ii]);
+         iPlatform.SetLocation(offset_location);
+         iPlatform.SetHeading(offset_heading);
+         iPlatform = WsfSimulation.AddPlatform(iPlatform, platformNames[ii]);  
+                  
+         # Add platform to list
+         platforms.PushBack(iPlatform);
+      }
+      
+      # Set Local Commander variable
+      localCommander = platforms[0];  
+   end_script
+   
+end_script_struct

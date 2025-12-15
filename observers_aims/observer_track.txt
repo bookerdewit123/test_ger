@@ -1,0 +1,244 @@
+observer
+#    enable LOCAL_TRACK_INITIATED LocalTrackUpdated
+    enable LOCAL_TRACK_UPDATED LocalTrackUpdated #
+    enable SIMULATION_INITIALIZING TrackSimInitialize #
+end_observer 
+    
+
+script_variables
+
+#   bool track_log_print = true; // set to true if desire to create a log.txt output that mimmicks brawler's standard output
+#   bool track_iout_print = true; // set to true if desire to create an iout.txt output
+#
+#   Array<string> track_log_string = {"output/","TRACK_LOG"};
+#   Array<string> track_iout_string = {"output/","TRACK_IOUT"};
+#   Array<string> track_sensor_string = {"output/","TRACK_SENSOR"};
+#   Array<string> track_write_out_string = {"output/", "TRACK_WEAPON_RESULT"};
+#   
+#   string track_log_path = "".Join(track_log_string);
+#   string track_iout_path = "".Join(track_iout_string);
+#   string track_sensor_path = "".Join(track_sensor_string);
+#   string track_write_path = "".Join(track_write_out_string);
+#   
+#   FileIO track_log = FileIO();
+#   FileIO track_iout = FileIO();
+#   FileIO track_sensorIO = FileIO();
+#   FileIO track_write_out = FileIO();
+
+   double track_platLat; // for the track observer
+   double track_platLon; // for the track observer
+   double track_platAlt;
+   string track_platSide;
+   string track_platName;
+   string track_platType;
+   int track_platIndex;
+   
+   string targetName;
+   string targetType;
+   string targetSide;
+   int targetIndex;
+   double targetRange;
+   double targetBearing;
+   double targetDamaged;
+   
+   string track_message;
+
+#  Define files to write outputs to
+   string track_open_method;
+
+#   int track_run_num = WsfSimulation.RunNumber();
+#   global int track_random_seed = WsfSimulation.RandomSeed();
+#   if(track_run_num == 1)
+#      {track_open_method = "out";}
+#   else
+#      {track_open_method = "append";}
+  
+   track_open_method = "out";
+   // creates output files
+   FileIO track_file = FileIO();
+
+   // Appending ot output file
+   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/track_file";     //   single track file name
+   assert(track_file.Open((rel_path_02 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), track_open_method),                     // uses out or append
+        rel_path_02 + ".csv" + " output file failed to open");
+
+   // new output file each run
+//   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/MC_track/track_file_";   // for multiple output files, in folder
+//   assert(track_file.Open((rel_path_02 + (string)run_num + ".csv"), "out"),                       // only uses "out"
+//        rel_path_02 + ".csv" + " output file failed to open");
+        
+
+     
+end_script_variables
+
+// Preallocation scripts to create headers of files ////////////////////////////////////////////////////////////////////////////////
+
+script void write_trackObserver_file() // preallocates
+   
+      Array<string> header = {"Treatment",
+                              "Replicate",
+                              "Seed",
+                              "TIME_NOW",
+                              "Event", 
+                              "TrackNumber",
+                              "orignatorSide",
+                              "orignatorName",
+                              "orignatorType",
+                              "orignatorIndex",
+                              "orignatorLatitude",
+                              "orignatorLongitude",
+                              "orignatorAltitude",
+                              "TrackedSide",                                                                                                                                                                     
+                              "TrackedName",
+                              "TrackedType",
+                              "TrackedIndex",
+                              "TrackedLatitude",
+                              "TrackedLongitude",
+                              "TrackedAltitude",
+                              "TrackedBearing",
+                              "TrackedDamage",
+                              "TimeSinceInit",
+                              "TimeSinceUpdate",
+                              "TrackQuality",
+                              "TrackUpdates",
+                              "TrackContributors",
+  }; # change column names to metrics interested in
+      string header_line = ", ".Join(header);
+      track_file.Write(header_line);
+      track_file.Write("\n");
+
+end_script
+
+script void TrackSimInitialize()
+   // NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
+   MATH.SetSeed(WsfSimulation.RandomSeed());
+   
+#   if (WsfSimulation.RunNumber() == 1)
+#   {
+      write_trackObserver_file();
+      //track_write_out.Open(track_write_path, "out");
+      
+#   }
+#   else 
+#   {
+#      //track_write_out.Open(track_write_path,"append");
+#   }
+#   
+#   if (track_iout_print)
+#   {
+#       track_iout.Open(track_iout_path, "out");
+#       track_iout.Writeln(write_str(" Starting seed ",WsfSimulation.RandomSeed()));
+#       track_iout.Close();
+#       track_iout.Open(track_iout_path,"append");
+#   }
+#   if (track_log_print)
+#   {
+#       track_log.Open(track_log_path, "out");
+#       track_log.Writeln(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
+#       track_log.Close();
+#       track_log.Open(track_log_path,"append");
+#   }
+end_script
+
+script void LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack) 
+   
+   ############################
+   ## Track Specific Metrics ##
+   ############################
+   double simTime = TIME_NOW;
+   double elapsedTime = aLocalTrack.TimeSinceStarted();
+   double elapsedUpdatedTime = aLocalTrack.TimeSinceUpdated();
+   int updatedCount = aLocalTrack.UpdateCount();
+   int numContributors = aLocalTrack.NumContributors();
+   
+   int globalTrackNumber = aLocalTrack.GlobalTrackNumber();
+//   WsfTrackId trackID = aTrack.TrackId(); # Should not need TrackID if using Global Track Number
+//   string trackIDname = trackID.Name();
+//   int trackIDnumber = trackID.Number();
+   
+   double trackQuality = aLocalTrack.Quality();
+   double targetLat, targetLon, targetAlt;
+   
+   if (aPlatform.IsValid()) # Make sure platform is valid
+   {
+      # Make sure target is valid in the sim
+      if (aLocalTrack.Target().IsValid() && !aLocalTrack.Target().IsNull()) # Make sure that target is valid and track is not empty
+      {
+         #####################
+         ## Target Platform ##
+         #####################
+         WsfPlatform target = aLocalTrack.Target();
+         
+         targetName = target.Name();
+         targetType = target.Type();
+         targetSide = target.Side();
+         targetIndex = target.Index();
+         
+         WsfGeoPoint targetLocation = target.Location();
+         targetLat = targetLocation.Latitude();
+         targetLon = targetLocation.Longitude();
+         targetAlt = targetLocation.Altitude();
+         targetDamaged = aLocalTrack.TargetDamaged(); // returns target platform's current damage level; ranges from 0...1 with 0 being undamaged and 1 being fully damaged or destroyed
+         
+         
+         #####################
+         ## Origin Platform ##
+         #####################
+  
+         track_platName = aPlatform.Name();
+         track_platType = aPlatform.Type();
+         track_platSide = aPlatform.Side();
+         track_platLat = aPlatform.Latitude();
+         track_platLon = aPlatform.Longitude();
+         track_platAlt = aPlatform.Altitude();
+         track_platIndex = aPlatform.Index();
+         
+         targetRange = aPlatform.SlantRangeTo(target)*MATH.NM_PER_M(); # unit is nmi
+         targetBearing = aPlatform.RelativeBearingTo(target); # unit is deg
+         
+         track_message = write_str("Simulation Time:", simTime, "|", aPlatform.Name(), "with local track on:", aLocalTrack.TargetName(), " received from origin platform:", aTrack.OriginatorName(), " at time: ", aTrack.UpdateTime());
+      }
+   }
+   else
+   {
+      return;
+   }
+
+   Array<string> words;
+   words = {(string)TREATMENT_NUMBER,
+            (string)REPLICATE_NUMBER,
+            #"1",
+            (string)WsfSimulation.RandomSeed(),
+            (string)simTime,
+            "LOCAL_TRACK_UPDATED",
+            (string)globalTrackNumber,
+            (string)track_platSide.Upper(),
+            (string)track_platName,
+            (string)track_platType,
+            (string)track_platIndex,
+            (string)track_platLat,
+            (string)track_platLon,            
+            (string)track_platAlt,     
+            (string)targetSide.Upper(),
+            (string)targetName,
+            (string)targetType,    
+            (string)targetIndex,
+            (string)targetLat,
+            (string)targetLon,
+            (string)targetAlt,
+            (string)targetBearing,
+            (string)targetDamaged,        
+            (string)elapsedTime,
+            (string)elapsedUpdatedTime,
+            (string)trackQuality,
+            (string)updatedCount,
+            (string)numContributors,                                                     
+//          (string)trackIDnumber,
+//          (string)trackIDname,
+            };
+
+   string line = ", ".Join(words);
+      track_file.Write(line);
+      track_file.Write("\n");
+
+end_script

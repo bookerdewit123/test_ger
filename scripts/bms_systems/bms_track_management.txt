@@ -1,0 +1,390 @@
+
+script void PrintTrack(WsfTrack inTrack)
+   if(inTrack.Target().IsValid())
+   {
+      writeln("   ", inTrack.TargetName());
+      writeln("      ID: ", inTrack.TrackId());
+      writeln("      Distance: ", inTrack.CurrentLocation().SlantRangeTo(inTrack.Target().Location()));
+      writeln("         Location1: ", inTrack.CurrentLocation());
+      writeln("         Location1b: ", inTrack.LocationAtTime(TIME_NOW));
+      writeln("         Location2: ", inTrack.Target().Location());
+      writeln("      TrackQuality: ", inTrack.Quality());
+      writeln("      Updates: ", inTrack.UpdateCount());
+      writeln("      UpdateTime: ", inTrack.UpdateTime());
+   }
+end_script
+
+processor BMS_TRACK_MANAGEMENT_PROCESSOR WSF_TRACK_PROCESSOR
+   purge_interval 1 sec
+   drop_after_inactive 20 sec #unclass value for dropping tracks
+   update_interval 1 sec
+   #non_master_track_processor 
+   
+      # PUT THIS AT PLATFORM LEVEL IF ITS THE MASTER TRACK LIST #
+#   track_manager
+#      fusion_method weighted_average
+#         #Nothing
+#      end_fusion_method
+#      
+#      correlation_method nearest_neighbor 
+#         #Nothing
+#      end_correlation_method
+#   end_track_manager
+   
+   script_variables
+      # MUST DECLARE #
+      # THESE MUST MATCH SETTINGS ABOVE
+      double reportInterval = 1;
+      bool reportTracks = false;
+      bool updateOnReport = false;
+      bool fusedTrackReporting = true;
+      bool reportUnchangedTracks = true;
+      Array<string> hardReportTo = Array<string>();
+      Array<string> reportIgnore = Array<string>();
+      bool reportToSubs = false;
+      bool reportToCommander = false;
+      bool reportToPeers = false;
+      bool debugTracks = false;
+      
+      # Logic
+      double firstReport = -1;
+      int trackMsgCount = 0;
+      bool firstRun = true;
+   end_script_variables
+   
+   on_initialize2 
+      PROCESSOR.SetUpdateInterval(reportInterval);
+   end_on_initialize2
+   
+   script Array<string> GetReportSettings()
+      Array<string> reportToPlats = Array<string>();
+      
+      if(hardReportTo.Size() > 0)
+      {
+         foreach(string plat in hardReportTo)
+         {
+            bool found = false;
+            foreach(string ignore in reportIgnore)
+            {
+               if(ignore == plat)
+               {
+                  found = true;
+                  break;
+               }
+            }
+            
+            if(found == false)
+            {
+               reportToPlats.PushBack(plat);
+            }
+         }
+      }
+      
+      if(reportToCommander == true)
+      {
+         bool found = false;
+         foreach(string ignore in reportIgnore)
+         {
+            if(ignore == PLATFORM.Commander().Name())
+            {
+               found = true;
+               break;
+            }
+         }
+         
+         if(found == false)
+         {
+            reportToPlats.PushBack(PLATFORM.Commander().Name());
+         }
+      }
+      
+      if(reportToPeers == true)
+      {
+         Array<string> peers = (Array<string>)platformPeers.Get(PLATFORM.Name());
+         foreach(string plat in peers)
+         {
+            bool found = false;
+            foreach(string ignore in reportIgnore)
+            {
+               if(ignore == plat)
+               {
+                  found = true;
+                  break;
+               }
+            }
+            
+            if(found == false)
+            {
+               reportToPlats.PushBack(plat);
+            }
+         }
+      }
+      
+      if(reportToSubs == true)
+      {
+         Array<string> subs = (Array<string>)platformSubs.Get(PLATFORM.Name());
+         if(subs.IsValid())
+         {
+            foreach(string plat in subs)
+            {
+               bool found = false;
+               foreach(string ignore in reportIgnore)
+               {
+                  if(ignore == plat)
+                  {
+                     found = true;
+                     break;
+                  }
+               }
+            
+               if(found == false)
+               {
+                  reportToPlats.PushBack(plat);
+               }
+            }
+         }
+      }
+      
+      return reportToPlats;
+   end_script      
+   
+   script void ReportTracks()
+      if(reportTracks == true)
+      {
+         if(fusedTrackReporting == true)
+         {
+            WsfTrackProcessor trackProcRef = (WsfTrackProcessor)PROCESSOR;
+            if(trackProcRef.TrackManager().LocalTrackList().Count() > 0 &&
+               (reportToSubs == true || reportToCommander == true || reportToPeers == true ||
+                hardReportTo.Size() > 0))
+            {
+               foreach(WsfLocalTrack localTrackRef in trackProcRef.TrackManager().LocalTrackList())
+               {
+                  localTrackRef.SetAuxData("ProcName", PROCESSOR.Name());
+                  localTrackRef.SetAuxData("TrackOrigination", PLATFORM.Name());
+      
+                  WsfTrackProcessor trackProcRef = (WsfTrackProcessor)PROCESSOR;
+      
+                  if(localTrackRef.IsStale() == false)
+                  {
+                     double timeSinceUpdate = TIME_NOW - localTrackRef.UpdateTime();
+                     if(reportUnchangedTracks == true || timeSinceUpdate <= reportInterval)
+                     {
+                        WsfTrackMessage trackMsg = WsfTrackMessage();
+                        trackMsg.SetTrack(localTrackRef);
+                        trackMsg.Track().SetAuxData("ProcName", PROCESSOR.Name());
+                        trackMsg.Track().SetAuxData("TrackOrigination", PLATFORM.Name());
+            
+                        #PrintTrack(aTrack);
+            
+                        if(updateOnReport == true)
+                        {
+                           trackMsg.Track().KinematicUpdate();
+                           #PrintTrack(trackMsg.Track());
+                        }
+            
+                        if(trackMsg.IsValid())
+                        {
+                           WsfProcessor commsProcRef = PLATFORM.Processor("comms_proc");
+                           if(commsProcRef.IsValid())
+                           {
+                              commsProcRef.ExecuteScriptWithArgs("AddTrackMessageToCommsProc", {trackMsg});
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+         
+         else
+         {
+            WsfTrackProcessor trackProcRef = (WsfTrackProcessor)PROCESSOR;
+            if(trackProcRef.TrackManager().GetRawTrackList().Count() > 0 &&
+               (reportToSubs == true || reportToCommander == true || reportToPeers == true ||
+                hardReportTo.Size() > 0))
+            {
+               foreach(WsfTrack rawTrackRef in trackProcRef.TrackManager().GetRawTrackList())
+               {
+                  rawTrackRef.SetAuxData("ProcName", PROCESSOR.Name());
+                  rawTrackRef.SetAuxData("TrackOrigination", PLATFORM.Name());
+      
+                  WsfTrackProcessor trackProcRef = (WsfTrackProcessor)PROCESSOR;
+      
+                  if(rawTrackRef.IsStale() == false)
+                  {
+                     double timeSinceUpdate = TIME_NOW - rawTrackRef.UpdateTime();
+                     if(reportUnchangedTracks == true || timeSinceUpdate <= reportInterval)
+                     {
+                        WsfTrackMessage trackMsg = WsfTrackMessage();
+                        trackMsg.SetTrack(rawTrackRef);
+                        trackMsg.Track().SetAuxData("ProcName", PROCESSOR.Name());
+                        trackMsg.Track().SetAuxData("TrackOrigination", PLATFORM.Name());
+            
+                        #PrintTrack(aTrack);
+            
+                        if(updateOnReport == true)
+                        {
+                           trackMsg.Track().KinematicUpdate();
+                           #PrintTrack(trackMsg.Track());
+                        }
+            
+                        if(trackMsg.IsValid())
+                        {
+                           WsfProcessor commsProcRef = PLATFORM.Processor("comms_proc");
+                           if(commsProcRef.IsValid())
+                           {
+                              commsProcRef.ExecuteScriptWithArgs("AddTrackMessageToCommsProc", {trackMsg});
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   end_script
+   
+   on_update 
+      ReportTracks();
+   end_on_update
+   
+   on_message 
+      type BMSTrackDropMessage
+         script
+            WsfMessage msg = (WsfMessage)MESSAGE; 
+            if( null != msg )
+            {
+               WsfTrackId trackIdRef = (WsfTrackId)MESSAGE.AuxDataObject("TrackID");
+               double dropTimeRef = (double)MESSAGE.AuxDataObject("SimTime");
+               int indexRef = (int)MESSAGE.AuxDataObject("PlatformIndex");
+               
+               WsfTrackProcessor trackProcRef = (WsfTrackProcessor)PROCESSOR;
+               trackProcRef.TrackManager().DropTrack(trackIdRef);
+            }
+         end_script
+   end_on_message 
+   
+   script bool is_track_reportable(WsfTrack aTrack)
+      // Define the script body here to return a 'true' value if the track should
+      // be reported and 'false' if it should not.
+      
+      return false;
+   end_script 
+   
+   on_message
+      type WSF_TRACK_DROP_MESSAGE
+         script
+            if(MESSAGE.IsValid())
+            { 
+               WsfTrackDropMessage dropMsgRef = (WsfTrackDropMessage)MESSAGE;
+               WsfProcessor commsProcRef = PLATFORM.Processor("comms_proc");
+               
+               WsfTrackId trackIdRef = dropMsgRef.TrackId();
+               double dropTimeRef = dropMsgRef.Time();
+               int indexRef = dropMsgRef.TargetIndex();
+               
+               WsfMessage dropMessage = GetBMSTrackDropMessage(trackIdRef, dropTimeRef, indexRef, PLATFORM.Name(),PROCESSOR.Name()); 
+               if(commsProcRef.IsValid())
+               {
+                  commsProcRef.ExecuteScriptWithArgs("AddDropMessage", {dropMessage});
+               }
+            }
+         end_script
+         
+     type WSF_TRACK_MESSAGE
+         script
+         end_script
+   end_on_message
+end_processor
+
+
+# SOURCE CODE FOR WSF_TRACK_PROCESSOR ##################################################
+
+#void WsfTrackProcessor::SendTrackP(double aSimTime, const WsfTrack& aTrack)
+#{
+#   if (aTrack.IsReportable() &&                // Checks the track attribute
+#       IsTrackReportable(aSimTime, &aTrack) && // Checks for scripted condition
+#       (!aTrack.IsStale()))                    // Checks for non-stale data
+#   {
+#      // Check for sending unchanged tracks.
+#      double timeSinceLastUpdate = aSimTime - aTrack.GetUpdateTime();
+#      if (mReportUnchangedTracks || (timeSinceLastUpdate <= mReportInterval))
+#      {
+#         if (DebugEnabled())
+#         {
+#            auto out = ut::log::debug() << "Track processor reporting track.";
+#            out.AddNote() << "T = " << aSimTime;
+#            out.AddNote() << "Platform: " << GetPlatform()->GetName();
+#            out.AddNote() << "Processor: " << GetName();
+#            out.AddNote() << "Track ID: " << aTrack.GetTrackId();
+#            out.AddNote() << "Truth Target: " << aTrack.GetTargetName();
+#            out.AddNote() << "Time Since Update: " << timeSinceLastUpdate;
+#            out.AddNote() << "Report Interval: " << mReportInterval;
+#         }
+#         WsfTrackMessage message(GetPlatform(), aTrack);
+#         if (mUpdateOnReport)
+#         {
+#            message.GetTrack()->KinematicUpdate(aSimTime);
+#         }
+#         message.SetSenderId(GetPlatform()->GetNameId());
+#         message.SetReplyId(aTrack.GetLastSourceName());
+#         ExecuteOnMessageCreate(aSimTime, message);
+#         GetExternalLinks().SendMessage(aSimTime, message, aTrack.GetLastSourceName());
+#      }
+#      else if (DebugEnabled())
+#      {
+#         auto out = ut::log::debug() << "Track not reported due to unchanged data since last update.";
+#         out.AddNote() << "T = " << aSimTime;
+#         out.AddNote() << "Platform: " << GetPlatform()->GetName();
+#         out.AddNote() << "Track: " << aTrack.GetTrackId();
+#         out.AddNote() << "Target: " << aTrack.GetTargetName();
+#         out.AddNote() << "Time Since Update: " << timeSinceLastUpdate;
+#         out.AddNote() << "Report Interval: " << mReportInterval;
+#      }
+#   }
+#}
+
+
+# SOURCE CODE FOR TRACK REPORTING ###################################################################
+#// virtual
+#WsfTrackReportingStrategy* WsfBatchTrackReporting::Clone() const
+#{
+#   return new WsfBatchTrackReporting(*this);
+#}
+#
+#// protected
+#//! Send all fused tracks over external links.
+#void WsfBatchTrackReporting::ReportFusedTracks(double aSimTime)
+#{
+#   WsfTrackManager&   trackManager  = GetTrackProcessor().GetTrackManager();
+#   wsf::ExternalLinks externalLinks = GetTrackProcessor().GetExternalLinks();
+#
+#   unsigned int trackCount = trackManager.GetTrackCount();
+#   if (externalLinks.HasLinks() && (trackCount != 0))
+#   {
+#      for (unsigned int trackIndex = 0; trackIndex < trackCount; ++trackIndex)
+#      {
+#         // Force the type to be WsfTrack; this is considered a non-local track.
+#         WsfLocalTrack* trackPtr = trackManager.GetTrackEntry(trackIndex);
+#         GetTrackProcessor().SendTrack(aSimTime, *trackPtr);
+#      }
+#   }
+#}
+#
+#// protected
+#//! Send all raw tracks over external links.
+#void WsfBatchTrackReporting::ReportRawTracks(double aSimTime)
+#{
+#   WsfTrackList&      rawTrackList  = GetTrackProcessor().GetTrackManager().GetRawTrackList();
+#   wsf::ExternalLinks externalLinks = GetTrackProcessor().GetExternalLinks();
+#
+#   if (externalLinks.HasLinks() && (rawTrackList.GetTrackCount() > 0))
+#   {
+#      for (unsigned int trackIndex = 0; trackIndex < rawTrackList.GetTrackCount(); ++trackIndex)
+#      {
+#         WsfTrack* trackPtr = rawTrackList.GetTrackEntry(trackIndex);
+#         GetTrackProcessor().SendTrack(aSimTime, *trackPtr);
+#      }
+#   }
+#}

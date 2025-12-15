@@ -1,0 +1,134 @@
+#script_variables
+### Monte Carlo Simulation Inputs ##
+## Latitude are degrees north and Longitude are degrees east
+#global double mcLatitudeInput5thGen = 52.5;
+#global double mcLongitudeInput5thGen = 13.1;
+#
+#global double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.5>$;
+#global double mcLongitudeInput4thGen_Group1 = 13;
+#
+#global double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen + ($<BLUE_OFFSET:.5>$+.15);
+#global double mcLongitudeInput4thGen_Group2 = 13;
+#
+#global double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen + ($<BLUE_OFFSET:.5>$+.2);
+#global double mcLongitudeInputBlueAEW = 12.5;
+#
+#global double mcLatitudeInputREDAEW = 53;
+#global double mcLongitudeInputREDAEW = 16;
+#
+#global double mcLatitudeInputRedFighter = 53.2;
+#global double mcLongitudeInputRedFighter = 14.5;
+#
+#global double mcLatitudeInputRedBomber = 30.5;
+#global double mcLongitudeInputRedBomber = 124;
+#
+#global double mcRange = 1;
+#
+#end_script_variables
+# TO DO: Use variables as much as possible
+
+############################################
+############# STARTING POSTURE ################
+############################################
+$define STARTING_HEADING -90
+$define STARTING_LAT
+$define GRINDER NO
+$define BLUE_OFFSET .28
+$define GLOBAL_IBCS_LAT 53.5n
+$define GLOBAL_IBCS_LON 14e
+
+$define RED_WRL_LAT 54
+$define RED_WRL_LON 15
+
+//RED WRL LAT is 54 and LON is 15
+############################################
+############## E2D #####################
+############################################
+#$define E2D YES
+$define IBCS NO
+############################################
+############## LATENCY #####################
+############################################
+$define LATENCY 10
+
+############################################
+############## WEAPONS #####################
+############################################
+#MACH 4
+$define BLUE_AVERAGE_SPEED_MPS 2667 
+$define BLUE_WEAPON_PK_RANGE 100
+$define BLUE_WEAPON_PK .9
+$define FUSE_TIME 27
+$define BLUE_NUM_WEAPONS_PER_LAUNCHER 2
+
+$define RED_AVERAGE_SPEED_GLIDE 378
+$define RED_GLIDE_PK_RANGE 300
+$define RED_GLIDE_PK 1
+############################################
+############## PACIFIC REGION ##############
+############################################
+
+############################################
+############# RED LOCATIONS ################
+############################################
+
+#$define gcRed001Loc 33:00:00.00n 126:00:00.00e
+#$define gcRed002Loc 32:50:00.00n 126:00:00.00e
+#$define gcRed003Loc 32:40:00.00n 126:00:00.00e
+#$define gcRed004Loc 32:30:00.00n 126:00:00.00e
+#$define gcRed005Loc 32:00:00.00n 126:00:00.00e
+#$define gcRed006Loc 31:50:00.00n 126:00:00.00e
+#$define gcRed007Loc 31:40:00.00n 126:00:00.00e
+#$define gcRed008Loc 31:30:00.00n 126:00:00.00e
+#
+#$define gcRedGEPLoc 32:20:00.00n 122:00:00.00e
+#$define gcRedA2G1Loc 31:40:00.00n 125:20:00.00e
+#$define gcRedA2G2Loc 32:40:00.00n 125:20:00.00e
+#
+#$define gcRedFighterAlt 26000
+#$define gcRedFighterHeading 90 deg
+
+############################################
+############# BLUE LOCATIONS ###############
+############################################
+
+####### Ground Commander and Stations #######
+#$define gcBlueGEPLoc 33:00:00.00n 132:40:00.00e
+#$define gcBluePICM001Loc 31:10:00.00n 130:50:00.00e
+#$define gcBluePICM002Loc 32:30:00.00n 131:20:00.00e
+#$define gcBluePICM003Loc 33:30:00.00n 130:00:00.00e
+#
+##### 4th/5th Gen Fighters & Air Gateway ####
+#
+#$define gcBlue4thGen001Loc 31:00:00.00n 129:00:00.00e
+#$define gcBlue4thGen002Loc 31:10:00.00n 129:10:00.00e
+#$define gcBlue4thGen003Loc 31:20:00.00n 129:00:00.00e
+#$define gcBlue4thGen004Loc 31:30:00.00n 129:10:00.00e
+#
+#$define gcBlue5thGen001Loc 33:00:00.00n 128:00:00.00e
+#$define gcBlue5thGen002Loc 32:50:00.00n 128:00:00.00e
+#$define gcBlue5thGen003Loc 32:40:00.00n 128:00:00.00e
+#$define gcBlue5thGen004Loc 32:30:00.00n 128:00:00.00e
+#
+#//$define gcBlue5thGen010Loc 61:30:00.00n 28:00:00.00e
+#//$define gcBlue5thGen020Loc 61:20:00.00n 28:00:00.00e
+#$define gcBlueAirGatewayLoc 32:00:00.00n 129:00:00.00e
+#
+#//$define gcBlueGrinder001Loc 61:40:00.00n 28:40:00.00e
+#//$define gcBlueGrinder002Loc 61:50:00.00n 29:00:00.00e
+#
+#$define gcBlueFighterAlt 25000
+#$define gcBlueGatewayAlt 40000
+#
+#$define gcBlueFighterHeading001 0 deg
+#$define gcBlueFighterHeading002 180 deg
+#
+################### IADS ####################
+#$define gcBlueIADSCMDRLoc 32:30:00.00n 130:40:00.00e
+#$define gcBlueEWRADAR001Loc 33:00:00.00n 130:30:00.00e
+#$define gcBlueSAMACQRADAR001Loc 33:00:00.00n 130:30:00.00e
+#$define gcBlueRADARCOMPANYLoc 32:00:00.00n 130:30:00.00e
+#$define gcBlueLARGESAMLAUNCHER001Loc 33:10:00.00n 129:50:00.00e
+#$define gcBlueLARGESAMLAUNCHER002Loc 31:30:00.00n 130:20:00.00e
+#$define gcBlueLARGESAMBATTALIONLoc 32:20:00.00n 130:00:00.00e
+#$define gcBlueLARGESAMTTRLoc 33:00:00.00n 130:30:00.00e

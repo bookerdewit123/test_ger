@@ -1,0 +1,186 @@
+
+include_once platforms/Platform_Types/Ground_BMS/ibcs_platform_types.txt
+
+platform_type BLUE_PATRIOT_LAUNCHER PATRIOT_LAUNCHER
+#   command_chain IBCS global_ibcs_battalion_eoc 
+
+   delete weapon PAC-3
+   
+   add weapon pac-3 PAC-3 
+      aux_data 
+         int magazineSize = $<BLUE_NUM_WEAPONS_PER_LAUNCHER:-1>$ 
+      end_aux_data
+      
+      # This built-in script is called whenever this weapon is launched
+      script void on_create(WsfPlatform aWeapon, WsfTrack aTrack)
+         # Record which blue launcher launched this blue missile
+         blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
+         
+         # Record which red missile is target of this blue missile
+         blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
+      end_script
+      #MIKE
+      quantity 10 ### This is so that we control when to fire by having it ocurr with reloads
+   end_weapon
+   
+   edit processor launcher_mgr
+      #update_interval 1 sec # This is if you want to override the global value set for this platform
+      script_variables
+         #autoFire = true;
+         shotManager = ibcs_global_shot_manager;
+         localShotManager = "";
+      end_script_variables
+   end_processor
+   
+   edit processor sys_track_mgr
+      report_interval 1 sec 
+      #report_to platform RADAR comm ifcn via track_comms
+      script_variables
+         hardReportTo = hardReport_to_eoc_list; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables
+   end_processor
+end_platform_type
+
+platform_type GLOBAL_IBCS_BATTALION IBCS_BATTALION_EOC_PLATFORM
+   indestructible
+   command_chain IBCS SELF
+
+   add comm L16 L16
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 200 m
+   end_comm
+   
+   add comm L16_T 4thGen_Transmit 
+      on
+      internal_link comms_proc
+      antenna_height 200 m
+   end_comm
+   
+   add comm L16_R 4thGen_Transmit 
+      on
+      internal_link comms_proc
+      internal_link sys_track_mgr
+      antenna_height 200 m
+   end_comm
+
+   ### Method picked to display a more effective method for track fusion  
+   track_manager
+      fusion_method weighted_average
+      end_fusion_method
+      
+      correlation_method perfect 
+      end_correlation_method
+   end_track_manager
+   
+   edit processor sys_track_mgr
+   internal_link L16_R
+     script_variables
+         reportInterval = 1;
+         reportTracks = true;
+         updateOnReport = false;
+         fusedTrackReporting = true;
+         reportUnchangedTracks = true;
+         hardReportTo = hardReport_to_eoc_list; # Add platform names to hard report to if not in command chain
+         reportIgnore = {};
+         reportToSubs = true;
+         reportToCommander = false;
+         reportToPeers = false;
+         debugTracks = false;
+     end_script_variables
+  end_processor
+  
+  edit processor shot_dec_mgr
+    script_variables 
+      bidDecisionTime = 1; 
+    end_script_variables
+  end_processor
+end_platform_type
+
+platform_type LOCAL_IBCS_BATTALION_EOC IBCS_BATTALION_EOC_PLATFORM
+   indestructible 
+#   command_chain IBCS global_ibcs_battalion_eoc
+   add comm l16 L16
+      on
+      #debug
+      internal_link comms_proc
+      antenna_height 200 m
+   end_comm
+   
+   ### Method picked to display a more effective method for track fusion  
+   track_manager
+      fusion_method weighted_average
+      end_fusion_method
+      
+      correlation_method perfect 
+      end_correlation_method
+   end_track_manager
+   
+   edit processor sys_track_mgr
+     script_variables
+         reportInterval = 1;
+         reportTracks = true;
+         updateOnReport = false;
+         fusedTrackReporting = true;
+         reportUnchangedTracks = true;
+         hardReportTo = hardReport_to_eoc_list; # Add platform names to hard report to if not in command chain
+         reportIgnore = {};
+         reportToSubs = true;
+         reportToCommander = false;
+         reportToPeers = false;
+         debugTracks = false;
+     end_script_variables
+  end_processor
+  
+  edit processor shot_dec_mgr
+    script_variables 
+      bidDecisionTime = 1; 
+    end_script_variables
+  end_processor
+end_platform_type
+
+platform_type BLUE_PATRIOT_RADAR PATRIOT_RADAR 
+   side blue
+   position 43:12:49.91n 120:43:50.78w
+   altitude 300 m
+   heading 190 deg
+#   command_chain IBCS global_ibcs_battalion_eoc
+   
+   
+   edit sensor an_mpq_65
+      ignore_side white
+      internal_link combat_id
+      internal_link pre_combat_id_tracker
+   end_sensor
+   
+   #--------------
+   # combat_id
+   #--------------
+   # X sec delay for human ID of threats
+   add processor combat_id COMBAT_ID_DELAY
+   end_processor
+   
+   add processor pre_combat_id_tracker WSF_TRACK_PROCESSOR 
+   end_processor
+  
+   edit processor sensor_data 
+      report_interval 1 sec
+      non_master_track_processor
+      #report_to platform RADAR comm ifcn via track_comms
+      script_variables
+         reportTracks = true;
+         hardReportTo = hardReport_to_eoc_list; # Add platform names to hard report to if not in command chain
+         reportIgnore = {}; # Add platforms to always ignore sending track message to
+         reportToSubs = false;
+         reportToCommander = false;
+         reportToPeers = false;
+         #debugTracks = true;
+      end_script_variables    
+   end_processor
+end_platform_type

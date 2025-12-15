@@ -1,0 +1,290 @@
+observer
+   enable SIMULATION_INITIALIZING SimInitDS
+end_observer
+
+script_variables
+   # extern string scenario;
+   string other_open_method;
+   
+#   global int ds_run_num = WsfSimulation.RunNumber(); // global so dont need
+#   global int ds_random_seed = WsfSimulation.RandomSeed();
+#//   extern int startup_file_no;
+#   if(ds_run_num == 1)
+#      {other_open_method = "out";}
+#   else
+#      {other_open_method = "append";}
+      
+      other_open_method = "out";
+
+   FileIO digital_spine = FileIO();
+
+   string rel_path_6 = Path.GetWorkingDirectory().ToString() + "/output/digital_spine_output";
+
+   assert(digital_spine.Open((rel_path_6 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), other_open_method),
+     rel_path_6 + ".csv" + " output file falied to open");
+end_script_variables
+
+
+execute at_interval_of 5 s    // reduce or increase as needed
+#   extern WsfGeoPoint origin; 
+#   if (log_print)
+#   {
+#      int p = WsfSimulation.PlatformCount();
+#
+#      log.Writeln(write_str("\nSIMULATION TIME HAS REACHED ",Format.Fixed(TIME_NOW,1), " s"));
+#      log.Writeln(write_str("Min Perceived Range to Hostile ( ",Format.Fixed(closest_hostile*MATH.NM_PER_M(),1)," nmi )"));
+#      closest_hostile = 200.0*MATH.M_PER_NM(); // re-set this so it's recalculated
+#      for (int i = 0; i <= total_entities; i = i + 1)
+#      {
+#         if (WsfSimulation.FindPlatform(i).IsValid() && !WsfSimulation.FindPlatform(i).CategoryMemberOf("missile"))
+#         {
+#            WsfPlatform ac = WsfSimulation.FindPlatform(i);
+#           for (int i =0; i<ac.ProcessorCount(); i=i+1)
+#           { 
+#              if (ac.ProcessorEntry(i).IsValid() && ac.ProcessorEntry(i).Type()
+#                 == "WSF_SA_PROCESSOR" && TIME_NOW > 10) 
+#              {  
+#                 if(ac->rng_cls_hst <= closest_hostile) { closest_hostile = ac->rng_cls_hst; }
+#              }
+#           }
+#           double hdg=ac.Heading();
+#           if(hdg < 0.){hdg=hdg+360.;}
+#           log.Writeln(write_str("A/C ",Format.Fixed(i,0).Pad(3)," ",ac.Side().Pad(-4)," ",ac.Name().Pad(-12),
+#            "(",Format.Fixed((ac.Longitude()-origin.Longitude())*60.0405,1).Pad(6),",",
+#            Format.Fixed((ac.Latitude()-origin.Latitude())*60.0405,1).Pad(6),")Nm ",
+#            Format.Fixed(ac.Altitude()*MATH.FT_PER_M()/1000.,1).Pad(4),"kft Hdg=",Format.Fixed(hdg,0).Pad(3),
+#            "  M=",Format.Fixed(ac.MachNumber(),2).Pad(3)," Pitch=",Format.Fixed(ac.Pitch(),1).Pad(4)," "));
+#         }
+#      }
+#   }
+   
+   # Script to output mission_range of red platforms every 5 seconds with time, platform, and distance
+#   double curr_low_distance = -10000000;
+#   double future_low_distance = -10000000;
+#   string currPlat;
+#   string futurePlat;
+
+// C2 Node of interest:
+// International - "Ground_Cammander"
+// LBMC3 - "MQ-9"/"CA2CS"
+// Intl Pacific - "Wedgetail"
+   WsfPlatform target_plat = WsfSimulation.FindPlatform("Wedgetail"); // C2 node that you want to measure from
+   
+#   if(totalPlats == 0) {
+#      totalPlats = WsfSimulation.PlatformCount();
+#   }
+#   
+#  
+#   
+#   for (int i = 0; i < totalPlats; i = i + 1) {
+#      WsfPlatform plat = WsfSimulation.FindPlatform(i);
+#      if(plat.IsValid()) {
+#         if(plat.Side() == "red") {
+##            double plat_lat = plat.Latitude();
+##      
+#            double distance;
+##            if(plat_lat >= goalLine) {
+##               distance = plat_lat - goalLine;
+##            } else {
+##               distance = goalLine - plat_lat;
+##            } 
+#      
+##            Convert from degrees latitude to nautical miles
+##            distance = distance * 60; 
+#            if(target_plat.IsValid()){
+#            distance = plat.SlantRangeTo(target_plat);
+##           Convert from meters to nautical miles
+#            distance = distance * 0.000539957;}
+#            
+#            if(curr_low_distance == -10000000 && plat.CategoryMemberOf("current")) {
+#               curr_low_distance = distance;
+#               currPlat = plat.Name();
+#            } else if(distance < curr_low_distance && plat.CategoryMemberOf("current")){               
+#               curr_low_distance = distance;
+#               currPlat = plat.Name();               
+#            } else if(future_low_distance == -10000000 && plat.CategoryMemberOf("future")) {
+#               future_low_distance = distance;
+#               futurePlat = plat.Name();
+#            } else if(distance < future_low_distance && plat.CategoryMemberOf("future")){               
+#               future_low_distance = distance;
+#               futurePlat = plat.Name(); 
+#            } 
+#         }      
+#      }
+#   }
+   Array<string> words;
+   string line;
+#   if(curr_low_distance != -10000000 ) {
+#      words = {(string)startup_file_no,
+#               (string)WsfSimulation.RunNumber(),
+#               (string)random_seed,
+#               (string) TIME_NOW,
+#               "Current",
+#               (string) currPlat,
+#               (string) curr_low_distance,
+#               };
+#                             
+#      line = ", ".Join(words);
+#
+#      mission_range.Write(line + "\n");
+#   }
+#   
+#   if(future_low_distance != -10000000 ) {
+#      words = {(string)startup_file_no,
+#               (string)WsfSimulation.RunNumber(),
+#               (string)random_seed,
+#               (string) TIME_NOW,
+#               "Future",
+#               (string) futurePlat,
+#               (string) future_low_distance,
+#               };
+#                             
+#      line = ", ".Join(words);
+#
+#      mission_range.Write(line + "\n");
+#    }
+    
+    # Digital Spine
+    WsfPlatform orig;
+    double maxDist = MATH.LIGHT_SPEED();
+    string farPlat = "none";    // name of furthest current platform
+    int trackGTAN;           // furthest platform GTAN  
+
+/*
+    double maxCurrentDist = MATH.LIGHT_SPEED();
+    double maxFutureDist = MATH.LIGHT_SPEED();
+    double maxTotalDist;      // max distance between the two wince simple calculation
+    string farCurrentPlat;    // name of furthest current platform 
+    string farFuturePlat;     // name of furthest future platform
+    int futureGTAN;           // furthest future platform GTAN 
+    int currentGTAN;          // furthest current platform GTAN
+*/
+    # Number of tracks
+    int totNumTracks = 0;         // total number of tracks that the target platform has
+//    int numIndividualPlats = 0;   // number of individual platforms that the target platform has
+//    Array<string> trackedPlats;   // Array to add of platforms that are found
+     
+    
+    if (target_plat.IsValid())
+    { // if the target (C2) exists
+      if (target_plat.MasterRawTrackList().Empty())   // if there are no tracks, don't record anything
+      {
+         return;
+      }
+      foreach (WsfTrack t in target_plat.MasterRawTrackList()) 
+      {
+         orig = t.Originator();
+         if (orig.IsValid()) 
+         {
+            double testDist = target_plat.SlantRangeTo(orig);
+            testDist = testDist * 0.000539957; #nmi
+            totNumTracks = totNumTracks + 1;   // add one to the total track count at moment in time
+            
+            if(maxDist == MATH.LIGHT_SPEED()) 
+            {
+                  maxDist = testDist;
+                  farPlat = orig.Name();
+                  trackGTAN = t.GlobalTrackNumber();
+            } 
+            else if (testDist > maxDist) 
+            {
+                  maxDist = testDist;
+                  farPlat = orig.Name();
+                  trackGTAN = t.GlobalTrackNumber();
+            }
+
+/* // for if there are multiple categories    
+      
+          if (orig.CategoryMemberOf("current")) {
+             if(maxCurrentDist == MATH.LIGHT_SPEED()) {
+                maxCurrentDist = testDist;
+                farCurrentPlat = orig.Name();
+                currentGTAN = t.GlobalTrackNumber();
+             } else if (testDist > maxCurrentDist) {
+                maxCurrentDist = testDist;
+                farCurrentPlat = orig.Name();
+                currentGTAN = t.GlobalTrackNumber();
+             }
+          } else if (orig.CategoryMemberOf("future")) {
+             if(maxFutureDist == MATH.LIGHT_SPEED()) {
+                maxFutureDist = testDist;
+                farFuturePlat = orig.Name();
+                futureGTAN = t.GlobalTrackNumber();
+             } else if (testDist > maxFutureDist) {
+                maxFutureDist = testDist;
+                farFuturePlat = orig.Name();
+                futureGTAN = t.GlobalTrackNumber();
+
+             }
+*/ // for if there are multiple categories
+
+          }
+       }
+//    }
+
+/* // for if there are multiple categories
+    if(maxFutureDist != MATH.LIGHT_SPEED() || maxCurrentDist != MATH.LIGHT_SPEED()) { 
+      // for if at least one of the two exists and is not light speed
+       if(maxFutureDist == MATH.LIGHT_SPEED())     // if future doesn't exist
+       {   
+          farFuturePlat = "NA";
+          maxFutureDist = 0;
+          futureGTAN = 0;
+       }    
+       if(maxCurrentDist == MATH.LIGHT_SPEED())    // if current doesn't exist
+       {  
+          farCurrentPlat = "NA";
+          maxCurrentDist = 0;
+          currentGTAN = 0;
+       }
+       
+//       maxTotalDist = MATH.Max(maxFutureDist,maxCurrentDist); // for if there are multiple categories
+*/ // for if there are multiple categories     
+  
+       words = {(string)TREATMENT_NUMBER,
+                (string)REPLICATE_NUMBER,
+                (string)WsfSimulation.RandomSeed(),
+                (string)TIME_NOW,
+                target_plat.Name(),
+                farPlat,
+                (string)maxDist,
+                (string)trackGTAN,
+//                farCurrentPlat,
+//                (string)maxCurrentDist,
+//                (string)currentGTAN,
+//                farFuturePlat,
+//                (string)maxFutureDist,
+//                (string)futureGTAN,
+                (string)totNumTracks   
+                };
+       line = ", ".Join(words);
+       digital_spine.Write(line + "\n");
+      
+    } // if the target (C2) exists, then write something
+    
+end_execute
+
+script void SimInitDS()
+#   if (WsfSimulation.RunNumber() == 1)       // may need to remove to allow header printing when running MC
+#   {
+      Array<string> header = {"Treatment",
+                              "Replicate",
+                              "Seed",
+                              "TIME_NOW",
+                              "platName",
+                              "furthestPlatform",
+                              "maxDistance",
+                              "trackGTAN",
+//                             "furthestCurrentPlat",
+//                             "maxCurrentDist",
+//                             "maxCurrentGTAN",
+//                             "furthestFuturePlat",
+//                             "maxFutureDist",
+//                             "maxFutureGTAN",
+                              "totalNumberTracks"
+                              };
+      string header_line = ", ".Join(header);
+      digital_spine.Write(header_line);
+      digital_spine.Write("\n");
+#   }
+end_script

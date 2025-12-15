@@ -1,0 +1,69 @@
+include_once rcs_surface_ship_base.txt
+#include_once processors/agents/naval/surface_escort.txt
+#include_once processors/agents/naval/naval_sam_tactics.txt
+#include_once weapons/agm/asm_msl.txt
+
+include sensors/an_ffg.txt
+
+platform_type BLUE_FFG RCS_SURFACE_SHIP_BASE 
+   icon ship
+   category SHIP
+   //spatial_domain surface
+   radar_signature SHIP_DEFAULT_RCS 
+   
+
+#   sensor geo WSF_GEOMETRIC_SENSOR
+#      off
+#      ignore_same_side
+#      reports_location
+#      #minimum_range 20 nm
+#      maximum_range 70 nm   #70 nm
+#      frame_time 2 sec
+#      update_interval 100 sec
+#      internal_link track_proc
+#      track_quality 1
+#      reports_velocity 
+#      antenna_height 10 ft
+#      azimuth_field_of_view -180 deg 180 deg
+#      elevation_field_of_view -30 deg 90 deg
+#      
+#   end_sensor
+
+#   processor track_proc BASIC_TRACK_PROC
+#      script bool is_track_reportable(WsfTrack aTrack)
+#         #writeln("T=",TIME_NOW," P=",PLATFORM.Name()," checking if ",aTrack.TargetName()," is reportable: YES");
+#         return true;
+#      end_script
+#
+#      script void on_update()
+#      #writeln(PLATFORM.Name());
+#      for (int i = 0; i < PLATFORM.MasterTrackList().TrackCount(); i = i + 1)
+#      {
+#         #writeln(" * ", PLATFORM.MasterTrackList().TrackEntry(i).TrackId().ToString());
+#      }
+#      end_script
+#   end_processor 
+
+   edit processor perception 
+      on
+      reporting_self     true
+      reporting_others   true
+      asset_perception   status_messages
+      update_interval    5 s
+      report_interval    5 s
+   end_processor  
+
+
+   
+   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
+
+   sensor AN/FFG AN_FFG
+      on
+      internal_link data_mgr
+   end_sensor 
+   
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+   
+end_platform_type

@@ -1,0 +1,147 @@
+# *********************************************************************************************** #
+# **************************              UNCLASSIFIED                 ************************** #
+# **********************                 TECHNICAL DATA                  ************************ #
+# ********************                                                      ********************* #
+#  CONTRACTOR:
+#
+#      Northrop Grumman Corporation
+#      Space Systems
+#      10125 Federal Drive
+#      Colorado Springs, CO 80908
+#
+#  COPYRIGHT 2023 NORTHROP GRUMMAN CORPORATION - ALL RIGHTS RESERVED.
+#
+# ORIGINAL PROGRAM: OUTMATCH IR&D - IBCS
+# *********************************************************************************************** #
+# NORTRHOP GRUMMAN PRIVATE / PROPRIETARY LEVEL I /
+# *********************************************************************************************** #
+# *********************************************************************************************** #
+# Ref 1 - External sources must be cited here
+# Ref 2 -
+# *********************************************************************************************** #
+
+/**
+ * Classification: Unclassified
+ *
+ * Rights: The rights to use, modify, reproduce, release, perform, display, 
+ *  or disclose these data are restricted by Northrop Grumman Corporation. 
+ *  Any reproduction of computer software, computer software documentation, 
+ *  or portions thereof marked with this legend must also reproduce the 
+ *  markings.
+*/
+/******************************************************************************/
+
+
+##### COMMS #########
+include_once comms/IBCS_comm_laydown.txt
+
+#### Platforms
+include_once platforms/Platform_Types/Ground_BMS/generic_blue_ground_platforms.txt
+include_once platforms/Platform_Types/Ground_BMS/platform_components.txt
+include_once platforms/blue/ground/pac_3_group_struct.txt
+include_once utils/BMS/calculate_evenly_spaced_locations.txt
+include_once utils/BMS/create_ifcn_relay.txt
+include_once scripts/BMS_Systems/processors/combat_id_delay.txt
+
+### Global ###
+
+platform global_ibcs_battalion_eoc GLOBAL_IBCS_BATTALION
+   //position 53:00n 14.0e
+   //position 53.5n 14e
+   position $<GLOBAL_IBCS_LAT:53.5n>$ $<GLOBAL_IBCS_LON: 14e>$
+   heading 90 deg
+   altitude 1 m agl
+   
+
+#edit processor comms_proc 
+#report_to platform AEW_C2 comm L16_R via L16_T
+#end_processor 
+   
+end_platform
+
+# TO DO: Need to condense these platforms into small area to represent "MRSAM and LRSAM"
+script_variables
+#   
+#   Array<string> pac3GroupLocations = {
+#      "44:30n 123:00w 0 m",
+#      "43:00n 122:30w 0 m",
+#      "43:00n 120:30w 0 m",
+#      "44:15n 119:45w 0 m",
+#   };
+
+#PAC3 SAM LOCATIONS #MIKE
+   Array<string> pac3GroupLocations = {
+#      "53:30n 13:00e 0 m",
+#      "53:00n 13:30e 0 m",
+#      "53:00n 13:30e 0 m",
+#      "53:15n 13:45e 0 m",
+      "53:50n 13:20e 0 m",
+      "53:10n 13:20e 0 m",
+      "53:50n 12:50e 0 m",
+      "53:10n 12:50e 0 m",
+
+   };
+   
+   Array<double> pac3GroupHeadings = {220, 220, 220, 240};
+   
+   
+   double ifcnMaxSpacing = 20; # Nautical Miles
+   
+end_script_variables
+
+
+################################
+# IBCS Infrastructure
+################################
+# PAC-3 groups and IFCN relays to connect
+execute at_time 40 nanosecond absolute 
+   Array<PAC3_Group> ibcsGroups = Array<PAC3_Group>();
+   Array<WsfGeoPoint> ifcnLocations = Array<WsfGeoPoint>();
+   for (int ii = 0; ii < pac3GroupLocations.Size(); ii += 1)
+   {
+      #==========================
+      # PAC-3 Group
+      #==========================
+      ibcsGroups[ii] = PAC3_Group();
+      ibcsGroups[ii].CreateGroup("GROUP" + (string)(ii+1), pac3GroupLocations[ii], pac3GroupHeadings[ii]);
+      # Switch from global default commander to local commander (no IBCS)
+      string cmdr;
+      if ("$<IBCS:NO>$" == "NO") {
+      
+         # Set local commander as global commander
+         Array<string> platformNames = ibcsGroups[ii]->platformNames;
+         cmdr = platformNames[0];
+      }
+      else {
+         
+         # Set global commander as global commander
+         cmdr = ibcsGroups[ii]->globalCommander;
+      }
+      ibcsGroups[ii].SetShotManager(cmdr);
+      ibcsGroups[ii].ChangeCommander(cmdr);
+         
+      #==========================
+      # IBCS RELAYS (Prep)
+      #==========================
+      if ("$<IBCS:NO>$" == "YES") {
+         # Create evenly spaced IFCN relays between groups
+         WsfPlatform global_eoc = WsfSimulation.FindPlatform("global_ibcs_battalion_eoc");
+         WsfGeoPoint A = global_eoc.Location();
+         WsfGeoPoint B = ibcsGroups[ii].GetLocation();
+         Array<WsfGeoPoint> tempArray = CalculateEvenlySpacedLocations(A, B, ifcnMaxSpacing);
+         foreach (WsfGeoPoint location in tempArray)
+         {
+            ifcnLocations.PushBack(location);
+         }
+      } 
+   }
+   
+   #==========================
+   # IBCS RELAYS
+   #==========================
+   for (int ii = 0; ii < ifcnLocations.Size(); ii += 1)
+   {
+      create_ifcn_relay(ifcnLocations[ii], "global_ibcs_battalion_eoc");
+   }
+
+end_execute

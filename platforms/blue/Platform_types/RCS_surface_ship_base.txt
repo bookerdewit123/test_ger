@@ -1,0 +1,38 @@
+#include_once platforms/common.txt
+include_once platforms/rcs_platform_base.txt
+
+radar_signature SHIP_DEFAULT_RCS WSF_RADAR_SIGNATURE 
+   constant 50 dbsm 
+end_radar_signature
+
+platform_type RCS_SURFACE_SHIP_BASE RCS_PLATFORM_BASE 
+   icon ship
+   category SHIP
+   //spatial_domain surface
+   radar_signature SHIP_DEFAULT_RCS
+   
+   mover WSF_SURFACE_MOVER    
+      maximum_speed 37 kts
+      turn_rate_limit .1 degrees/second
+   end_mover
+   
+   processor data_mgr WSF_TRACK_PROCESSOR
+      off
+      update_interval 3 s
+      purge_interval   60 s
+
+      pass_through_reporting true
+      unchanged_track_reporting true
+#      circular_report_rejection  true
+   end_processor
+
+   processor task_mgr WSF_TASK_PROCESSOR
+	  off
+     update_interval 1 s
+   end_processor 
+
+   processor perception WSF_PERCEPTION_PROCESSOR
+      off
+      update_interval 5 s
+   end_processor  
+end_platform_type

@@ -1,0 +1,192 @@
+observer
+    // All three observers accept the same three objects, so can all work for same script
+    // enable SENSOR_TRACK_INITIATED SensorUpdate  // next steps, distinguish event
+    enable SENSOR_TRACK_UPDATED SensorUpdate       // only observer for now
+    // enable SENSOR_TRACK_DROPPED SensorUpdate    // next steps, distinguish event
+    enable SIMULATION_INITIALIZING SensorSimInitialize #
+end_observer 
+    
+
+script_variables
+   /*
+   #string scenario = "Treatment";
+   string sensorName;
+   string sensorType;
+   string sensorMode;
+   string sensorPlatSide;
+   string sensorPlatName;
+   string sensorPlatType;
+   double sensorPlatLat;
+   double sensorPlatLon;
+   double sensorPlatAlt;
+   int globalTrackNumber;
+   string targetType;
+   string targetName;
+   string targetSide;
+   */
+
+#  Define files to write outputs to
+   string sensor_open_method;
+
+   int sensor_run_num = WsfSimulation.RunNumber();
+   # global int sensor_random_seed = WsfSimulation.RandomSeed();
+   if(sensor_run_num == 1)
+      {sensor_open_method = "out";}
+   else
+      {sensor_open_method = "append";}
+  
+   // creates output files
+   FileIO sensor_file = FileIO();
+
+   string rel_path_03 = Path.GetWorkingDirectory().ToString() + "/output/sensor_output"; // name is good
+        
+   assert(sensor_file.Open((rel_path_03 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), sensor_open_method),
+      rel_path_03 + ".csv" + " output file failed to open");   // added overall run number
+     
+end_script_variables
+
+// Preallocation scripts to create headers of files //
+
+script void write_sensorObserver_file() // preallocates
+      Array<string> header = {"Treatment",
+                              "Replicate",
+                              "Seed",
+                              "TIME_NOW",
+                              "Event",
+                              "trackNumber",
+                              "originatorSide",
+                              "originatorName",
+                              "originatorType",
+                              "originatorIndex",
+                              "originatorLatitude",
+                              "originatorLongitude",
+                              "originatorAltitude",
+                              "trackedSide",
+                              "trackedName",
+                              "trackedType",
+                              "trackedIndex",
+                              "trackedLatitude",
+                              "trackedLongitude",
+                              "trackedAltitude",
+                              "sensorName",
+                              "sensorType",
+                              "sensorTrackCount",
+                              }; # change column names to metrics interested in
+/*
+      Array<string> header = {"Treatment (Scenario)",
+                              "Run Number",
+                              "Seed",
+                              "Simulation Time",
+                              "Event",
+                              "Global Track ID Number",
+                              "Origin Platform Side",
+                              "Origin Platform Name",
+                              "Origin Platform Type",
+                              "Origin Platform Latitude",
+                              "Origin Platform Longitude",
+                              "Origin Platform Altitude",
+                              "Target Name",
+                              "Target Type",
+                              "Sensor Name",
+                              "Sensor Type",
+                              }; # change column names to metrics interested in
+*/
+      string header_line = ", ".Join(header);
+      sensor_file.Write(header_line);
+      sensor_file.Write("\n");
+
+end_script
+
+// End of the preallocation /////////////////////////////////////////////////////////////////////////////////////
+
+script void SensorSimInitialize()
+   // NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
+   MATH.SetSeed(WsfSimulation.RandomSeed());
+#   write_sensorObserver_file();
+#   if (WsfSimulation.RunNumber() == 1)
+#   {
+   write_sensorObserver_file();
+#   }
+#   else 
+#   {
+#      # return;   // this would have prevented any results form being produced after the first run of a MC
+#   }
+
+end_script
+
+script void SensorUpdate(WsfPlatform observer, WsfSensor sensor, WsfTrack track)
+   
+   if (observer.IsValid()) # Make sure platform is valid
+   {
+      # Make sure target is valid in the sim
+      if (track.Target().IsValid() && !track.Target().IsNull()) # Make sure that target is valid and track is not empty
+      {
+         int globalTrackNumber = track.GlobalTrackNumber();
+         
+         #####################
+         #### Sensor Data ####
+         #####################
+         
+         string sensorPlatSide = observer.Side();
+         string sensorPlatName = observer.Name();
+         string sensorPlatType = observer.Type();
+         int sensorPlatIndex = observer.Index();
+         double sensorPlatLat = observer.Latitude();
+         double sensorPlatLon = observer.Longitude();
+         double sensorPlatAlt = observer.Altitude();
+         
+         string sensorName = sensor.Name();
+         string sensorType = sensor.Type();
+         int sensorTrackCount = sensor.ActiveTrackCount();  // New
+         
+         #####################
+         ## Target Platform ##
+         #####################
+         WsfPlatform target = track.Target();
+         
+         string targetName = target.Name();
+         string targetType = target.Type();
+         string targetSide = target.Side();
+         int targetPlatIndex = target.Index(); 
+         double targetPlatLat = track.Latitude();     // currently the track location, NOT Target Location
+         double targetPlatLon = track.Longitude();    // currently the track location, NOT Target Location
+         double targetPlatAlt = track.Altitude();     // currently the track location, NOT Target Location
+
+   
+         Array<string> words;
+         words = {(string)TREATMENT_NUMBER,
+                  (string)REPLICATE_NUMBER,
+                  (string)WsfSimulation.RandomSeed(),
+                  (string)TIME_NOW,
+                  "SENSOR_TRACK_UPDATED",       // unsure how to show which event happened w/o splitting script by triggered observer
+                  (string)globalTrackNumber,    // need to check if GTAN is valid or not
+                  (string)sensorPlatSide,
+                  (string)sensorPlatName,
+                  (string)sensorPlatType,
+                  (string)sensorPlatIndex,      // need to check if indexes are valid
+                  (string)sensorPlatLat,
+                  (string)sensorPlatLon,
+                  (string)sensorPlatAlt,
+                  (string)targetSide,            
+                  (string)targetName,
+                  (string)targetType,
+                  (string)targetPlatIndex,      // need to check if indexes are valid
+                  (string)targetPlatLat,
+                  (string)targetPlatLon,
+                  (string)targetPlatAlt,
+                  (string)sensorName,
+                  (string)sensorType,
+                  (string)sensorTrackCount,
+                 };
+
+         string line = ", ".Join(words);
+         sensor_file.Write(line);
+         sensor_file.Write("\n");
+      }
+   }
+   else     // moved this to the end
+   {
+      return;
+   }
+
+end_script

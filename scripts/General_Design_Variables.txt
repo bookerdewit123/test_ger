@@ -1,0 +1,85 @@
+# *********************************************************************************************** #
+##################################
+#### THIS FILE NEEDS TO BE CULLED
+#################################
+script_variables
+    ### DESIGN SETUP ###
+    int EXPERIMENT_ID = -1;
+    string DESIGN_TYPE = "lhs";
+    int TREATMENT_NUMBER = 0;
+    int REPLICATE_NUMBER = 1;
+    int NUM_REPLICATES = 1;
+
+    ### FACTORS ###
+    double ESM_SIGMA = 0.0;
+    
+#    int OVERALL_RUN_NUMBER = TREATMENT_NUMBER * REPLICATE_NUMBER + NUM_REPLICATES;
+    int OVERALL_RUN_NUMBER = $<unique_id:1>$;
+    
+end_script_variables
+
+$define gcOutfileName "st2_CE"
+$define gcOutputLocation "output"
+$define gcSAR1M2Range 100
+$define gcBlueLRUSVOmniRadarRange 150
+$define gcBlueUAVOmniRadarRange 180
+$define gcRedAESARadarRange 200
+$define gcMFASDefaultMaxRange 100
+$define gcMFASDefault1m2Range 150
+$define gcMFASOuterMaxRange 80
+$define gcMFASInnerMaxRange 50
+$define gcGenericIRSTMaxRange 50
+$define gcGatorMaxRange_nmi         150.0
+$define gcGatorTwsRange_nmi         100.0
+$define gcRedFighterEsmMaxRange_nmi 200
+$define gcBlueSamLaunchRange_nmi 100
+$define gcBlueAamLaunchRange_nmi 100
+$define gcBlueCBADLaunchRange_m 50000
+$define gcRedBombLaunchRange_km 100
+$define gcLaunchRangeLong_nm 400
+$define gcRedAamLaunchRange_nm      100
+$define gcRedAgmLaunchRange_nm      120
+$define gcStartDistFromLaunch 500
+$define gcBomberHeadingFromTarget 315
+$define gcLRUSV001Lat 18.55
+$define gcLRUSV001Lon 123.75
+$define gcLRUSV002Lat 18.85
+$define gcLRUSV002Lon 123.45
+$define gcLRUSVSAMMagazineSize 10
+$define gcRedFighterAamMagazineSize  4
+$define gcRedFighterSurfMagazineSize 2
+$define gcBlueFighterMagazineSize    6
+$define gcTargetLat  18
+$define gcTargetLon 121.7
+$define redWave2StartTime_min       29
+$define blueWave2StartTime_min      25
+
+// Distance that CBAD sits from the platform its protecting. (Left and right sides)
+$define cbadOffsetDistance_m 1000
+$define cbadOffsetDistanceLeft_m -$<cbadOffsetDistance_m: 500>$
+
+
+// Record settings to an output file
+script_variables
+   Map<string, string> paramsMap = Map<string, string>();
+end_script_variables
+
+execute at_time 0.01 s absolute
+   string gcOutfileName             = $<gcOutfileName:             "st2_CE">$;
+   string gcOutputLocation          = $<gcOutputLocation:          "output">$;
+   double gcSAR1M2Range             = $<gcSAR1M2Range:             100>$;
+   double gcBlueLRUSVOmniRadarRange = $<gcBlueLRUSVOmniRadarRange: 200>$;
+   double gcBlueUAVOmniRadarRange   = $<gcBlueUAVOmniRadarRange:   150>$;
+   double gcRedAESARadarRange       = $<gcRedAESARadarRange:       200>$;
+   double gcMFASDefaultMaxRange     = $<gcMFASDefaultMaxRange:     100>$;
+   double gcMFASDefault1m2Range     = $<gcMFASDefault1m2Range:     50>$;
+   
+   paramsMap.Set("gcOutfileName",             (string)gcOutfileName);
+   paramsMap.Set("gcOutputLocation",          (string)gcOutputLocation);
+   paramsMap.Set("gcSAR1M2Range",             (string)gcSAR1M2Range);
+   paramsMap.Set("gcBlueLRUSVOmniRadarRange", (string)gcBlueLRUSVOmniRadarRange);
+   paramsMap.Set("gcBlueUAVOmniRadarRange",   (string)gcBlueUAVOmniRadarRange);
+   paramsMap.Set("gcRedAESARadarRange",       (string)gcRedAESARadarRange);
+   paramsMap.Set("gcMFASDefaultMaxRange",     (string)gcMFASDefaultMaxRange);
+   paramsMap.Set("gcMFASDefault1m2Range",     (string)gcMFASDefault1m2Range);
+end_execute

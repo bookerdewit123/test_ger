@@ -1,0 +1,26 @@
+# New file created by AFSIM Wizard
+#include_once weapons/ssm/df-21b.txt
+
+include sensors/an_red_mrsam.txt
+
+platform_type RED_MR_SAM RCS_PLATFORM_BASE
+   icon df-21_missile#Scud_Launcher
+   side red
+   mover WSF_GROUND_MOVER end_mover
+   
+   #weapon DF21 DF-21B
+   #   quantity 30
+   #end_weapon
+
+
+   
+   sensor AN/RED_MRSAM AN_RED_MRSAM
+      on
+      internal_link data_mgr
+   end_sensor 
+   
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+   
+end_platform_type

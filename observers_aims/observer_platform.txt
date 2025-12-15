@@ -1,0 +1,693 @@
+observer
+    enable PLATFORM_INITIALIZED platformInitialized      // INITIALIZED
+    enable PLATFORM_DELETED PlatformDel                  // KILLED
+    enable WEAPON_FIRED FiredAt                          // SHOOTING & ENGAGED
+    enable CRASHED_INTO_GROUND ImpactedGround            // HIT_GROUND
+    enable SIMULATION_INITIALIZING plat_SimInitialize    // Sim initialization
+    enable COMM_TURNED_OFF                               // COMM_OFF
+    enable COMM_TURNED_ON                                // COMM_ON
+    //enable SENSOR_TRACK_INITIATED SensorTrackInit        // SENSOR_INIT
+    //enable SENSOR_TRACK_DROPPED SensorTrackDrop          // SENSOR_DROP
+    //enable SENSOR_TRACK_UPDATED SensorTrackUpdate        // SENSOR_UPDATE
+
+    //enable PLATFORM_ADDED PlatformAdded
+    //enable STATE_ENTRY StateSwitch                     // failed attempt to capture behavior switching
+    
+end_observer 
+    
+
+script_variables
+
+Array<string> dynamicPlatforms = {
+   "5thGen1_Group1", "5thGen2_Group1",
+   "EuroFighter1_Group1", "EuroFighter2_Group1", 
+   "EuroFighter3_Group2", "EuroFighter4_Group2",
+   "AEW_C2", "RED_AEW",
+   "Su34_1", "Su35_1", "Su34_2", "Su35_2"
+};
+
+   // For CommOn and CommOff
+   bool plat_commOff;
+   bool plat_commOn;
+   int plat_commReconnect;
+
+   
+   #double plat_closest_hostile = 1000*MATH.M_PER_NM();
+   //bool plat_log_print = true; // set to true if desire to create a plat_log.txt output that mimmicks brawlers standard output
+   //bool plat_iout_print = true; // set to true if desire to create an plat_iout.txt output
+   //bool plat_sensor_print =  false; // **WARNING**, setting this to true causes errors, still debugging this tool
+   WsfGeoPoint plat_origin = WsfGeoPoint.Construct("00:00:00.00n 00:00:00.00e"); // scenario plat_origin point for log print out
+   int plat_rseed = (int)WsfSimulation.RandomSeed();
+   //Array<string> plat_log_string = {"output/","plat_LOG"};
+   //Array<string> plat_iout_string = {"output/","plat_IOUT"};
+   //Array<string> plat_sensor_string = {"output/","plat_SENSOR"};
+   Array<string> plat_write_out_string = {"output/", "plat_WEAPON_RESULT"}; // unused when logging off
+   
+#  string plat_log_path = "output/plat_log.txt";
+   //string plat_log_path = "".Join(plat_log_string);
+   //string plat_iout_path = "".Join(plat_iout_string);
+   //string plat_sensor_path = "".Join(plat_sensor_string);   // may not be used
+   string plat_write_path = "".Join(plat_write_out_string);
+   
+   //FileIO plat_log = FileIO();
+   //FileIO plat_iout = FileIO();
+   //FileIO plat_sensorIO = FileIO();    // may not be used
+   FileIO plat_write_out = FileIO();
+   
+#  extern int math_seed;
+   //extern string plat_log_path;
+   //extern bool plat_iout_print;
+  // extern bool plat_log_print;
+   extern string plat_write_path;
+   #extern int    JamTime;
+   #WsfGeoPoint plat_origin = WsfGeoPoint();
+   plat_origin.Set(0,0,0);
+   
+   
+   #MTC added two data containers to account for dead aircraft returning NULL 
+   #implemented initially on every missile fired, dealt with in msl endgame
+   Array<WsfPlatform> dead_aircraft = Array<WsfPlatform>();  // may not be used
+   Array<int> msl_sht_tgt = Array<int>();
+
+   // VARIABLES ///////////////////////////////////////////////////
+   // strings
+   string platName;                    // for the platform tracker
+   string platType;                    // for the platform tracker
+   # string trackName;                 // string for the targetted track? # moved into script
+
+   // int
+   int messageNum = 0;
+   # int numTracks = 0;                // number of tracks for a platform # moved into script
+
+   // double
+   #double messageTag;                 // for comms
+   double plat_Lat;                    // for the platform tracker, main
+   double plat_Lon;                    // for the platform tracker, main
+   double platIntLat;                  // for the platform tracker, interacting plat
+   double platIntLon;                  // for the platform tracker, interacting plat
+   double platTime = 0.000;            // for the platform tracker, idk why the decimals dont show for the results
+   /*
+   double bomberOneTimer = 0;          // measures time beyond fire line
+   double bomberTwoTimer = 0;          // measures time beyond fire line
+   double bomberOneDist = 100000000;   // measures distance to BLUE C2
+   double bomberTwoDist = 100000000;   // measures distance to BLUE C2
+   double bomberOneLaunchTime;         // time that bomber one is able to launch, within range
+   double bomberTwoLaunchTime;         // time that bomber two is able to launch, within range
+   */
+  
+#   double plat_blue_aircraft   = 0;   // remove once tested
+#   double plat_red_aircraft    = 0;   // remove once tested
+
+   // Wsf
+   # WsfGeoPoint locC2 = WsfSimulation.FindPlatform("Ground_Commander").Location(); //locally calls Blue C2 location, DYNAMIC
+   WsfGeoPoint locC2 = WsfGeoPoint.Construct("62:20:01.82n 22:40:00.43e"); //coords of the C2, MANUAL, for bomber release point
+   bool jamStatus = false;        // on/off bool for comms status
+  
+
+   #extern string scenario;
+   global Map<string, Array<double>> formationOffsets; // global, used in initiation of platforms
+  
+  
+   ### Define files to write outputs to
+   string open_method; // leaving this without plat_ so that other functions can refer to it (processors\digital_spine.txt)
+#   global int plat_run_num = WsfSimulation.RunNumber(); // global
+#   global int plat_random_seed = WsfSimulation.RandomSeed(); // global
+#   if(plat_run_num == 1)
+#      {open_method = "out";}
+#   else
+#      {open_method = "append";}
+  
+   open_method = "out";
+   // creates the output files
+   FileIO platform_life = FileIO();
+   string rel_path_8 = Path.GetWorkingDirectory().ToString() + "/output/platform_output"; // New file to gather all platform lifecycle events
+
+   // confirms files can be used
+   assert(platform_life.Open((rel_path_8 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), open_method),
+         rel_path_8 + ".csv" + " output file falied to open");
+     
+end_script_variables
+
+
+
+// consider moving this to the RunInternationalBD.txt file and running first, needs more variables to be added
+include_once observers_aims/observer_utils.txt // Include this script for getDeadPlat script
+
+// Execute at time interval scripts ///////////////////////////////////////////////////////////////////////////////////////////////
+/*
+// script to check distance of bombers to target, currently set for two bombers
+execute at_interval_of 10 s // time interval execution!
+
+   // Should add something thatnotes when the bombers first cross into range
+   WsfPlatform bomberOne = WsfSimulation.FindPlatform("Red_A2G_1"); //locally calls bomber
+   WsfPlatform bomberTwo = WsfSimulation.FindPlatform("Red_A2G_2"); //locally calls bomber
+   extern void platformTracker(WsfPlatform, string); // calls the platform tracker to identify the launch point
+
+#   if(WsfSimulation.FindPlatform(" Red_A2G_1")){
+   if(bomberOne){ // should this be bomberOne.IsValid() instead??
+#      bomberOneDist = WsfSimulation.FindPlatform(" Red_A2G_1").GroundRangeTo(WsfSimulation.FindPlatform("Ground_Commander"));
+      bomberOneDist = bomberOne.GroundRangeTo(locC2);
+#      if(bomberOneDist <= 555600) { // meters?
+      if(bomberOneDist <= 300*MATH.M_PER_NM()) { // 300 nmi range of Bomber cruise missile
+         if(bomberOneTimer == 0){
+#            if(plat_log){
+#               log.Writeln_d(write_str("\nBOMBER ONE ENTERED FIRING RANGE AT APPROXIMATELY ",Format.Fixed(TIME_NOW,0), " s"));
+#            }
+            bomberOneLaunchTime = TIME_NOW;
+            platformTracker(bomberOne, "LAUNCH POINT");
+         }
+         bomberOneTimer+=10;
+#         if(plat_log){
+#            log.Writeln_d(write_str("\nBOMBER ONE WITHIN FIRING RANGE FOR APPROXIMATELY ",Format.Fixed(bomberOneTimer,0), " s"));
+#         }
+      }
+   }
+
+if(bomberTwo){
+      bomberTwoDist = bomberTwo.GroundRangeTo(locC2);
+      if(bomberTwoDist <= 300*MATH.M_PER_NM()) { // 300 nmi range of Bomber cruise missile
+         if(bomberTwoTimer == 0){
+#            if(plat_log){
+#               log.Writeln_d(write_str("\nBOMBER TWO ENTERED FIRING RANGE AT APPROXIMATELY ",Format.Fixed(TIME_NOW,0), " s"));
+#            }
+            bomberTwoLaunchTime = TIME_NOW;
+            platformTracker(bomberTwo, "LAUNCH POINT");
+         }
+         bomberTwoTimer+=10;
+#         if(plat_log){
+#            plat_log.Writeln_d(write_str("\nBOMBER TWO WITHIN FIRING RANGE FOR APPROXIMATELY ",Format.Fixed(bomberTwoTimer,0), " s"));
+#         }
+      }
+   }
+
+end_execute
+*/
+
+// Preallocation scripts to create headers of files ////////////////////////////////////////////////////////////////////////////////
+
+script void write_platformLifecycle_file() // preallocates
+   
+      Array<string> header = {"Treatment",
+                              "Replicate",      // was run number
+                              "Seed",
+                              "TIME_NOW",
+                              "Event",
+                              "platSide",
+                              "platName",
+                              "platType",
+                              "platIndex",
+                              "platLatitude",
+                              "platLongitude",
+                              "platAltitude",
+                              #"Behavior",       // placeholder
+                              #"TrackName",      // placeholder
+                              #"TrackNumber",    
+                              "NumberOfTracks",
+                              "quantityOfWeapons"   // Works for BLUE, does not work for RED
+                              #"InitialLoadout", // currently producing boolean for having weapons or not (unintentionally)
+                              #"JamStatus",      // placeholder
+                              #"InteractingName",
+                              #"InteractingType",
+                              #"InteractingIndex",
+                              #"IntLatitude",
+                              #"IntLongitude",
+                              #"IntAltitude",
+                              #"KillChainStep" // placeholder
+                             }; 
+      string header_line = ",".Join(header);
+      platform_life.Write(header_line);
+      platform_life.Write("\n");
+
+end_script
+
+// End of the preallocation /////////////////////////////////////////////////////////////////////////////////////
+
+// Start of Observer Scripts ////////////////////////////////////////////////////////////////////////////////////
+
+#script void platformInitialized(WsfPlatform aPlatform) // uses platform tracker
+   #int ac_index = aPlatform.Index();   // not used?
+   #double timeNow = TIME_NOW;          // not used?
+
+#   extern void platformTracker(WsfPlatform, string);
+#   platformTracker(aPlatform, "INITIALIZED"); ### CHECK
+#end_script
+
+
+
+script void SensorTrackInit(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack) // uses platform tracker, turned off, kill chain
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aPlatform,"SENSOR_INITIATED");
+end_script
+
+script void SensorTrackDrop(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack) // uses platform tracker, turned off, kill chain
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aPlatform,"SENSOR_DROP");
+end_script
+
+script void SensorTrackUpdate(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack) // uses platform tracker, turned off, kill chain
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aPlatform,"SENSOR_UPDATE");
+end_script
+
+script void PlatformDel(WsfPlatform aPlatform) // when a platform is deleted // uses platform tracker
+   if(!aPlatform.CategoryMemberOf("missile") && aPlatform.CategoryMemberOf("init_count") && TIME_NOW < WsfSimulation.EndTime()) // do we want to include missiles?
+   {
+      #int IndexKilled = aPlatform.Index();
+      #double TimeKilled = TIME_NOW;
+      #string side = aPlatform.Side();  
+
+      extern void platformTracker(WsfPlatform, string);    
+      platformTracker(aPlatform, "KILLED"); // note that the platform was killed
+   }
+end_script
+
+script void FiredAt(WsfWeaponEngagement aWeaponEngagement, WsfTrack aTargetTrack) // uses platform tracker
+   #weapon_fired
+   WsfPlatform target, shooter;
+   extern void platformTracker(WsfPlatform, string);
+   int target_index, shooter_index;
+   WsfPlatform weapon = aWeaponEngagement.WeaponPlatform();
+   int weapon_index = weapon.Index();
+#   int red_left = plat_red_aircraft;
+#   int blue_left= plat_blue_aircraft;
+   if(aWeaponEngagement.TargetPlatform().IsValid())
+   {
+      target = aWeaponEngagement.TargetPlatform();
+      writeln_d("target is valid");
+      target_index = target.Index();
+   }
+   else
+   {
+      target = getDeadPlat(aWeaponEngagement,"target");
+      writeln_d("target is not valid");
+      target_index = target.AuxDataInt("platID");
+   }
+   
+   if(aWeaponEngagement.FiringPlatform().IsValid())
+   {
+      shooter = aWeaponEngagement.FiringPlatform();
+      writeln_d("shooter is valid");
+      shooter_index = shooter.Index();
+   }
+   else
+   {
+      shooter = getDeadPlat(aWeaponEngagement,"shooter");
+      writeln_d("shooter is not valid");
+      shooter_index = shooter.AuxDataInt("platID");
+   }
+
+   msl_sht_tgt.PushBack(weapon_index);
+   msl_sht_tgt.PushBack(shooter_index);
+   msl_sht_tgt.PushBack(target_index);
+         
+   // For logging purposes
+   writeln_d("Platform ",shooter.Name()," is firing a weapon");
+   writeln_d("Platform ",target.Name()," is being shot at");
+   shooter.SetAuxData("EngagedPlat",target_index);
+   target.SetAuxData("ShootingPlat",shooter_index);
+   platformTracker(shooter,"SHOOTING");
+   platformTracker(target,"ENGAGED");
+   string weapon_name = aWeaponEngagement.WeaponPlatformName();
+   string weapon_type = aWeaponEngagement.WeaponSystemType();
+   end_script
+
+script void ImpactedGround(WsfPlatform aPlatform) // uses platform tracker
+   extern void platformTracker(WsfPlatform, string);
+      
+   int ac = aPlatform.Index();
+   double fuel_remaining = aPlatform.FuelRemaining();
+   string side = aPlatform.Side();
+   if (fuel_remaining>0.5)
+      {
+      platformTracker(aPlatform,"HIT_GROUND");
+      }
+   else
+      {
+      platformTracker(aPlatform,"HIT_GROUND_NO_FUEL");
+      }
+
+end_script
+
+script void LocalTrackUpdate(WsfPlatform aPlatform, WsfLocalTrack ltrk, WsfTrack track) // uses platform tracker, turned off
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aPlatform,"TRACK UPDATED");      #### CHeck      
+end_script
+
+script void PlatformAdded (WsfPlatform aPlatform) // uses platform tracker, turned off
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aPlatform,"PLATFORM ADDED");
+end_script
+
+script void plat_SimInitialize()
+   // NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
+   MATH.SetSeed(WsfSimulation.RandomSeed());
+   write_platformLifecycle_file();
+   /*
+   if (WsfSimulation.RunNumber() == 1)
+   {
+      write_platformLifecycle_file();
+      //plat_write_out.Open(plat_write_path, "out");
+   }
+   */
+   /* // keep in case needed for MC runs
+   else 
+   {
+      plat_write_out.Open(plat_write_path,"append");
+   }
+   */
+   /*
+   if (plat_iout_print) 
+   {
+       plat_iout.Open(plat_iout_path, "out");
+       plat_iout.writeln_d(write_str(" Starting seed ",WsfSimulation.RandomSeed()));
+       plat_iout.Close();
+       plat_iout.Open(plat_iout_path,"append");
+   }
+   if (plat_log_print)
+   {
+       plat_log.Open(plat_log_path, "out");
+       //plat_write_out.Open(plat_write_path, "out");
+       plat_log.writeln_d(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
+       //plat_write_out.writeln_d(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
+       plat_log.Close();
+       //plat_write_out.Close();
+       plat_log.Open(plat_log_path,"append");
+       //plat_write_out.Open(plat_write_path, "append");
+   }
+   */
+end_script
+
+script void CommTurnedOn(WsfComm aComm) // could use for jamming/unjamming aspects
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aComm.Platform(), "COMM_ON"); 
+   /*
+   if(plat_commOff == true)
+   {
+      plat_commReconnect = plat_commReconnect + 1;
+      plat_commOff = false;
+   }
+   */
+end_script
+
+script void CommTurnedOff(WsfComm aComm) // could use for jamming/unjamming aspects
+   extern void platformTracker(WsfPlatform, string);
+   platformTracker(aComm.Platform(), "COMM_OFF"); 
+   #plat_commOff = true;
+end_script
+
+#script void StateSwitch(WsfPlatform aPlatform, string aStateName) //attempt to capture behavior switching
+#   writeln_d("STATE SWITCH");
+#   //writeln_d(aEvent);
+#   extern void platformTracker(WsfPlatform, string);
+#   platformTracker(aPlatform, aStateName);
+#end_script
+
+// MAIN SCRIPT /////////////////////////////////////////////////////////////////////////////////////////////////
+
+// This script tracks all the events that happen to platforms
+// Executes throughout simulation, noting the involved platform in observers
+// tracks the platform, time, event, and location
+
+// prints information about a platform when triggered by a noted event
+script void platformTracker(WsfPlatform aPlatform, string what) 
+   // @param: aPlatform is the subject, what some event is occuring to
+   // @param: "what" is the descriptor for what is particularly happening at the event
+   // @return: line to platform output file
+
+   if (aPlatform.IsValid())      // if the platform exists
+   {
+//   if (aPlatform.Side()=="blue") // to pre-filter, if on BLUE side
+//   {
+//   if (aPlatform.CategoryMemberOf("MISSILE")!=1)   // to pre-filter, do not want weapons considered
+//   {
+
+   // preallocate some stuff
+   int numTracks = 0;            // number of tracks for a platform
+   WsfTrack targTrack;           // targetTrack, if applicable
+   WsfLocalTrack targTrackLcl;   // targetTrack, if applicable
+   string trackName = "N/A";     // string for the targetted track, if applicable
+   int trackNum = 0;             // Number of the track number, if applicable
+   double weaponRails = 0;       // Number of weapons that are on a SHOOTER platform
+   string platSide;              // to note what side the platform is on
+   int platIndex = 0;            // index of the platform of interest, to check that things align
+   /*
+   WsfPlatform interactPlat;     // interacting platform object, if applicable
+   string interactPlatName;      // interacting platform name, if applicable
+   string interactType;          // interacting platform type, if applicable
+   string killChain;             // step in the kill chain
+   int initLoad = 0;             // aux data for initial loadout
+   int interactInd = 0;          // index of the interacting platform, to check that things align
+   */
+   
+   writeln_d(aPlatform.Name(), " ",what);            // State what is happening in the log
+   platTime = TIME_NOW;                            // current sim time
+   platSide = aPlatform.Side();                    // BLUE or RED side
+   platName = aPlatform.Name();                    // name for logging
+   string platType = aPlatform.Type();             // type of platform
+   platIndex = aPlatform.Index();                  // index of the platform
+   string eventName = what;                        // observable event that is occuring
+   string platBehavior = "BEHAVIOR";               // manually typed to be able to run
+   WsfGeoPoint location = aPlatform.Location();    // current loc of main platform
+   plat_Lat = location.Latitude();                 // 
+   plat_Lon = location.Longitude();                //
+   double platAlt = aPlatform.Altitude();          //
+   /*
+   WsfGeoPoint locationInt = aPlatform.Location(); // current loc of interacting platform
+   platIntLat = locationInt.Latitude();            //
+   platIntLon = locationInt.Longitude();           //
+   double platIntAlt = aPlatform.Altitude();       //
+   WsfTrack sensorTrack;                           // current target track for sensor changes
+   */
+   
+   /*
+   // if platform is a shooter
+   if(aPlatform.CategoryMemberOf("SHOOTER"))          // if the platform can have weapons (is a shooter)
+   {
+      writeln_d(aPlatform.Name(), " is a shooter.");    // Print statement to check
+      if (aPlatform.WeaponCount()>0)   // if the platform still has weapons left
+      {
+         weaponRails = aPlatform.WeaponEntry(0).QuantityRemaining();          // notes quantity of weapons
+         writeln_d(aPlatform.Name(), " has ", weaponRails, " weapons left.");   // This should have a "-1" condition for when not initialized, accounted for when shooting
+      }
+      else // does not seem to trigger
+      {
+         writeln_d(aPlatform.Name(), " does not have any weapons left.");    // if it doesn't have weapons
+      }
+   }
+   else // if not a shooter
+   {
+      writeln_d(aPlatform.Name(), " does not have weapons.");  // if it doesn't have weapons
+   }
+   */
+
+   // if platform has local tracks
+   if (aPlatform.TrackManager().LocalTrackList().IsValid())                // if there are local tracks
+   {
+      numTracks = aPlatform.TrackManager().LocalTrackList().Count();       // Note number of tracks to log
+
+      /*
+      if (numTracks>0) // if there are multiple trackcs, pull info from the first (picking the last wasnt working)
+      {
+         if (platSide=="blue") // if blue, track selection is '0'
+         {
+            targTrackLcl = aPlatform.TrackManager().LocalTrackList().Get(0);     // trackID of the current target  
+         }
+         if (platSide=="red") // if red, the track numbers are wacky, likley an issue since the red side is "all knowing" and has tons of tracks
+         {
+            targTrackLcl = aPlatform.TrackManager().LocalTrackList().Get(0);    // trackID of the current target (1 & -1 index did not work, left some blank and gave errors)
+         }
+         trackNum = targTrackLcl.GlobalTrackNumber();    // GTAN
+         trackName = targTrackLcl.TargetName();          // string of track ID
+         if (what=="INITIALIZED") // means it is a missile if it was just initialized
+         {            
+            // use this information for the missile to populate the interacting platform information            
+            interactPlat = WsfSimulation.FindPlatform(trackName);          // log interacting platform
+            interactInd = interactPlat.Index();                            // Notes the index of interacting platform
+         }
+      }
+// using global tracks was giving issues. just always use local tracks
+#      else if (numTracks==1) // can go straight to the current track if only 1
+#      {
+#         targTrack = aPlatform.CurrentTargetTrack();  // trackID of the current target
+#         trackNum = targTrack.GlobalTrackNumber();    // GTAN
+#         trackName = targTrack.TargetName();          // string of track ID
+#         
+#      }
+      else // no tracks (numTracks==0)
+      {
+         trackNum = 0;        // GTAN
+         trackName = "N/A";   // string of track ID  
+      }
+      
+      // print some info about the tracks
+      writeln_d(aPlatform.Name()," has ", numTracks, " number of tracks.");  // prints number of tracks
+      writeln_d(aPlatform.Name()," target name is ", trackName);             // identify target
+      writeln_d(aPlatform.Name()," target GTAN is ", trackNum);              // identify target
+      */
+   }
+   else # this never seems to trigger though, bc platforms just have empty track lists?
+   {
+      /*
+      trackName = "N/A";     // tracks not applicable
+      trackNum = 0;          // tracks not applicable
+      //int numTracks = aPlatform.TrackManager().LocalTrackList().Count();   // Note number of tracks to log
+      writeln_d(aPlatform.Name()," target is ", trackName);      // is standard N/A
+      */
+      writeln_d(aPlatform.Name()," has no tracks.");             // prints number of tracks
+   }
+   
+
+   /*
+   // if event is being initialized
+   if (what=="INITIALIZED")     // if event is being initialized
+   {
+      if (aPlatform.CategoryMemberOf("SHOOTER"))               // if a shooter is initialized, note note its initial loadout
+      { // use to compare against loadout it says it has when shooting so it can reduce by 1
+         aPlatform.SetAuxData("initialLoadout",weaponRails);   // Notes initial loadout
+      } 
+   }
+   
+   // if platform is a shooter, note the initial loadout
+   if (aPlatform.CategoryMemberOf("SHOOTER"))                           // define the initial loadout if it is a platform that has weapons 
+      { // aux data shows that values are correct in .aer file, but not in printout of results
+         initLoad = aPlatform.AuxDataInt("initialLoadout");             // Notes initial loadout, but it keeps saying 1 for some reason
+         writeln_d("The platform had ",initLoad," initial weapons.");     // prints number of tracks
+      } 
+   */
+
+   /*
+   // if platform is becoming jammed
+   if (what=="JAMMED")     // if event is jamming occuring
+   {
+      jamStatus = true;    // change logging output
+      //int jammingInt = aPlatform.AuxDataInt("JammingPlat");             // interacting with jamming from other side
+      //interactPlat = WsfSimulation.PlatformEntry(jammingInt).Name();    // log interacting platform
+   }
+   
+   // if platform is becoming unjammed
+   if (what=="UNJAMMED")   // if event is no longer being jammed
+   {
+      jamStatus = false;   // change logging output
+   }
+   */   
+
+   // if platform is in the act of shooting
+   if (what=="SHOOTING")    // if platform is shooting
+   {
+      #int targInt = aPlatform.AuxDataInt("EngagedPlat");             // interacting with engaged plat, target interacting index
+      #interactPlat = WsfSimulation.FindPlatform(targInt);            // log interacting platform Wsfplatform
+      #interactInd = targInt;                                         // Notes the index of interacting platform
+      #writeln_d("Platform ",interactPlat.Name()," is confirmed being shot at by ", platName);
+      if (aPlatform.WeaponCount()>0)   // if the platform still has weapons left
+            {
+               weaponRails = aPlatform.WeaponEntry(0).QuantityRemaining()-1;          // notes quantity of weapons
+               writeln_d(aPlatform.Name(), " has ", weaponRails-1, " weapons left.");   // May need a "-1" condition for when not initialized, accounted for when shooting
+            }
+            else // does not seem to trigger
+            {
+               writeln_d(aPlatform.Name(), " does not have any weapons left.");    // if it doesnt have weapons
+            }
+      #weaponRails = weaponRails-1;                                   // if shooting, the count should reduce by 1 during the action?
+   }
+
+   /*
+   // if platform is being shot at
+   if (what=="ENGAGED")   // if event is no longer being jammed
+   {
+      int shootInt = aPlatform.AuxDataInt("ShootingPlat");           // interacting with the shooting platform, shooter interacting ind
+      interactPlat = WsfSimulation.FindPlatform(shootInt);           // log interacting platform Wsfplatform
+      interactInd = shootInt;                                        // Notes the index of interacting platform
+      writeln_d("Platform ",interactPlat.Name()," is confirmed firing a weapon at ", platName);
+   }
+   */
+
+   /*
+   // if platforms sensor is involved, note the interacting platform
+   if (what.Contains("SENSOR"))  // triggers SENSOR_<INIT,DROP,UPDATE>
+   {
+      // bool check for if there is a current target
+      if (aPlatform.HasCurrentTarget())   // this is only applicable for missiles, as they are the only ones with a "current target"
+      {
+         // Pull the current track and make sure target is valid in the sim
+         sensorTrack = aPlatform.CurrentTargetTrack();
+         if (sensorTrack.Target().IsValid() && !sensorTrack.Target().IsNull()) # Make sure target is valid and track is not empty
+         {
+            interactPlat = sensorTrack.Target();
+            interactInd = interactPlat.Index(); 
+         }
+      }
+      else
+      {
+         int sensorTrackListLength = aPlatform.MasterRawTrackList().Count();
+         sensorTrack = aPlatform.MasterRawTrackList().Entry(sensorTrackListLength-1);
+         if (sensorTrack.Target().IsValid() && !sensorTrack.Target().IsNull()) # Make sure target is valid and track is not empty
+         {
+            interactPlat = sensorTrack.Target();
+            interactInd = interactPlat.Index(); 
+         }
+      }
+   } 
+   */
+
+   /*
+   // if the platform is interacting with another platform
+   if (interactPlat) // if true, exists, ==1
+   {
+      interactPlatName = interactPlat.Name();   // name of interacting platform 
+      interactType = interactPlat.Type();       // type of interacting platform     
+      locationInt = interactPlat.Location();    // current loc of interacting platform
+      platIntLat = locationInt.Latitude();
+      platIntLon = locationInt.Longitude();
+      platIntAlt = interactPlat.Altitude();
+   }
+   else // if there is no interacting platform, use null values
+   {
+      interactPlatName = "N/A";  // no name of interacting platform      
+      platIntLat = 0;            // locations all set to zero
+      platIntLon = 0;
+      platIntAlt = 0;     
+   }
+   */
+   
+   // Use aux data status for the BEHAVIOR column
+   // 5th gen has: custom route, out of formation, evaded, jammed, cap, started grinder, is in grinder
+   // 4th gen has: jammed, initial loadout, and shooting Plat
+   #initLoad = aPlatform.AuxDataInt("initialLoadout");
+   
+   // log the results
+   Array<string> words;          // compile the list of variables to log
+   words = {(string)TREATMENT_NUMBER,
+            (string)REPLICATE_NUMBER,
+            (string)WsfSimulation.RandomSeed(),
+            (string)platTime,
+            (string)eventName,
+            (string)platSide,
+            (string)platName,
+            (string)platType,
+            (string)platIndex,
+            (string)plat_Lat,
+            (string)plat_Lon,
+            (string)platAlt,
+            #(string)platBehavior,      // placeholder
+            #(string)trackName,         // placeholder
+            #(string)trackNum,          // placeholder
+            (string)numTracks,
+            (string)weaponRails
+            #(string)initLoad,
+            #(string)jamStatus,
+            #(string)interactPlatName,
+            #(string)interactType,
+            #(string)interactInd,
+            #(string)platIntLat,
+            #(string)platIntLon,
+            #(string)platIntAlt,
+            #(string)killChain          // placeholder
+            };
+   string line = ", ".Join(words);
+      platform_life.Write(line); // add to platform lifecycle
+      platform_life.Write("\n");
+
+//   } // if not a missile   
+//   } // if blue 
+   } // if valid platform
+end_script

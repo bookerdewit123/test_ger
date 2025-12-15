@@ -1,0 +1,133 @@
+##################################################################################################################################
+# BATTLE MANAGEMENT SYSTEM                                                                                                       #
+
+######################################## INFORMATION #############################################################################
+# NOTE: This system is a continuous work in progress and will have new capabilities added when needed
+#
+# Battle Manage System (BMS) is a set of processors and scripts that allow for battle managerment capabilities between all platforms
+# in a scenario that utilize this setup. 
+
+######################################## CURRENT PLANS ##################################################################
+
+#Planned Capabilities
+#   Add kill assessment capability
+#   Add sensor cueing
+#   Model Strike capabilities
+#   Include the ability to easily make all-in-one platform engagements
+#      Launcher solver and decision making in one
+
+######################################### INCLUDES ###############################################################################
+
+## These are all the include statements for the battle management system parts
+## Most up-to-date
+#   # Data
+#include_once scripts/algorithms_scripts_functionality/battle_management_system/bms_systems/bms_struct_types.txt
+#include_once scripts/bms_systems/bms_message_types.txt  
+#   # Processors
+#include_once scripts/bms_systems/bms_communications_processor.txt
+#include_once scripts/bms_systems/bms_shot_management.txt
+#include_once scripts/algorithms_scripts_functionality/battle_management_system/bms_systems/bms_launcher_processor.txt
+#include_once scripts/algorithms_scripts_functionality/outmatch_multi_threat_track_propagator.txt
+#include_once scripts/bms_systems/bms_track_management.txt
+#
+## Work in progress
+#include_once scripts/bms_systems/bms_cue_tasker.txt
+
+######################################## BASE PLATFORM TYPE ######################################################################
+
+platform_type BMS_PLATFORM RCS_PLATFORM_BASE
+   side blue
+   icon awacs
+#   track_manager
+#      fusion_method weighted_average
+#         #Nothing
+#      end_fusion_method
+#      
+##      correlation_method nearest_neighbor 
+##         tracking_sigma 1
+##         turning_sigma  1
+##      end_correlation_method
+#   end_track_manager
+   
+   add processor comms_proc BMS_COMMUNICATIONS_PROCESSOR
+      script_variables
+         bestRouteOnly = false;
+         messageTypeDelay = {
+                            "BatchTrackMessage": 0,
+                            "BMSTrackDropMessage": 0,
+                            "BidMessage": 0,
+                            "BidActionMessage": 0,
+                            "CueMessage": 0,
+                            "LaunchMessage": 0,
+                            "AliveMessage": 0
+                            };
+      end_script_variables
+   end_processor
+   
+#   #Processor to hold just Sensor track and used for cueing (NO fused data or anything, just raw sensor only data)
+#   add processor sensor_data BMS_TRACK_MANAGEMENT_PROCESSOR
+#     update_interval 1 sec
+#     non_master_track_processor
+# 		script_variables
+#         reportInterval = 1;
+#         reportTracks = false;
+#         updateOnReport = true;
+#         fusedTrackReporting = true;
+#         reportUnchangedTracks = true;
+#         hardReportTo = {};
+#         reportIgnore = {};
+#         reportToSubs = false;
+#         reportToCommander = false;
+#         reportToPeers = false;
+#         debugTracks = false;
+#		 end_script_variables
+#   end_processor
+#
+#   add processor sys_track_mgr BMS_TRACK_MANAGEMENT_PROCESSOR
+#     update_interval 1 sec
+#     non_master_track_processor
+# 		script_variables
+#         reportInterval = 1;
+#         reportTracks = false;
+#         updateOnReport = true;
+#         fusedTrackReporting = true;
+#         reportUnchangedTracks = true;
+#         hardReportTo = {};
+#         reportIgnore = {};
+#         reportToSubs = false;
+#         reportToCommander = false;
+#         reportToPeers = false;
+#         debugTracks = false;
+#		 end_script_variables
+#   end_processor
+
+#   add processor shot_dec_mgr BMS_SHOT_MANAGEMENT_PROCESSOR
+#      script_variable
+#         bidDecisionTime = 10; # Desired time interval to wait for all incoming bids before decisions making
+#      end_script_variable
+#   end_processor
+
+#   add processor launcher_mgr BMS_LAUNCHER_PROCESSOR
+#      #update_interval 1 sec # This is if you want to override the global value set for this platform
+#      script_variables
+#		    autoFire = false;
+#		    shotManager = "";
+#			 localShotManager = "";
+#			 shouldLaunchOnNoResponse = true;
+#			 canQuickLaunch = true;
+#			 minTrackQuality = .5;
+#			 maxEngagements = -1; 
+#			 launchDelay = 0;
+#			 salvoSize = 1;
+#			 maxLaunchDelay = 100; #(sec)
+#			 solveInterval = 1; #(sec)
+#			 canReload = false;
+#			 reload_time = {};
+#			 reload_inv_multiplier = {};
+#			 forced_reload_times = {};
+#      end_script_variables
+#   end_processor  
+
+end_platform_type
+
+

@@ -1,0 +1,88 @@
+include_once scripts/bms_systems/processors/dca_bmc2.txt
+platform_type AEW_BMS_BLUE BMS_PLATFORM  
+   side blue
+   command_chain FIGHTER_TASKING SELF
+   position 0n 0w heading 90 deg
+
+   mover WSF_AIR_MOVER
+      roll_rate_limit               1 rad/sec #temp TODO
+      default_linear_acceleration   3.0 g #temp TODO
+      default_radial_acceleration   3 g #temp TODO
+      default_climb_rate            254 m/s #from wiki
+      maximum_climb_rate            260 m/s #extrapolated guess from wiki
+      maximum_speed                 1060 knots #janes F15J reference (AT LOW ALTITUDE), probably closer to 2315 knots at high altitude (wiki)
+      minimum_speed                 150.0 knots #temp TODO
+      maximum_altitude              60000 ft #wiki/janes reference
+      minimum_altitude              20000 ft
+      maximum_linear_acceleration   3 g #wiki/janes reference
+      at_end_of_path extrapolate
+      turn_rate_limit               4.0 deg/sec #temp TODO
+      maximum_radial_acceleration 6 g
+   end_mover
+   
+   processor data_mgr WSF_TRACK_PROCESSOR 
+      on
+      internal_link AN/APG-81
+      internal_link L16_T
+   end_processor
+
+   sensor AN/BLUE-AEW AN_BLUE-AEW
+      on
+      internal_link data_mgr
+   end_sensor 
+
+	add router default WSF_COMM_ROUTER
+		 use_default_protocol true		 # switch the default router ON
+		 automated_interface_linking true	 # router acting as a bridge without inducing any delay
+   end_router
+
+   comm L16_T 4thGen_Transmit  
+      on
+      internal_link data_mgr
+      internal_link weapon_target_pairing
+   #   router_name Comm_Router
+   end_comm
+
+   comm L16_R 4thGen_Receiver  
+      on
+      internal_link data_mgr
+      //network_name Topology
+      internal_link weapon_target_pairing
+   #   router_name Comm_Router
+   end_comm
+
+
+   comm MADL_T 5thGen_Transmit
+      off
+      internal_link data_mgr
+      //network_name Topology
+   #   router_name Comm_Router
+   end_comm
+
+   comm MADL_R 5thGen_Receiver 
+      off
+      internal_link data_mgr
+         //network_name Topology
+   #   router_name Comm_Router
+   end_comm
+
+
+   #----------------------------
+   # BMC2 Command fighters
+   #----------------------------
+   # Pair blue fighters to red threats
+   # Controls both DCA and OCA
+   #TO DO: Add in ways to check for type of platform (priority list) and range to target
+   processor weapon_target_pairing BMC2
+   
+   end_processor
+
+
+
+   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
+
+   script_variables
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+   end_script_variables
+
+end_platform_type

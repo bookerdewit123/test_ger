@@ -1,0 +1,733 @@
+include_once scripts/bms_communications_functions.txt
+
+processor BMS_COMMUNICATIONS_PROCESSOR WSF_SCRIPT_PROCESSOR 
+   on
+   
+   script_variables 
+      bool bestRouteOnly = false;
+      Map<string, double> messageTypeDelay = {
+                                              "BatchTrackMessage": 0,
+                                              "BMSTrackDropMessage": 0,
+                                              "BidMessage": 0,
+                                              "BidActionMessage": 0,
+                                              "CueMessage": 0,
+                                              "LaunchMessage": 0,
+                                              "AliveMessage": 0
+                                              };
+   
+      Array<string> CommLinks = Array<string>();
+      Map<string, bool> alivePlatforms = Map<string, bool>(); 
+      
+      Map<string, Array<string>> messageRoutes = Map<string, Array<string>>();
+      Map<string, double> messageRouteCheck = Map<string,double>();
+      
+      double lastTrackSend = 0;
+      Map<string, Array<WsfTrackMessage>> batchTrackMessages = Map<string, Array<WsfTrackMessage>>();
+      
+      double lastDropSend = 0;
+      Array<WsfMessage> trackDropMessages = Array<WsfMessage>();
+   end_script_variables
+   
+   script bool GetBestRouteOnly()
+      return bestRouteOnly;
+   end_script  
+   
+   script double GetMessageTypeDelayValue(string messageType)
+      double delayTime = 0;
+      delayTime = messageTypeDelay.Get(messageType);
+      return delayTime;
+   end_script
+   
+   script void StaggerSendMessage(WsfComm comm, WsfMessage msg, string plat, string commLink)
+      if(msg.IsValid())
+      {
+         if(msg.AuxDataExists("Route") == true)
+         {
+            if(comm.IsValid())
+            {
+               comm.SendMessage(msg, plat, commLink);
+            }
+         }
+      }
+   end_script
+   
+   script void AddMessageToQue(string inRecipient, WsfMessage inMessage)
+      if(inMessage.IsValid())
+      {
+         if(inRecipient == "")
+         {
+            writeln("WARNING: Message did not have a recipient, ignoring qued message!");
+         }
+         else
+         {
+            WsfPlatform recPlatform = WsfSimulation.FindPlatform(inRecipient);
+            if(recPlatform.IsValid())
+            {
+               #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Attempting to send message to ", msgRecip);
+               Array<string> route = Array<string>();
+   
+               if(messageRoutes.Exists(inRecipient))
+               {
+                  Array<string> tempRoute = messageRoutes.Get(inRecipient);
+                  if(CheckCurrentRouteIsValid(tempRoute) == true)
+                  {
+                     route = tempRoute;
+                  }
+                  else
+                  {
+                     route = GetMessageRoute(PLATFORM,recPlatform);
+                  }
+               }
+               else
+               {
+                  route = GetMessageRoute(PLATFORM,recPlatform);
+               }
+         
+               #writeln("PATH FROM ", PLATFORM.Name(), " TO ", recPlatform.Name(), " IS:");
+               if(route.Size() > 0)
+               {
+                  messageRoutes.Set(inRecipient,route);
+            
+                  recPlatform = WsfSimulation.FindPlatform(route.Get(1));
+                  if(recPlatform.IsValid())
+                  {
+                     string commLink = GetPossibleCommLinkForMessage(PLATFORM, recPlatform);
+                     WsfComm comm = PLATFORM.Comm(commLink);
+                     if(comm.IsValid())
+                     {
+                        inMessage.SetAuxData("Route", route);
+                        double delayTime = 0;
+                        delayTime = messageTypeDelay.Get(inMessage.Type());
+                        if(delayTime > 0)
+                        {
+                           ExecuteAtTime(TIME_NOW + delayTime, "StaggerSendMessage", {comm, inMessage, route.Get(1), commLink});
+                        }
+                        else
+                        {
+#                          writeln("--->>>", TIME_NOW, ": ", PLATFORM.Name(), " Attempting to send message to ", route.Get(1), " via commLink ", commLink);
+
+                           //No Instant Comms 
+#                          comm.SendMessage(inMessage, route.Get(1), commLink);
+                         
+                           //Instant Comms
+                           WsfPlatform nextPlat = WsfSimulation.FindPlatform(route.Get(1));
+                           WsfComm nextPlatComm = nextPlat.Comm(commLink);
+                           nextPlatComm.SendMessage(inMessage);                           
+                        }
+                     }
+                  }
+               }
+               else
+               {
+                  if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " No possible way to send message intended for ", inRecipient);
+               }
+            }
+         }
+      } 
+   end_script
+   
+   script void SendBatchTrackMessages()
+      int keyCount = batchTrackMessages.Size();
+      for(int i=0;i<keyCount;i=i+1)
+      {
+         string fromProc = (string)batchTrackMessages.ElementKeyAtIndex(i);
+         if(fromProc != "")
+         {
+            WsfProcessor proc = PLATFORM.Processor(fromProc);
+            if(proc.IsValid())
+            {   
+               Array<string> platsToAttemptSending = (Array<string>)proc.Execute("GetReportSettings");            
+               foreach(string platName in platsToAttemptSending)
+               {
+                  WsfPlatform platRef = WsfSimulation.FindPlatform(platName);
+                  if(platRef.IsValid())
+                  {
+                     #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Attempting to send message to ", subPlatName);
+                     Array<string> route = Array<string>();
+
+                     if(messageRoutes.Exists(platName) && messageRouteCheck.Exists(platName))
+                     {
+                        if(messageRouteCheck.Get(platName) < TIME_NOW)
+                        {
+                           Array<string> tempRoute = messageRoutes.Get(platName);
+                           if(CheckCurrentRouteIsValid(tempRoute) == true)
+                           {
+                              route = tempRoute;
+                           }
+                           else
+                           {
+                              route = GetMessageRoute(PLATFORM,platRef);
+                           }
+                        }
+                        else
+                        {
+                           route = messageRoutes.Get(platName);
+                        }
+                     }
+                     else
+                     {
+                        route = GetMessageRoute(PLATFORM,platRef);
+                     }
+                     
+                     messageRoutes.Set(platName,route);
+                     messageRouteCheck.Set(platName, TIME_NOW);
+
+                     #writeln("PATH FROM ", PLATFORM.Name(), " TO ", platName, " IS:");
+                     if(route.Size() > 0)
+                     {
+                        Array<WsfTrackMessage> batchTracks = Array<WsfTrackMessage>();
+                        batchTracks = (Array<WsfTrackMessage>)batchTrackMessages.Get(fromProc);
+                        WsfMessage Msg = GetBatchTrackMessage(batchTracks, PLATFORM.Name());
+                        Msg.SetAuxData("Route", route);
+
+                        WsfPlatform routePlatRef = WsfSimulation.FindPlatform(route.Get(1));
+                        if(routePlatRef.IsValid())
+                        {
+                           string commLink = GetPossibleCommLinkForMessage(PLATFORM, routePlatRef);
+                           WsfComm comm = PLATFORM.Comm(commLink);
+                           if(comm.IsValid())
+                           {
+                              double delayTime = 0;
+                              delayTime = messageTypeDelay.Get(Msg.Type());
+                              if(delayTime > 0)
+                              {
+#                                 writeln("Got here");
+                                 ExecuteAtTime(TIME_NOW + delayTime, "StaggerSendMessage", {comm, Msg, routePlatRef.Name(), commLink});
+                              }
+                              else
+                              {
+                                 comm.SendMessage(Msg, routePlatRef.Name(), commLink);
+                              }
+                              #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Sending track message for ", trackMsg.Track().TargetName(), " inteded for ", platName);
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+      
+      batchTrackMessages.Clear();
+   end_script
+   
+   script void AddTrackMessageToCommsProc(WsfTrackMessage aTrackMessage)
+      if(aTrackMessage.IsValid())
+      { 
+         if(lastTrackSend < TIME_NOW)
+         {
+            lastTrackSend = TIME_NOW + .01;
+            ExecuteScriptAtTime(lastTrackSend, "SendBatchTrackMessages");
+         }
+      
+         WsfTrackMessage trkMsg = (WsfTrackMessage)aTrackMessage;
+         if(trkMsg.IsValid())
+         {
+            if(trkMsg.Track().IsValid())
+            {
+               WsfTrackMessage newTrackMessage = WsfTrackMessage();
+               newTrackMessage.SetTrack(trkMsg.Track());
+               
+               string fromProc = trkMsg.Track().AuxDataString("ProcName");
+               if(fromProc != "")
+               {
+                  WsfProcessor proc = PLATFORM.Processor(fromProc);
+                  if(proc.IsValid())
+                  {
+                     if(batchTrackMessages.Exists(fromProc) == true)
+                     {
+                        Array<WsfTrackMessage> batchTracks = Array<WsfTrackMessage>();
+                        
+                        batchTracks = (Array<WsfTrackMessage>)batchTrackMessages.Get(fromProc);
+                        batchTracks.PushBack(newTrackMessage);
+                        batchTrackMessages.Set(fromProc, batchTracks);
+                     }
+                     else
+                     {
+                        Array<WsfTrackMessage> batchTracks = Array<WsfTrackMessage>();
+                        batchTracks.PushBack(newTrackMessage);
+                        batchTrackMessages.Set(fromProc, batchTracks);
+                     }
+                  }
+               }
+            }
+         }
+      }
+   end_script
+   
+   script void SendTrackDropMessages()
+      if(trackDropMessages.Size()>0)
+      {
+         foreach(WsfMessage dropMessage in trackDropMessages)
+         {
+            Array<string> platsToAttemptSending = Array<string>();
+            string fromProcName = dropMessage.AuxDataString("ProcessorFrom");
+            
+            if(fromProcName == "sensor_data")
+            {
+               WsfTrackProcessor sensorProc = (WsfTrackProcessor)PLATFORM.Processor("sensor_data");
+               if(sensorProc.IsValid())
+               {
+                  foreach(string platToSendTo in (Array<string>)PLATFORM.Processor("sensor_data").AuxDataObject("ReportSettings"))
+                  {
+                     platsToAttemptSending.PushBack(platToSendTo);
+                  }
+               }
+            }
+            else if(fromProcName == "sys_track_mgr")
+            {
+               WsfTrackProcessor sysProc = (WsfTrackProcessor)PLATFORM.Processor("sys_track_mgr");
+               if(sysProc.IsValid())
+               {
+                  foreach(string platToSendTo in (Array<string>)PLATFORM.Processor("sys_track_mgr").AuxDataObject("ReportSettings"))
+                  {
+                     platsToAttemptSending.PushBack(platToSendTo);
+                  }
+               }
+            }
+            
+            if(platsToAttemptSending.Size() > 0)
+            {
+               foreach(string platName in platsToAttemptSending)
+               {
+                  WsfPlatform platRef = WsfSimulation.FindPlatform(platName);
+                  if(platRef.IsValid())
+                  {
+                     #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Attempting to send message to ", platName);
+                     Array<string> route = Array<string>();
+            
+                     if(messageRoutes.Exists(platName) && messageRouteCheck.Exists(platName))
+                     {
+                        if(messageRouteCheck.Get(platName) < TIME_NOW)
+                        {
+                           Array<string> tempRoute = messageRoutes.Get(platName);
+                           if(CheckCurrentRouteIsValid(tempRoute) == true)
+                           {
+                              route = tempRoute;
+                           }
+                           else
+                           {
+                              route = GetMessageRoute(PLATFORM,platRef);
+                           }
+                        }
+                        else
+                        {
+                           route = messageRoutes.Get(platName);
+                        }
+                     }
+                     else
+                     {
+                        route = GetMessageRoute(PLATFORM,platRef);
+                     }
+      
+                     messageRoutes.Set(platName,route);
+                     messageRouteCheck.Set(platName, TIME_NOW);
+
+                     #writeln("PATH FROM ", PLATFORM.Name(), " TO ", recPlatform.Name(), " IS:");
+                     if(route.Size() > 0)
+                     {
+                        WsfPlatform routePlatRef = WsfSimulation.FindPlatform(route.Get(1));
+                        if(routePlatRef.IsValid())
+                        {
+                           WsfTrackId trackIdRef = (WsfTrackId)dropMessage.AuxDataObject("TrackID");
+                           double dropTimeRef = (double)dropMessage.AuxDataObject("SimTime");
+                           int indexRef = (int)dropMessage.AuxDataObject("PlatformIndex");
+                     
+                           WsfMessage Msg = GetBMSTrackDropMessage(trackIdRef, dropTimeRef, indexRef, PLATFORM.Name(), fromProcName);
+                           Msg.SetAuxData("Route", route);
+                     
+                           string commLink = GetPossibleCommLinkForMessage(PLATFORM, routePlatRef);
+                           WsfComm comm = PLATFORM.Comm(commLink);
+                           if(comm.IsValid())
+                           {
+                              double delayTime = 0;
+                              delayTime = messageTypeDelay.Get(Msg.Type());
+                              if(delayTime > 0)
+                              {
+                                 ExecuteAtTime(TIME_NOW + delayTime, "StaggerSendMessage", {comm, Msg, routePlatRef.Name(), commLink});
+                              }
+                              else
+                              {
+                                 comm.SendMessage(Msg, routePlatRef.Name(), commLink);
+                              }
+                           }
+                        }
+                     }
+                     else
+                     {
+                        messageRoutes.Remove(platName);
+                        #writeln(TIME_NOW, ": ", PLATFORM.Name(), " No possible way to send message inteded for ", recPlatform.Name());
+                     }
+                  }
+               }
+            }
+         }
+      }
+      
+      trackDropMessages.Clear();
+   end_script
+   
+   script void AddDropMessage(WsfMessage inDropMessage)
+      if(inDropMessage.IsValid())
+      { 
+         if(lastDropSend < TIME_NOW)
+         {
+            lastDropSend = TIME_NOW + .01;
+            ExecuteScriptAtTime(lastDropSend, "SendTrackDropMessages");
+         }
+      
+         trackDropMessages.PushBack(inDropMessage);
+      }
+   end_script
+
+   on_message         
+      type WSF_TRACK_MESSAGE
+         script
+            if(MESSAGE.IsValid())
+            { 
+               if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx track message, i dont think i should have got this.");
+            }
+         end_script
+         
+      type BatchTrackMessage
+         script
+            if(MESSAGE.IsValid())
+            {
+               if(MESSAGE.AuxDataExists("BatchTracks"))
+               {
+                  Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+                  int routeSize = Route.Size();
+                  int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+                  if(inRoute > -1)
+                  {
+                     if(PLATFORM.Name() == Route.Get(routeSize - 1))
+                     {
+                        #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx track from ", MESSAGE.Originator());
+                        WsfProcessor proc = PLATFORM.Processor("sys_track_mgr");
+                        if(proc.IsValid())
+                        {
+                           Array<WsfTrackMessage> trkMessages = Array<WsfTrackMessage>();
+                           trkMessages = (Array<WsfTrackMessage>)MESSAGE.AuxDataObject("BatchTracks");
+                           foreach(WsfTrackMessage trkMsg in trkMessages)
+                           {
+                              if(trkMsg.IsValid())
+                              {
+                                 SendMessageToProcessor(trkMsg,"sys_track_mgr");
+                              }
+                           }
+                        }
+                     }
+                     else
+                     {
+                        string nextPlatform = Route.Get(inRoute + 1);
+                        if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                        {
+                           WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                           if(nextPlatformRef.IsValid())
+                           {
+                              string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                              WsfComm comm = PLATFORM.Comm(commLink);
+                              if(comm.IsValid())
+                              {
+                                 comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                                 #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", nextPlatform);
+                              }
+                           }
+                        }
+                     }
+                  }
+                  else
+                  {
+                     writeln("BATCH TRACK MESSAGE: Shouldnt have got here in the first place!");
+                  }
+               }
+            }
+         end_script
+         
+      type BMSTrackDropMessage
+         script
+            if(MESSAGE.IsValid())
+            {
+               if(MESSAGE.AuxDataExists("Route"))
+               {
+                  Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+                  int routeSize = Route.Size();
+                  int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+                  if(inRoute > -1)
+                  {
+                     if(PLATFORM.Name() == Route.Get(routeSize - 1))
+                     {
+                        #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx track from ", MESSAGE.Originator());
+                        WsfProcessor proc = PLATFORM.Processor("sys_track_mgr");
+                        if(proc.IsValid())
+                        {
+                           SendMessageToProcessor(MESSAGE,"sys_track_mgr");
+                        }
+                     }
+                     else
+                     {
+                        string nextPlatform = Route.Get(inRoute + 1);
+                        if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                        {
+                           WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                           if(nextPlatformRef.IsValid())
+                           {
+                              string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                              WsfComm comm = PLATFORM.Comm(commLink);
+                              if(comm.IsValid())
+                              {
+                                 comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                                 #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", nextPlatform);
+                              }
+                           }
+                        }
+                     }
+                  }
+                  else
+                  {
+                     writeln("BMSTRACKDROP MESSAGE: Shouldnt have got here in the first place!");
+                  }
+               }
+            }
+         end_script
+         
+      type BidMessage
+         script
+            if(MESSAGE.IsValid())
+            {
+               Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+               int routeSize = Route.Size();
+               int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+               if(inRoute > -1)
+               {
+                  if(PLATFORM.Name() == Route.Get(routeSize - 1))
+                  {
+#                     writeln("<<<---",TIME_NOW, ": ", PLATFORM.Name(), " Rx track from ", MESSAGE.Originator());
+                     WsfProcessor proc = PLATFORM.Processor("shot_dec_mgr");
+                     if(proc.IsValid())
+                     {
+                        SendMessageToProcessor(MESSAGE,"shot_dec_mgr");
+                     }
+                  }
+                  else
+                  {
+                     string nextPlatform = Route.Get(inRoute + 1);
+                     if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                     {
+                        WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                        if(nextPlatformRef.IsValid())
+                        {
+                           string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                           WsfComm comm = PLATFORM.Comm(commLink);
+                           if(comm.IsValid())
+                           {
+                              comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                              #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", nextPlatform);
+                           }
+                        }
+                     }
+                  }
+               }
+               else
+               {
+                  writeln("BID MESSAGE: Shouldnt have got here in the first place!");
+               }
+            }
+         end_script
+         
+      type BidActionMessage
+         script
+            if(MESSAGE.IsValid())
+            {
+               Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+               int routeSize = Route.Size();
+               int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+               if(inRoute > -1)
+               {
+                  if(PLATFORM.Name() == Route.Get(routeSize - 1))
+                  {
+                     #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx track from ", MESSAGE.Originator());
+                     WsfProcessor proc = PLATFORM.Processor("launcher_mgr");
+                     if(proc.IsValid())
+                     {
+                        SendMessageToProcessor(MESSAGE,"launcher_mgr");
+                     }
+                  }
+                  else
+                  {
+                     string nextPlatform = Route.Get(inRoute + 1);
+                     if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                     {
+                        WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                        if(nextPlatformRef.IsValid())
+                        {
+                           string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                           WsfComm comm = PLATFORM.Comm(commLink);
+                           if(comm.IsValid())
+                           {
+                              comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                              #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", nextPlatform);
+                           }
+                        }
+                     }
+                  }
+               }
+               else
+               {
+                  writeln("BID ACTION: Shouldnt have got here in the first place!");
+               }
+            }
+         end_script
+         
+      type CueMessage
+         script
+            if(MESSAGE.IsValid())
+            {
+               Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+               int routeSize = Route.Size();
+               int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+               if(inRoute > -1)
+               {
+                  if(PLATFORM.Name() == Route.Get(routeSize - 1))
+                  {
+                     #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx track from ", MESSAGE.Originator());
+                     WsfProcessor proc = PLATFORM.Processor("sensor_data");
+                     if(proc.IsValid())
+                     {
+                        SendMessageToProcessor(MESSAGE,"sensor_data");
+                     }
+                  }
+                  else
+                  {
+                     string nextPlatform = Route.Get(inRoute + 1);
+                     if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                     {
+                        WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                        if(nextPlatformRef.IsValid())
+                        {
+                           string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                           WsfComm comm = PLATFORM.Comm(commLink);
+                           if(comm.IsValid())
+                           {
+                              comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                              #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", nextPlatform);
+                           }
+                        }
+                     }
+                  }
+               }
+               else
+               {
+                  writeln("CUE MESSAGE: Shouldnt have got here in the first place!");
+               }
+            }
+         end_script
+         
+      type LaunchMessage
+         script
+            Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+            int routeSize = Route.Size();
+            int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+            if(inRoute > -1)
+            {
+               if(PLATFORM.Name() == Route.Get(routeSize - 1))
+               {
+                  if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx Launch Message from ", MESSAGE.Originator());
+                  WsfProcessor proc = PLATFORM.Processor("shot_dec_mgr");
+                  if(proc.IsValid())
+                  {
+                     SendMessageToProcessor(MESSAGE,"shot_dec_mgr");
+                  }
+               }
+               else
+               {
+                  string nextPlatform = Route.Get(inRoute + 1);
+                  if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                  {
+                     WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                     if(nextPlatformRef.IsValid())
+                     {
+                        string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                        WsfComm comm = PLATFORM.Comm(commLink);
+                        if(comm.IsValid())
+                        {
+                           comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                           #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", Route.Get(routeSize-1));
+                        }
+                     }
+                  }
+               }
+            }
+         end_script
+         
+      type AliveMessage
+         script
+            Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+            int routeSize = Route.Size();
+            int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+            if(inRoute > -1)
+            {
+               if(PLATFORM.Name() == Route.Get(routeSize - 1))
+               {
+                  if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx Alived Message!");
+               }
+               else
+               {
+                  string nextPlatform = Route.Get(inRoute + 1);
+                  if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                  {
+                     WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                     if(nextPlatformRef.IsValid())
+                     {
+                        string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                        WsfComm comm = PLATFORM.Comm(commLink);
+                        if(comm.IsValid())
+                        {
+                           comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                           #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", Route.Get(routeSize-1));
+                        }
+                     }
+                  }
+               }
+            }
+         end_script
+     
+     type StandDownMessage
+         script
+            Array<string> Route = (Array<string>)MESSAGE.AuxDataObject("Route");
+            int routeSize = Route.Size();
+            int inRoute = FindStringInArray(PLATFORM.Name(), Route);
+            if(inRoute > -1)
+            {
+               if(PLATFORM.Name() == Route.Get(routeSize - 1))
+               {
+                  if ($<IBCS_VERBOSE:true>$) writeln(TIME_NOW, ": ", PLATFORM.Name(), " Rx StandDown Message from ", MESSAGE.Originator());
+                  WsfProcessor proc = PLATFORM.Processor("launcher_mgr");
+                  if(proc.IsValid())
+                  {
+                     SendMessageToProcessor(MESSAGE,"launcher_mgr");
+                  }
+               }
+               else
+               {
+                  string nextPlatform = Route.Get(inRoute + 1);
+                  if(nextPlatform != "" && nextPlatform != PLATFORM.Name())
+                  {
+                     WsfPlatform nextPlatformRef = WsfSimulation.FindPlatform(nextPlatform);
+                     if(nextPlatformRef.IsValid())
+                     {
+                        string commLink = GetPossibleCommLinkForMessage(PLATFORM, nextPlatformRef);
+                        WsfComm comm = PLATFORM.Comm(commLink);
+                        if(comm.IsValid())
+                        {
+                           comm.SendMessage(MESSAGE, nextPlatform, commLink);
+                           #writeln(TIME_NOW, ": ", PLATFORM.Name(), " Relaying message inteded for ", Route.Get(routeSize-1));
+                        }
+                     }
+                  }
+               }
+            } 
+         end_script
+         
+   end_on_message   
+end_processor
