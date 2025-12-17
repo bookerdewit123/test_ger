@@ -36,7 +36,7 @@ platform_type 5thGenFighter BLUE_FIGHTER
    end_sensor
    
    script_variables
-      xRCS_I = RCS_SIZE_ENUM().SMALL; # Overriden from RCS_PLATFORM_BASE
+      xRCS_I = RCS_SIZE_ENUM().SMALL; # Overriden from G425_PLATFORM_BASE
    end_script_variables
 
 end_platform_type

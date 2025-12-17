@@ -1,0 +1,76 @@
+
+include_once comms/G425/CommNetworkDelayTypes.txt
+
+# The CommNetwork struct defines the characteristics of a CommNetwork. For the G425 effort,
+# this is primarily to associate a delay value to any communications over a type of comm
+# network, such as Link16 or MADL.
+script_struct CommNetwork
+   script_variables
+      string mName = "";
+      int mDelayType = G425_COMM_NETWORK_DELAY_TYPE().NONE;
+      double mDelayValA = 0.0;
+      double mDelayValB = 0.0;
+
+      # Whether this CommMessage instance is valid 
+      bool isValid = false;
+   end_script_variables
+   
+   script string GetName()
+      return mName;
+   end_script
+
+   script int GetDelayType()
+      return mDelayType;
+   end_script
+
+   script double GetDelayValA()
+      return mDelayValA;
+   end_script
+
+   script double GetDelayValB()
+      return mDelayValB;
+   end_script
+   
+   # Generates an appropriate delay based on the selected CommNetwork (This should probably be a method on the CommNetwork?? 
+   script double GenerateDelay()
+      double delay = 0.0;
+      if(GetDelayType() == G425_COMM_NETWORK_DELAY_TYPE().CONSTANT) {
+         delay = GetDelayValA();
+      } else if(GetDelayType() == G425_COMM_NETWORK_DELAY_TYPE().RANDOM_UNIFORM) {
+         delay = MATH.RandomUniform(GetDelayValA(), GetDelayValB());
+      } else if(GetDelayType() == G425_COMM_NETWORK_DELAY_TYPE().RANDOM_GAUSSIAN) {
+         delay = MATH.RandomGaussian(GetDelayValA(), GetDelayValB());
+      }
+      
+      # If the random number generator happens to generate a negative value, clip it to 0.0
+      if(delay < 0.0)
+         delay = 0.0;
+         
+      return delay;      
+   end_script
+   
+end_script_struct
+
+# Creates a CommNetwork with zero delay
+script CommNetwork ConstructCommNetwork(string aName)
+   CommNetwork commNetwork = CommNetwork();
+   
+   commNetwork.mName = aName;
+   
+   return commNetwork;
+end_script
+
+# Creates a CommNetwork with a configurable delay
+script CommNetwork ConstructCommNetworkWithDelay( string aName,
+                                                  int aDelayType, 
+                                                  double aDelayValA, 
+                                                  double aDelayValB )
+   CommNetwork commNetwork = CommNetwork();
+   
+   commNetwork.mName = aName;
+   commNetwork.mDelayType = aDelayType;
+   commNetwork.mDelayValA = aDelayValA;
+   commNetwork.mDelayValB = aDelayValB;
+   
+   return commNetwork;
+end_script

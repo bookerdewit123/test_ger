@@ -2,7 +2,7 @@
 # TO DO: Need accurate sensors (ranges and volumes)
 # TO DO: Simple behavior tree needed for CAP, basic pursue (up to CRL), and Scoot (after shoot)
 # TO DO: Likely need scripts that take sensor detections and determine if the track is of LOW, MED, or HIGH RCS
-platform_type BLUE_FIGHTER RCS_PLATFORM_BASE 
+platform_type BLUE_FIGHTER G425_PLATFORM_BASE 
 spatial_domain air
 command_chain FIGHTER_TASKING AEW_C2
 position 0n 0w altitude 30000 ft heading 90 deg
@@ -26,38 +26,6 @@ position 0n 0w altitude 30000 ft heading 90 deg
       maximum_radial_acceleration 6 g
    end_mover
    
-
-processor data_mgr WSF_TRACK_PROCESSOR 
-   on
-#   script bool is_track_reportable(WsfTrack aTrack)
-#   // Define the script body here to return a 'true' value if the track should
-#   // be reported and 'false' if it should not.
-#   //
-#   // For example, the following will report the track only if it has been
-#   // updated within the last 60 seconds:
-#   int test;
-#   bool isReportable = true;
-#   if (aTrack.TimeSinceUpdated() > WsfRandom.Uniform(0, 3)) isReportable = false;
-#   {
-#      writeln("MIKE", TIME_NOW);
-#      return isReportable;}
-#end_script
-
-script void StaggerSendMessage(WsfComm comm, WsfMessage msg, string plat, string commLink)
-      if(msg.IsValid())
-      {
-         if(msg.AuxDataExists("Route") == true)
-         {
-            if(comm.IsValid())
-            {
-               comm.SendMessage(msg, plat, commLink);
-            }
-         }
-      }
-   end_script
-   #report_to platform 5thGen1_Group1 comm MADL_R via MADL_T
-end_processor
-
 ### CHANGE
 #### TO DO: Need to create script to fire on targets when the C2 task cannot be made. Take into account target type and range
 script void SELF_TASKING()
@@ -72,7 +40,6 @@ end_script
 
 comm L16_T 4thGen_Transmit  
    on
-   internal_link data_mgr
    internal_link targeting
    //network_name Topology
 #   router_name Comm_Router
@@ -80,7 +47,6 @@ end_comm
 
 comm L16_R 4thGen_Receiver  
    on
-   internal_link data_mgr
    //network_name Topology
 #   router_name Comm_Router
 end_comm
@@ -88,14 +54,12 @@ end_comm
 
 comm MADL_T 5thGen_Transmit
    on
-   internal_link data_mgr
    //network_name Topology
 #   router_name Comm_Router
 end_comm
 
 comm MADL_R 5thGen_Receiver 
    on
-   internal_link data_mgr
    //network_name Topology
 #   router_name Comm_Router
 end_comm
@@ -109,12 +73,10 @@ end_comm
       maximum_request_count 1
    end_weapon
    
-      # Fire when tasked by AEW
-      # TO DO: Likely need to add logic in here to determine if the task is within range 
+   # Fire when tasked by AEW
+   # TO DO: Likely need to add logic in here to determine if the task is within range 
    processor  targeting WSF_TASK_PROCESSOR 
-   on
-   update_interval 1 s
-   internal_link data_mgr
+   off
       on_message 
          #MIKE CHANGE: Changed from checking WSF_TRACK_MESSAGE to something else
          type SHOOT
@@ -126,18 +88,25 @@ end_comm
             {
                WsfTrackMessage msg = (WsfTrackMessage)MESSAGE;
                int relative_heading = PLATFORM.RelativeHeadingOf(msg.Track());
-               if(relative_heading < 110 && relative_heading > 70) #TODO TO DO MIKE: This is to stop missiles from firing when turning
+               string rel_head = "NO SHOT" + (string)relative_heading;
+               if((relative_heading < 110 && relative_heading > 70) || (relative_heading < 20)) #TODO TO DO MIKE: This is to stop missiles from firing when turning
                   {
                   if(PLATFORM.WeaponsActiveFor(msg.Track().TrackId()))
                      return;
-                  else{
-                  PLATFORM.Weapon("aam").Fire(msg.Track());
-                  PLATFORM.Comment("Released weapon targeting " + msg.Track().TargetName());}
+                  else
+                  {
+                     if(PLATFORM.GroundRangeTo(msg.Track()) < 120000)
+                     {
+                     PLATFORM.Weapon("aam").Fire(msg.Track());
+                     PLATFORM.Comment("Released weapon targeting " + msg.Track().TargetName());
+                     }
+                     }
                   }
                   else
                   {
-                     PLATFORM.Comment("NO SHOT");
-                     }
+                     PLATFORM.Comment(rel_head);
+                     
+                  }
    #            WsfMessage reply = (WsfMessage)MESSAGE;
    #            reply.SetType("REPLY");
    #            PLATFORM.Comm("L16_T").SendMessage(msg, WsfSimulation.FindPlatform("AEW_C2").Name(), "L16_T");
@@ -159,6 +128,7 @@ end_comm
       
       behavior_tree
          selector 
+           // behavior_node head_to_CRL
             behavior_node cap
          end_selector
       end_behavior_tree
@@ -174,12 +144,10 @@ end_comm
    end_script
 
 #comm L16 TEST_BLUE1
-#internal_link data_mgr
 ##Need to figure out Networks
 #end_comm
 #
 #comm 5thGen TEST_BLUE2
-#internal_link data_mgr
 #end_comm
 
 end_platform_type

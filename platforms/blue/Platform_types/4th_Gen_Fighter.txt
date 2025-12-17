@@ -25,21 +25,21 @@ platform_type 4thGenFighter BLUE_FIGHTER
 
    sensor AN/Captor-M_LARGE AN_CAPTOR_M_LARGE
       on
-      internal_link data_mgr
+
    end_sensor 
 
    sensor AN/Captor-M_MEDIUM AN_CAPTOR_M_MEDIUM
       on
-      internal_link data_mgr
+
    end_sensor 
 
    sensor AN/Captor-M_SMALL AN_CAPTOR_M_SMALL 
       on
-      internal_link data_mgr
+
    end_sensor 
 
    script_variables
-      xRCS_I = RCS_SIZE_ENUM().MEDIUM; # Overriden from RCS_PLATFORM_BASE
+      xRCS_I = RCS_SIZE_ENUM().MEDIUM; # Overriden from G425_PLATFORM_BASE
    end_script_variables
 
 end_platform_type

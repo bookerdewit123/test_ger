@@ -2,7 +2,7 @@
 include_once platforms/rcs_platform_base.txt 
 
 # *********************************************************************************************** #
-# The RCS_SENSOR_BASE is an "abstract" sensor type meant to be extended by any sensor             #
+# The G425_SENSOR_BASE is an "abstract" sensor type meant to be extended by any sensor             #
 # that uses the simple Radar Cross Section algorithm for detection                                #
 #                                                                                                 #
 # When extending this sensor to a non-abstract sensor type definition:                            #
@@ -15,7 +15,7 @@ include_once platforms/rcs_platform_base.txt
 #     * Set the maximum_range to the maximum range at which this sensor can detect a platform     #
 #       of the given size                                                                         #
 # *********************************************************************************************** #
-sensor RCS_SENSOR_BASE WSF_RADAR_SENSOR
+sensor G425_SENSOR_BASE WSF_RADAR_SENSOR
   
    # Special handling of RCS Values for Sensors and Platforms - returns true if the RCS
    # detection algorithm determines that the target can be detected

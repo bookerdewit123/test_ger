@@ -25,8 +25,8 @@
 #       (Other sources have said it can track 100 targets)
 # *********************************************************************************************** #
 
-# Include the RCS_SENSOR_BASE sensor 
-include_once sensors/rcs_sensor_base.txt
+# Include the G425_SENSOR_BASE sensor 
+include_once sensors/G425_SENSOR_BASE.txt
 
 ################ IMPORTANT ####################
 #############
@@ -40,7 +40,7 @@ antenna_pattern AN_MPQ-81_ANTENNA
       peak_gain                        40.0 db              # Typical for phased-array tracker
 end_antenna_pattern
 
-sensor AN_RED_LRSAM RCS_SENSOR_BASE
+sensor AN_RED_LRSAM G425_SENSOR_BASE
 
    pitch                               22.5 deg             # Ref 2: 90 - 67.5 deg
 

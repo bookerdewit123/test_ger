@@ -118,25 +118,7 @@ script_variables
    assert(platform_life.Open((rel_path_8 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), open_method),
          rel_path_8 + ".csv" + " output file falied to open");
 
-   //=============================================================================
-   // SOLUTION 2 BUG FIX: List of platforms that will be dynamically repositioned
-   // These platforms will have their INITIALIZED event deferred until after
-   // dynamic placement occurs at time 0.01s
-   //=============================================================================
-   Array<string> dynamicPlatformNames = {
-      "5thGen1_Group1",
-      "5thGen2_Group1",
-      "EuroFighter1_Group1",
-      "EuroFighter2_Group1",
-      "EuroFighter3_Group2",
-      "EuroFighter4_Group2",
-      "AEW_C2",
-      "RED_AEW",
-      "Su34_1",
-      "Su35_1",
-      "Su34_2",
-      "Su35_2"
-   };
+
      
 end_script_variables
 
@@ -234,49 +216,41 @@ end_script
 
 // Start of Observer Scripts ////////////////////////////////////////////////////////////////////////////////////
 
-//=============================================================================
-// SOLUTION 2 BUG FIX: Helper function to check if platform is dynamically placed
-//=============================================================================
-script bool isDynamicPlatform(string aPlatformName)
-   // @param string aPlatformName: Name of platform to check
-   // @return bool: true if platform will be dynamically repositioned
+# check if platform is dynamically placed
+script bool isDynamicPlatform(string aPlatformType)
+// @param string aPlatformType: Platform type string to check
+// @return bool: true if platform will be dynamically repositioned,
+//               false if platform uses static scenario position
    
-   foreach (string name in dynamicPlatformNames)
-   {
-      if (aPlatformName == name)
-      {
-         return true;
-      }
-   }
+   if (WsfPlatform.IsA_TypeOf(aPlatformType, "BLUE_FIGHTER"))
+      return true;
+   if (WsfPlatform.IsA_TypeOf(aPlatformType, "RED_FIGHTER"))
+      return true;
+   if (WsfPlatform.IsA_TypeOf(aPlatformType, "AEW_BMS_BLUE"))
+      return true;
+   if (WsfPlatform.IsA_TypeOf(aPlatformType, "AEW_RED"))
+      return true;
    return false;
 end_script
 
-//=============================================================================
-// SOLUTION 2 BUG FIX: Modified platformInitialized to defer dynamic platforms
-//=============================================================================
 script void platformInitialized(WsfPlatform aPlatform)
    #int ac_index = aPlatform.Index();   // not used?
    #double timeNow = TIME_NOW;          // not used?
 
    extern void platformTracker(WsfPlatform, string);
    
-   // Check if this platform will be dynamically repositioned
-   if (isDynamicPlatform(aPlatform.Name()))
+# check if this platform will be dynamically repositioned
+   if (isDynamicPlatform(aPlatform.Type()))
    {
-      // DO NOT record INITIALIZED here - it will be recorded from
-      // dynamically_place_assets.txt AFTER SetLocation() is called
-      writeln_d("Deferring INITIALIZED for dynamic platform: ", aPlatform.Name());
-      return;
+      return; #skip - record after SetLocation() at T=0.01s
    }
    
    // For non-dynamic platforms, record INITIALIZED immediately
    platformTracker(aPlatform, "INITIALIZED");
 end_script
 
-//=============================================================================
-// SOLUTION 2 BUG FIX: New function to be called from dynamically_place_assets.txt
-// This records INITIALIZED for platforms AFTER they've been repositioned
-//=============================================================================
+# record initialized for platforms after repositioned
+
 script void recordDeferredInitialized(WsfPlatform aPlatform)
    // @param WsfPlatform aPlatform: The platform to record INITIALIZED for
    

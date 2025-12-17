@@ -1,37 +1,3 @@
-# *********************************************************************************************** #
-# **************************              UNCLASSIFIED                 ************************** #
-# **********************                 TECHNICAL DATA                  ************************ #
-# ********************                                                      ********************* #
-#  CONTRACTOR:
-#
-#      Northrop Grumman Corporation
-#      Space Systems
-#      10125 Federal Drive
-#      Colorado Springs, CO 80908
-#
-#  COPYRIGHT 2023 NORTHROP GRUMMAN CORPORATION - ALL RIGHTS RESERVED.
-#
-# ORIGINAL PROGRAM: OUTMATCH IR&D - IBCS
-# *********************************************************************************************** #
-# NORTRHOP GRUMMAN PRIVATE / PROPRIETARY LEVEL I /
-# *********************************************************************************************** #
-# *********************************************************************************************** #
-# Ref 1 - External sources must be cited here
-# Ref 2 -
-# *********************************************************************************************** #
-
-/**
- * Classification: Unclassified
- *
- * Rights: The rights to use, modify, reproduce, release, perform, display, 
- *  or disclose these data are restricted by Northrop Grumman Corporation. 
- *  Any reproduction of computer software, computer software documentation, 
- *  or portions thereof marked with this legend must also reproduce the 
- *  markings.
-*/
-/******************************************************************************/
-
-
 ##### COMMS #########
 include_once comms/IBCS_comm_laydown.txt
 
@@ -144,4 +110,24 @@ execute at_time 40 nanosecond absolute
       create_ifcn_relay(ifcnLocations[ii], "global_ibcs_battalion_eoc");
    }
 
+end_execute
+
+platform POI_3 POI
+position 54.6n 13.7e
+altitude 30000 ft
+end_platform
+
+platform POI_4 POI
+position 52n 13.7e
+altitude 30000 ft
+end_platform
+
+execute at_interval_of 1 s 
+         WsfDraw drawWRL = WsfDraw();
+         drawWRL.SetColor(0,0,1);
+         drawWRL.SetDuration(100);
+         drawWRL.BeginLines();
+         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_3"));
+         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_4"));
+         drawWRL.End();
 end_execute

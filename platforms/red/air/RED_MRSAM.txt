@@ -1,11 +1,11 @@
 # New file created by AFSIM Wizard
 #include_once weapons/ssm/df-21b.txt
 
-include sensors/an_blue_lrsam.txt
+include sensors/an_red_mrsam.txt
 
-platform_type BLUE_LR_SAM G425_PLATFORM_BASE
+platform_type RED_MR_SAM G425_PLATFORM_BASE
    icon df-21_missile#Scud_Launcher
-   side blue
+   side red
    mover WSF_GROUND_MOVER end_mover
    
    #weapon DF21 DF-21B
@@ -14,11 +14,8 @@ platform_type BLUE_LR_SAM G425_PLATFORM_BASE
 
 
    
-   # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
-
-   sensor AN/BLUE_LRSAM AN_BLUE_LRSAM
+   sensor AN/RED_MRSAM AN_RED_MRSAM
       on
-      internal_link data_mgr
    end_sensor 
    
    script_variables

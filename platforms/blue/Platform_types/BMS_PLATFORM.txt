@@ -35,7 +35,7 @@
 
 ######################################## BASE PLATFORM TYPE ######################################################################
 
-platform_type BMS_PLATFORM RCS_PLATFORM_BASE
+platform_type BMS_PLATFORM G425_PLATFORM_BASE
    side blue
    icon awacs
 #   track_manager

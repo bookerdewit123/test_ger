@@ -1,6 +1,6 @@
 
-# Include the RCS_SENSOR_BASE sensor 
-include_once sensors/rcs_sensor_base.txt
+# Include the G425_SENSOR_BASE sensor 
+include_once sensors/G425_SENSOR_BASE.txt
 
 #TO DO: NEED REAL VALUES
 antenna_pattern AN_MPQ-81_ANTENNA_COPY
@@ -11,7 +11,7 @@ end_antenna_pattern
 
 
 # Define the LARGE sensor for the RCS algorithm
-sensor AN_CAPTOR_M_LARGE RCS_SENSOR_BASE
+sensor AN_CAPTOR_M_LARGE G425_SENSOR_BASE
 
    mode large
 
@@ -82,7 +82,7 @@ sensor AN_CAPTOR_M_LARGE RCS_SENSOR_BASE
 end_sensor
 
 # Define the MEDIUM sensor for the RCS algorithm
-sensor AN_CAPTOR_M_MEDIUM RCS_SENSOR_BASE
+sensor AN_CAPTOR_M_MEDIUM G425_SENSOR_BASE
 
    mode medium
 
@@ -153,7 +153,7 @@ sensor AN_CAPTOR_M_MEDIUM RCS_SENSOR_BASE
 end_sensor
 
 # Define the SMALL sensor for the RCS algorithm
-sensor AN_CAPTOR_M_SMALL RCS_SENSOR_BASE
+sensor AN_CAPTOR_M_SMALL G425_SENSOR_BASE
 
    mode small
 

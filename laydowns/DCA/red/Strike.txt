@@ -67,26 +67,28 @@ side red
    position 53:25:14.84n 16:10:47.83e
       heading -90 deg
 end_platform
-#platform POI_1 POI
-#position 54n 15e
-#end_platform
-#
-#platform POI_2 POI
-#position 52n 15e
-#end_platform
-#
-#platform_type POI WSF_PLATFORM 
-#side blue
-#indestructible 
-#end_platform_type
-#
-#execute at_interval_of 1 s 
-#         WsfDraw drawWRL = WsfDraw();
-#         drawWRL.SetColor(1,0,0);
-#         drawWRL.SetDuration(100);
-#         drawWRL.BeginLines();
-#         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_1"));
-#         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_2"));
-#         drawWRL.End();
-#end_execute
+platform POI_1 POI
+position 54.6n 15e
+altitude 30000 ft
+end_platform
+
+platform POI_2 POI
+position 52n 15e
+altitude 30000 ft
+end_platform
+
+platform_type POI WSF_PLATFORM 
+side blue
+indestructible 
+end_platform_type
+
+execute at_interval_of 1 s 
+         WsfDraw drawWRL = WsfDraw();
+         drawWRL.SetColor(1,0,0);
+         drawWRL.SetDuration(100);
+         drawWRL.BeginLines();
+         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_1"));
+         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_2"));
+         drawWRL.End();
+end_execute
 

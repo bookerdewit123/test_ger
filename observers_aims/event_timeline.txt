@@ -3,7 +3,7 @@ include_once observers_aims\observer_functions.txt
 script_variables
    int globalTrackNumber = 0;
    Array<string> eventData = Array<string>();               // The information that is output to the csvgit
-   string outputPath = "output//event__timeline_output";    // The file location the csv should be output to
+   string outputPath = "output//event__timeline_output_" + (string)OVERALL_RUN_NUMBER;    // The file location the csv should be output to
    Array<string> eventDataHeaders = {                       // The list of columns, in the order you want them to appear. You can restructure the output file here.
          "TIME", "PLATFORM", "PLATFORM LATITUDE", "PLATFORM LONGITUDE", "TRACK ID", "TARGET", "TARGET LATITUDE", "TARGET LONGITUDE", "EVENT"};
 end_script_variables

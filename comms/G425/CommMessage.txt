@@ -1,0 +1,89 @@
+# Struct encapsulating a WsfMessage and suporting metadata
+script_struct CommMessage
+   script_variables
+      # The ID for the message
+      int mId = 0;
+      
+      # The platform that is the source of the mMessage
+      WsfPlatform mSourcePlatform = null;
+      
+      # The platform that is the target of the mMessage
+      WsfPlatform mTargetPlatform = null;
+      
+      # A key/value containing the mMessage
+      WsfMessage mMessage = null;
+      
+      # The simulation time that the com mMessage was created
+      double mTimestamp = 0.0;  
+      
+      # Whether this CommMessage instance is valid 
+      bool mIsValid = false;
+   end_script_variables
+   
+   script int GetId()
+      return mId;
+   end_script
+   
+   script double GetTimestamp()
+      return mTimestamp;
+   end_script
+   
+   script WsfPlatform GetSourcePlatform()
+      return mSourcePlatform;
+   end_script
+   
+   script WsfPlatform GetTargetPlatform()
+      return mTargetPlatform;
+   end_script
+   
+   script WsfMessage GetMessage()
+      return mMessage;
+   end_script
+   
+   script bool IsValid()
+      return mIsValid;
+   end_script
+end_script_struct
+
+# Factory script for creating and initializing a CommMessage struct
+#
+# param aTimestamp      The simulation time at which the message was generated
+# param aSourcePlatform The platform that is sourcing the message
+# param aTargetPlatform The platform that is the target of the message
+# param aMessage        The message being sent as a Map
+script CommMessage ConstructCommMessage( double aTimestamp,
+                                         WsfPlatform aSourcePlatform,
+                                         WsfPlatform aTargetPlatform,
+                                         WsfMessage aMessage )
+   # Initialize the message counter
+   static int nextId = 1;
+   
+   # Create Invalid CommMessage struct
+   CommMessage instance = CommMessage();
+
+   # Validate arguments
+   if(aSourcePlatform.IsNull()){
+      # TODO log failure
+      return instance;
+   }
+   if(aTargetPlatform.IsNull()){
+      # TODO log failure
+      return instance;
+   }
+   if(aMessage.IsNull()){
+      # TODO log failure
+      return instance;
+   }
+   
+   # Create and Initialize CommMessage struct
+   instance.mTimestamp       = aTimestamp;
+   instance.mSourcePlatform  = aSourcePlatform;
+   instance.mTargetPlatform  = aTargetPlatform;
+   instance.mMessage         = aMessage;
+   instance.mIsValid         = true;
+   instance.mId              = nextId;
+   
+   nextId += 1;
+   
+   return instance;
+end_script

@@ -59,11 +59,11 @@ platform_type BLUE_FFG RCS_SURFACE_SHIP_BASE
 
    sensor AN/FFG AN_FFG
       on
-      internal_link data_mgr
+
    end_sensor 
    
    script_variables
-      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from G425_PLATFORM_BASE
    end_script_variables
    
 end_platform_type

@@ -3,7 +3,7 @@
 
 include sensors/an_blue_mrsam.txt
 
-platform_type BLUE_MR_SAM RCS_PLATFORM_BASE
+platform_type BLUE_MR_SAM G425_PLATFORM_BASE
    icon df-21_missile#Scud_Launcher
    side blue
    mover WSF_GROUND_MOVER end_mover
@@ -22,7 +22,7 @@ platform_type BLUE_MR_SAM RCS_PLATFORM_BASE
    end_sensor 
    
    script_variables
-      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from G425_PLATFORM_BASE
    end_script_variables
    
 end_platform_type

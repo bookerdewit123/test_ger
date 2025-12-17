@@ -1,11 +1,11 @@
 #include_once platforms/common.txt
-include_once platforms/rcs_platform_base.txt
+include_once platforms/g425_platform_base.txt
 
 radar_signature SHIP_DEFAULT_RCS WSF_RADAR_SIGNATURE 
    constant 50 dbsm 
 end_radar_signature
 
-platform_type RCS_SURFACE_SHIP_BASE RCS_PLATFORM_BASE 
+platform_type RCS_SURFACE_SHIP_BASE G425_PLATFORM_BASE 
    icon ship
    category SHIP
    //spatial_domain surface

@@ -1,0 +1,382 @@
+include_once CommMessage.txt
+include_once CommNetwork.txt
+include_once CommLink.txt 
+include_once CommManagerObserver.txt
+
+# The CommManager is a "singleton-like" manager for the comm model for the
+# G425 effort. Use the global CommManagerInstance() method to access the
+# single instance of the manager.
+script_struct CommManager
+   script_variables
+      # The name of the global script used to initialize the CommManager. An implementation
+      # of this script is required and is scenario specific. 
+      string cDEFINE_COMM_NETWORKS_SCRIPT_NAME = "DefineCommNetworks";
+      
+      # Tracks the initialization state of the CommManger. See the Initialize()
+      # method for more details
+      bool mIsInitialized = false;
+
+      # Storage for the registered Comm Networks 
+      Map<string, CommNetwork> mCommNetworks = Map<string, CommNetwork>();
+      
+      # Storage for Commlinks, optimized for quick lookups using Map keys
+      # Source -> MessageName -> CommLink: Target(s) 
+      Map<WsfPlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>> mCommLinksBySource =
+         Map<WsfPlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>>();
+      
+      # CSV Logging suport objects
+      FileIO messagingCsvFile = FileIO();
+      string cOutputFilePath =
+         WsfSimulation.ExpandPathVariables("$(OUTPUT_FOLDER)/$(CASE)_$(VIGNETTE)_$(EXCURSION)_") +
+         (string)WsfSimulation.RunNumber() + "_CommManager.csv";
+      assert(messagingCsvFile.Open(cOutputFilePath, "out"), cOutputFilePath + " output file failed to open"); 
+   end_script_variables
+   
+   # Attempts to register a CommNetwork
+   #
+   # param aNetwork     The configuration of the network
+   # return             True if a network with the given name has not already been registered, otherwise False 
+   script bool RegisterCommNetwork(CommNetwork aNetwork)
+      string networkname = aNetwork.GetName();
+      if (mCommNetworks.Exists(networkname))
+         return false;
+      
+      mCommNetworks.Set(networkname, aNetwork);
+      return true;
+   end_script
+  
+   # Adds a CommLink beweent two platforms
+   #
+   # param aSourcePlatform  The "source" platform for the message link.
+   # param aTargetPlatform  The "target" platform for the message link.
+   # param aCommNetwork     The configuration of the network for the link.
+   # param aMessageTypes    The message types to be sent on the link.
+   # return                 True if the CommLink was added, otherwise False 
+   script bool AddCommLink( WsfPlatform aSourcePlatform, 
+                            WsfPlatform aTargetPlatform, 
+                            CommNetwork aCommNetwork, 
+                            Set<string> aMessageTypes) {
+      string console_msg =
+         "      Adding Comm Link from " +
+         aSourcePlatform.Name() + " to " +
+         aTargetPlatform.Name() + " for message types: ";
+      SetIterator iter = aMessageTypes.GetIterator();
+      while(iter.HasNext()) {
+         if(iter.HasPrev())
+            console_msg += ", ";
+         iter.Next();
+         console_msg += (string)iter.Data();            
+      }
+      writeln(console_msg);
+      
+      # Create and store the commLink
+      CommLink commLink = ConstructCommLink( aSourcePlatform, aTargetPlatform, aCommNetwork, aMessageTypes );
+      
+      if(!mCommLinksBySource.Exists(aSourcePlatform)) {
+         mCommLinksBySource.Set(aSourcePlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>());
+      }
+      
+      Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
+         mCommLinksBySource.Get(aSourcePlatform);
+      
+      foreach( string messageType in aMessageTypes ) {
+         if (!messageMap.Exists(messageType)) {
+            messageMap.Set(messageType, Map<CommNetwork, Set<WsfPlatform>>());
+         }
+         
+         Map<CommNetwork, Set<WsfPlatform>> targetAndLinksMap =
+            messageMap.Get(messageType);
+         
+         if(!targetAndLinksMap.Exists(aCommNetwork)){
+            targetAndLinksMap.Set(aCommNetwork, { aTargetPlatform });
+         } else {
+            targetAndLinksMap.Get(aCommNetwork).Insert( aTargetPlatform );
+         }
+         
+      }
+      
+      return true;
+   }
+   end_script
+
+   # This method will be invoked when the SIMULATION_STARTING event is observed by the
+   # CommManagerObserver. If for some reason the observer does not invoke Initialize(),
+   # then it will be invoked the first time that a message is sent.
+   # Initalize() attempts to invoke an initializer script if one was provided. (Note:
+   # If one is not given communications will not work as this initializer defines the
+   # comm networks)
+   script void Initialize()
+      if(!mIsInitialized) {
+         writeln("Initializing CommManager");
+         
+         writeln("CommManager will log messages to: " + cOutputFilePath);
+         
+         # Attempt to invoke the laydown specific script which defines the mCommNetworks
+         writeln("Attempting to invoke the global script, " + cDEFINE_COMM_NETWORKS_SCRIPT_NAME);
+         assert( WsfSimulation.ScriptExists(cDEFINE_COMM_NETWORKS_SCRIPT_NAME),
+                 "The Comm Manager is unable to locate the global script: " + cDEFINE_COMM_NETWORKS_SCRIPT_NAME);
+         Array<CommNetwork> commNetworks =
+            (Array<CommNetwork>)WsfSimulation.Execute(cDEFINE_COMM_NETWORKS_SCRIPT_NAME);
+         assert( !commNetworks.IsNull(),
+                 "The global script " + cDEFINE_COMM_NETWORKS_SCRIPT_NAME + " returned null"); 
+         
+         # Iterate over the comm networks and register them
+         writeln("Registering CommNetworks");
+         foreach (CommNetwork commNetwork in commNetworks)
+         {
+            writeln("  Registering CommNetwork: " + commNetwork.GetName());
+            assert( RegisterCommNetwork(commNetwork),
+                    "The Comm manager was unable to register the Comm Network: " + commNetwork.GetName()); 
+         }
+         
+         # Iterate over the platforms and register their comm links
+         writeln("Creating CommLinks");
+         for (int i = 0; i < WsfSimulation.PlatformCount(); i = i + 1)
+         {
+            WsfPlatform source = WsfSimulation.PlatformEntry(i);
+            if( source.IsA_TypeOf("G425_PLATFORM_BASE") &&
+                !source->messageLinks.IsNull()) {
+               Array<Map<string, Object>> linkDefinitions = source->messageLinks;
+               writeln("  Found [" + (string)linkDefinitions.Size() + "] Comm Links for source platform " + source.Name());
+               foreach (Map<string, Object> linkDefinition in linkDefinitions) {
+                  # Retrieve link definition data for the network 
+                  string networkName = (string)linkDefinition.Get("network");
+                  assert( mCommNetworks.Exists(networkName),
+                          "Unable to create comm link. Comm network " + networkName + " was not registered");
+                  CommNetwork network = mCommNetworks.Get(networkName);
+
+                  # Retrieve link definition data for the target 
+                  string targetName = (string)linkDefinition.Get("target");
+                  WsfPlatform target = WsfSimulation.FindPlatform(targetName);
+                  assert( target.IsValid(), 
+                          "Unable to find platform named " + targetName + " in the scenario"); 
+
+                  # Retrieve link definition data for the messages 
+                  Array<Object> messageNameObjects = (Array<Object>)linkDefinition.Get("messages");
+                  Set<string> messageNames = Set<string>();
+                  if(!messageNameObjects.IsNull()) {
+                     foreach (Object messageName in messageNameObjects) {
+                        messageNames.Insert((string)messageName);
+                     }
+                  }
+
+                  # Retrieve link definition data for the link direction 
+                  string direction = (string)linkDefinition.Get("direction");
+                  if(direction.Length() == 0)
+                     direction = "bi-directional";
+
+                  writeln("    Link[" + direction + "] to " + target.Name() + " on " + networkName + " for: [" + messageNames.ToString() + "]");
+
+                  # Create the CommLink(s)
+                  if(direction == "bi-directional" || direction == "forward") {
+                     assert( AddCommLink( source, target, network, messageNames) );
+                  }
+                  if(direction == "bi-directional" || direction == "reverse") {
+                     assert( AddCommLink( target, source, network, messageNames) );
+                  }                     
+               }
+            }
+         }
+         
+         # Initialize log file header with names and types (Note: may want to create a manager for this for validation)
+         Array<string> header_names = {
+            "Time (Send)",
+            "Time (Receive)",
+            "MessageID",
+            "MessageType",
+            "MessageSubType",
+            "Transmitter",
+            "CommsType",
+            "Receiver"
+         };
+         Array<string> header_types = {
+            "double",
+            "double",
+            "???",
+            "string",
+            "string",
+            "string",
+            "string",
+            "string"
+         };
+
+         messagingCsvFile.Write(", ".Join(header_names) + "\n");
+         messagingCsvFile.Write(", ".Join(header_types));
+         
+         #Disallow reinitialization
+         mIsInitialized=true;
+      }
+   end_script
+   
+   # Appends a new line to the csv output file describing a message that was
+   # sent on a comm network.
+   #
+   # param aSendTime    The simulation time when the message was created
+   # param aReceiveTime The simulation at which time the message will be handled by the target platform
+   # param aCommMessage The CommMessage sent
+   # param aCommNetwork The CommNetwork the message on which the message was sent 
+   script void LogCommMessage( double aSendTime, 
+                               double aReceiveTime,
+                               CommMessage aCommMessage,
+                               CommNetwork aCommNetwork ) {
+      Array<string> fields = {
+         (string)aSendTime,
+         (string)aReceiveTime,
+         (string)aCommMessage.GetId(),
+         aCommMessage.GetMessage().Type(),
+         aCommMessage.GetMessage().SubType(),
+         aCommMessage.GetSourcePlatform().Name(),
+         aCommNetwork.GetName(),
+         aCommMessage.GetTargetPlatform().Name()
+      };
+      messagingCsvFile.Write("\n" + ", ".Join(fields) );
+   }
+   end_script
+
+
+   # Attempts to send the given message on all CommLinks from the source platform
+   # to a specific target. If no CommLink is defined between the source and target
+   # platforms then the message will not be sent. The delivery will be delayed
+   # based on the configuration of the CommNetwork(s) for the CommLink(s)  
+   #
+   # param aTimeNow        The current simulation time
+   # param aSourcePlatform The platform where the message originated
+   # param aTargetPlatform The platform that will receive the message
+   # param aMessage        The message to be sent
+   # return                Retuns a map of CommNetworks and the delay generated for each
+   #                       CommLink that the message was dispatched on. Typically this will
+   #                       have only one entry, but there if multiple CommLinks exist
+   #                       between the source and target platforms that are configured to
+   #                       support this message type, then the message will be sent over
+   #                       all of those CommLinks
+   script Map<CommNetwork, double> SendMessageToTarget( double aTimeNow, 
+                                                        WsfPlatform aSourcePlatform, 
+                                                        WsfPlatform aTargetPlatform, 
+                                                        WsfMessage aMessage) {
+      Map<CommNetwork, double> results = Map<CommNetwork, double>();
+   
+      # This should never happen, but just in case...
+      if(!mIsInitialized)
+         Initialize();
+
+      if(!mCommLinksBySource.Exists(aSourcePlatform))
+         return results;
+      
+      Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
+         mCommLinksBySource.Get(aSourcePlatform);
+      
+      if (!messageMap.Exists(aMessage.Type()))
+         return results;
+         
+      Map<CommNetwork, Set<WsfPlatform>> linkAndTargets =
+         messageMap.Get(aMessage.Type());
+
+      if (linkAndTargets.Empty())
+         return results;
+
+      foreach ( CommNetwork commNetwork : Set<WsfPlatform> targetPlatforms in linkAndTargets ) {
+         if( targetPlatforms.Exists(aTargetPlatform) ) {
+            # Verify that the comm message handler script defined by the platform exists
+            string handlerScriptName = aTargetPlatform->messageHandlerScriptName;
+            if(!WsfSimulation.ScriptExists(handlerScriptName)) {
+               # TODO log error
+               continue; 
+            }         
+
+            # Generate a delay based on the registered comm links configuration
+            double delay = commNetwork.GenerateDelay();
+            double executionTime = aTimeNow + delay;
+
+            # Create and dispatch the commMessage
+            CommMessage commMessage =
+               ConstructCommMessage(executionTime, aSourcePlatform, aTargetPlatform, aMessage);
+            WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName,{commMessage}); 
+            
+            # Append this comm to the results
+            results.Set(commNetwork, delay);
+            
+            # Log the message to the csv
+            LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork);           
+         }
+      }
+      return results;
+   }
+   end_script
+   
+   # Attempts to send the given message on all CommLinks from the source platform
+   # for the given message type. The delivery will be delayed based on the
+   # configuration of the CommNetwork for the CommLink
+   #
+   # param aTimeNow        The current simulation time
+   # param aSourcePlatform The platform where the message originated
+   # param aMessage        The message to be sent
+   # return                False if the message failed to be sent for whatever reason
+   script bool SendMessage( double aTimeNow,
+                            WsfPlatform aSourcePlatform, 
+                            WsfMessage aMessage)
+      # This should never happen, but just in case...
+      if(!mIsInitialized)
+         Initialize();
+
+      if(!mCommLinksBySource.Exists(aSourcePlatform))
+         return false;
+      
+      Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
+         mCommLinksBySource.Get(aSourcePlatform);
+      
+      Set<Object> test = messageMap.KeySet();
+      
+      string messageType = aMessage.Type();
+      if (!messageMap.Exists(messageType))
+         return false;
+         
+      Map<CommNetwork, Set<WsfPlatform>> linkAndTargets =
+         messageMap.Get(messageType);
+
+      if (linkAndTargets.Empty())
+         return false;
+         
+      bool retVal = true;
+      foreach ( CommNetwork commNetwork : Set<WsfPlatform> targetPlatforms in linkAndTargets ) {
+         foreach ( WsfPlatform targetPlatform in targetPlatforms ) {
+            # Verify that the comm message handler script defined by the platform exists
+            string handlerScriptName = targetPlatform->messageHandlerScriptName;
+            if(!WsfSimulation.ScriptExists(handlerScriptName)) {
+               # TODO log error
+               retVal = false;
+               continue; 
+            }         
+
+            # Generate a delay based on the registered comm links configuration
+            double delay = commNetwork.GenerateDelay();
+            double executionTime = aTimeNow + delay;
+
+            # Create and dispatch the commMessage
+            CommMessage commMessage =
+               ConstructCommMessage(executionTime, aSourcePlatform, targetPlatform, aMessage);
+            WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});             
+
+            # Log the message to the csv
+            LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork);           
+         }
+      } 
+     
+      return true;
+   end_script
+   
+end_script_struct
+
+# Global method that creates/gets a static instance of
+# the struct to attempt to treat it as a singleton.
+script CommManager CommManagerInstance()
+   static CommManager comm_manager =  CommManager();
+   return comm_manager;
+end_script
+
+# Global method that is invoked by the CommManagerObserver
+# in response to the SIMULATION_STARTING event
+script void InitializeCommManager() {
+   CommManagerInstance().Initialize();
+}
+end_script
+

@@ -12,7 +12,7 @@ include_once rcs_sizes.txt
 platform_type RCS_PLATFORM_BASE WSF_PLATFORM
 
    script_variables
-      int xRCS_I = RCS_SIZE_ENUM().NONE; # This should be initialized by classes extending RCS_SENSOR_BASE
+      int xRCS_I = RCS_SIZE_ENUM().NONE; # This should be initialized by classes extending G425_SENSOR_BASE
    end_script_variables
    
 end_platform_type
