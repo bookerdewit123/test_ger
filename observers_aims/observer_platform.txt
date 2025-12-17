@@ -18,14 +18,6 @@ end_observer
 
 script_variables
 
-Array<string> dynamicPlatforms = {
-   "5thGen1_Group1", "5thGen2_Group1",
-   "EuroFighter1_Group1", "EuroFighter2_Group1", 
-   "EuroFighter3_Group2", "EuroFighter4_Group2",
-   "AEW_C2", "RED_AEW",
-   "Su34_1", "Su35_1", "Su34_2", "Su35_2"
-};
-
    // For CommOn and CommOff
    bool plat_commOff;
    bool plat_commOn;
@@ -33,7 +25,7 @@ Array<string> dynamicPlatforms = {
 
    
    #double plat_closest_hostile = 1000*MATH.M_PER_NM();
-   //bool plat_log_print = true; // set to true if desire to create a plat_log.txt output that mimmicks brawlers standard output
+   //bool plat_log_print = true; // set to true if desire to create a plat_log.txt output that mimmicks brawler's standard output
    //bool plat_iout_print = true; // set to true if desire to create an plat_iout.txt output
    //bool plat_sensor_print =  false; // **WARNING**, setting this to true causes errors, still debugging this tool
    WsfGeoPoint plat_origin = WsfGeoPoint.Construct("00:00:00.00n 00:00:00.00e"); // scenario plat_origin point for log print out
@@ -85,7 +77,7 @@ Array<string> dynamicPlatforms = {
    double plat_Lon;                    // for the platform tracker, main
    double platIntLat;                  // for the platform tracker, interacting plat
    double platIntLon;                  // for the platform tracker, interacting plat
-   double platTime = 0.000;            // for the platform tracker, idk why the decimals dont show for the results
+   double platTime = 0.000;            // for the platform tracker, idk why the decimals don't show for the results
    /*
    double bomberOneTimer = 0;          // measures time beyond fire line
    double bomberTwoTimer = 0;          // measures time beyond fire line
@@ -125,10 +117,28 @@ Array<string> dynamicPlatforms = {
    // confirms files can be used
    assert(platform_life.Open((rel_path_8 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), open_method),
          rel_path_8 + ".csv" + " output file falied to open");
+
+   //=============================================================================
+   // SOLUTION 2 BUG FIX: List of platforms that will be dynamically repositioned
+   // These platforms will have their INITIALIZED event deferred until after
+   // dynamic placement occurs at time 0.01s
+   //=============================================================================
+   Array<string> dynamicPlatformNames = {
+      "5thGen1_Group1",
+      "5thGen2_Group1",
+      "EuroFighter1_Group1",
+      "EuroFighter2_Group1",
+      "EuroFighter3_Group2",
+      "EuroFighter4_Group2",
+      "AEW_C2",
+      "RED_AEW",
+      "Su34_1",
+      "Su35_1",
+      "Su34_2",
+      "Su35_2"
+   };
      
 end_script_variables
-
-
 
 // consider moving this to the RunInternationalBD.txt file and running first, needs more variables to be added
 include_once observers_aims/observer_utils.txt // Include this script for getDeadPlat script
@@ -224,15 +234,59 @@ end_script
 
 // Start of Observer Scripts ////////////////////////////////////////////////////////////////////////////////////
 
-#script void platformInitialized(WsfPlatform aPlatform) // uses platform tracker
+//=============================================================================
+// SOLUTION 2 BUG FIX: Helper function to check if platform is dynamically placed
+//=============================================================================
+script bool isDynamicPlatform(string aPlatformName)
+   // @param string aPlatformName: Name of platform to check
+   // @return bool: true if platform will be dynamically repositioned
+   
+   foreach (string name in dynamicPlatformNames)
+   {
+      if (aPlatformName == name)
+      {
+         return true;
+      }
+   }
+   return false;
+end_script
+
+//=============================================================================
+// SOLUTION 2 BUG FIX: Modified platformInitialized to defer dynamic platforms
+//=============================================================================
+script void platformInitialized(WsfPlatform aPlatform)
    #int ac_index = aPlatform.Index();   // not used?
    #double timeNow = TIME_NOW;          // not used?
 
-#   extern void platformTracker(WsfPlatform, string);
-#   platformTracker(aPlatform, "INITIALIZED"); ### CHECK
-#end_script
+   extern void platformTracker(WsfPlatform, string);
+   
+   // Check if this platform will be dynamically repositioned
+   if (isDynamicPlatform(aPlatform.Name()))
+   {
+      // DO NOT record INITIALIZED here - it will be recorded from
+      // dynamically_place_assets.txt AFTER SetLocation() is called
+      writeln_d("Deferring INITIALIZED for dynamic platform: ", aPlatform.Name());
+      return;
+   }
+   
+   // For non-dynamic platforms, record INITIALIZED immediately
+   platformTracker(aPlatform, "INITIALIZED");
+end_script
 
-
+//=============================================================================
+// SOLUTION 2 BUG FIX: New function to be called from dynamically_place_assets.txt
+// This records INITIALIZED for platforms AFTER they've been repositioned
+//=============================================================================
+script void recordDeferredInitialized(WsfPlatform aPlatform)
+   // @param WsfPlatform aPlatform: The platform to record INITIALIZED for
+   
+   extern void platformTracker(WsfPlatform, string);
+   
+   if (aPlatform.IsValid())
+   {
+      platformTracker(aPlatform, "INITIALIZED");
+   }
+end_script
 
 script void SensorTrackInit(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack) // uses platform tracker, turned off, kill chain
    extern void platformTracker(WsfPlatform, string);
@@ -486,7 +540,7 @@ script void platformTracker(WsfPlatform aPlatform, string what)
       numTracks = aPlatform.TrackManager().LocalTrackList().Count();       // Note number of tracks to log
 
       /*
-      if (numTracks>0) // if there are multiple trackcs, pull info from the first (picking the last wasnt working)
+      if (numTracks>0) // if there are multiple trackcs, pull info from the first (picking the last wasn't working)
       {
          if (platSide=="blue") // if blue, track selection is '0'
          {
@@ -541,7 +595,7 @@ script void platformTracker(WsfPlatform aPlatform, string what)
    // if event is being initialized
    if (what=="INITIALIZED")     // if event is being initialized
    {
-      if (aPlatform.CategoryMemberOf("SHOOTER"))               // if a shooter is initialized, note note its initial loadout
+      if (aPlatform.CategoryMemberOf("SHOOTER"))               // if a shooter is initialized, note note it's initial loadout
       { // use to compare against loadout it says it has when shooting so it can reduce by 1
          aPlatform.SetAuxData("initialLoadout",weaponRails);   // Notes initial loadout
       } 
@@ -585,7 +639,7 @@ script void platformTracker(WsfPlatform aPlatform, string what)
             }
             else // does not seem to trigger
             {
-               writeln_d(aPlatform.Name(), " does not have any weapons left.");    // if it doesnt have weapons
+               writeln_d(aPlatform.Name(), " does not have any weapons left.");    // if it doesn't have weapons
             }
       #weaponRails = weaponRails-1;                                   // if shooting, the count should reduce by 1 during the action?
    }
@@ -602,7 +656,7 @@ script void platformTracker(WsfPlatform aPlatform, string what)
    */
 
    /*
-   // if platforms sensor is involved, note the interacting platform
+   // if platform's sensor is involved, note the interacting platform
    if (what.Contains("SENSOR"))  // triggers SENSOR_<INIT,DROP,UPDATE>
    {
       // bool check for if there is a current target

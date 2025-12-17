@@ -118,7 +118,6 @@ Array<double> latlon_RedFighter_008 = {(lat_RedFighter+(latSep_RedFighter*7)), l
 
 #Array<double> latlon_RedBomber_001 = {lat_RedBomber, lon_RedBomber};
 #Array<double> latlon_RedBomber_002 = {lat_RedBomber+latSep_RedBomber, lon_RedBomber};
-
 end_script_variables
 
 
@@ -168,6 +167,31 @@ execute at_time .01 s absolute
 #   WsfSimulation.FindPlatform("Red_A2G_1").SetLocation(latlon_RedBomber_001[0], latlon_RedBomber_001[1], alt);
 #   WsfSimulation.FindPlatform("Red_A2G_2").SetLocation(latlon_RedBomber_002[0], latlon_RedBomber_002[1], alt);
          # Draw assignments by line
+
+# record delayed INITIALIZED with  correct positions 
+   extern void recordDeferredInitialized(WsfPlatform);
+   
+   // 5th Gen Fighters
+   recordDeferredInitialized(WsfSimulation.FindPlatform("5thGen1_Group1"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("5thGen2_Group1"));
+   
+   // 4th Gen Fighters
+   recordDeferredInitialized(WsfSimulation.FindPlatform("EuroFighter1_Group1"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("EuroFighter2_Group1"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("EuroFighter3_Group2"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("EuroFighter4_Group2"));
+   
+   // Blue AEW
+   recordDeferredInitialized(WsfSimulation.FindPlatform("AEW_C2"));
+   
+   // RED AEW
+   recordDeferredInitialized(WsfSimulation.FindPlatform("RED_AEW"));
+   
+   // RED Fighters
+   recordDeferredInitialized(WsfSimulation.FindPlatform("Su34_1"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("Su35_1"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("Su34_2"));
+   recordDeferredInitialized(WsfSimulation.FindPlatform("Su35_2"));
 
    }
 end_execute
