@@ -1,7 +1,7 @@
 # TO DO: Use variables as much as possible
 
 ############################################
-############# STARTING POSTURE ################
+############# STARTING POSTURE #################
 ############################################
 $define STARTING_HEADING 90
 $define STARTING_LAT
