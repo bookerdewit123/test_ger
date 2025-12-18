@@ -82,7 +82,7 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
    # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
 
    script_variables
-      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from RCS_PLATFORM_BASE
+      xRCS_I = RCS_SIZE_ENUM().LARGE; # Overriden from G425_PLATFORM_BASE
    end_script_variables
 
 end_platform_type

@@ -1,5 +1,5 @@
 # Include the RCS Platform Base
-include_once platforms/rcs_platform_base.txt 
+include_once platforms/g425_platform_base.txt 
 
 # *********************************************************************************************** #
 # The G425_SENSOR_BASE is an "abstract" sensor type meant to be extended by any sensor             #
@@ -16,6 +16,8 @@ include_once platforms/rcs_platform_base.txt
 #       of the given size                                                                         #
 # *********************************************************************************************** #
 sensor G425_SENSOR_BASE WSF_RADAR_SENSOR
+   ignore_same_side
+   internal_link comm_manager_message_processor
   
    # Special handling of RCS Values for Sensors and Platforms - returns true if the RCS
    # detection algorithm determines that the target can be detected

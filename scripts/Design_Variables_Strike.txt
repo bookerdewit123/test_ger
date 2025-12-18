@@ -1,30 +1,3 @@
-#script_variables
-### Monte Carlo Simulation Inputs ##
-## Latitude are degrees north and Longitude are degrees east
-#global double mcLatitudeInput5thGen = 52.5;
-#global double mcLongitudeInput5thGen = 13.1;
-#
-#global double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.5>$;
-#global double mcLongitudeInput4thGen_Group1 = 13;
-#
-#global double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen + ($<BLUE_OFFSET:.5>$+.15);
-#global double mcLongitudeInput4thGen_Group2 = 13;
-#
-#global double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen + ($<BLUE_OFFSET:.5>$+.2);
-#global double mcLongitudeInputBlueAEW = 12.5;
-#
-#global double mcLatitudeInputREDAEW = 53;
-#global double mcLongitudeInputREDAEW = 16;
-#
-#global double mcLatitudeInputRedFighter = 53.2;
-#global double mcLongitudeInputRedFighter = 14.5;
-#
-#global double mcLatitudeInputRedBomber = 30.5;
-#global double mcLongitudeInputRedBomber = 124;
-#
-#global double mcRange = 1;
-#
-#end_script_variables
 # TO DO: Use variables as much as possible
 
 ############################################

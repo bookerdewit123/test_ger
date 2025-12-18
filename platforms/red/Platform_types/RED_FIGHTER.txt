@@ -2,7 +2,7 @@
 
 #
 # TO DO: Need weapons
-platform_type RED_FIGHTER RCS_PLATFORM_BASE 
+platform_type RED_FIGHTER G425_PLATFORM_BASE 
    spatial_domain air
    side red
    

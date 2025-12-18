@@ -12,8 +12,6 @@ include_once scripts/BMS_Systems/processors/combat_id_delay.txt
 ### Global ###
 
 platform global_ibcs_battalion_eoc GLOBAL_IBCS_BATTALION
-   //position 53:00n 14.0e
-   //position 53.5n 14e
    position $<GLOBAL_IBCS_LAT:53.5n>$ $<GLOBAL_IBCS_LON: 14e>$
    heading 90 deg
    altitude 1 m agl

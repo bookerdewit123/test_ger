@@ -54,14 +54,6 @@ end_platform_type
 weapon RED_GLIDE GENERIC_SAM 
    launched_platform_type RED_GLIDE
    weapon_effects RED_BOMB_EFFECT
-   # This built-in script is called whenever this weapon is launched
-   script void on_create(WsfPlatform aWeapon, WsfTrack aTrack)
-      # Record which blue launcher launched this blue missile
-      //blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
-      
-      # Record which red missile is target of this blue missile
-      //blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
-   end_script
    
    #TO DO MIKE : Trying to figure out how to make the bomb detonate
 #   script void on_destroy (WsfPlatform aWeapon)

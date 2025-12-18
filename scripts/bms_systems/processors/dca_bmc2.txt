@@ -112,8 +112,22 @@ processor BMC2 WSF_SCRIPT_PROCESSOR
             return; 
          
          # Don't fire on blue targets
-         if (mTarget.Side() == "blue" || mTarget.Name() == "RED_AEW" || mTarget.Type() == "RED_GLIDE" || mTarget.Name().Contains("NONTARGET")) #TO DO MIKE: Currently how different targets are either targeted or ignored
-            return;
+         if (mTarget.Side() == "blue")
+            {
+               return;
+            }
+            
+            # Don't fire on specific red support platforms (AEW, glide bombs)
+            if (mTarget.Name() == "RED_AEW" || mTarget.Type() == "RED_GLIDE")
+            {
+               return;
+            }
+            
+            #Don't fire on explicitly marked non-target platforms
+            if (mTarget.Name().Contains("NONTARGET"))
+            {
+               return;
+            }
             
          # Is not being fired on already
          if (IsGettingFiredOn(mTarget)) return;
