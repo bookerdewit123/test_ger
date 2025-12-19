@@ -28,9 +28,13 @@ end_platform
 platform Su35_1 Su-35
 end_platform
 
+platform Su35_6 Su-35
+end_platform
 
-platform Su35_2 Su-35
+platform Su35_7 Su-35
+end_platform
 
+platform Su35_8 Su-35
 end_platform
 
 platform RED_AEW AEW_RED 
