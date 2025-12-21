@@ -5,12 +5,12 @@ script_variables
   # CSV Output Control
    string case = WsfSimulation.ExpandPathVariables("$(CASE)");
    #int TREATMENT_NUMBER = 1;
-   bool writeOutput       = false;    // control ALL csv write outputs
-   bool writeTracks       = true;   // Writing track data CSV (tracks/detections over time)
-   bool writeWeapons      = true;   // Write weapon fired/hit/termination data to CSV
-   bool writeMessages     = true;   // Write all message send/receive data to CSV
-   bool writeSensorDetect = false;   // DEBUG: write sensor detection attempt output to CSV
-   bool writeMovement     = true;   // Write coverage data to CSV
+   bool writeOutput       = false;    # control ALL csv write outputs
+   bool writeTracks       = true;   # Writing track data CSV (tracks/detections over time)
+   bool writeWeapons      = true;   # Write weapon fired/hit/termination data to CSV
+   bool writeMessages     = true;   # Write all message send/receive data to CSV
+   bool writeSensorDetect = false;   # DEBUG: write sensor detection attempt output to CSV
+   bool writeMovement     = true;   # Write coverage data to CSV
    bool multiRun          = true;
    bool drawBehaviorDraws = false;
    bool drawCommander     = true;
@@ -23,12 +23,12 @@ script_variables
    ### switch between these two sets for patriot and ibcs ###
    string ibcs_global_shot_manager = "global_ibcs_battalion_eoc";
    ### These are used to enable reporting to each EOC ###
-   Array<string> hardReport_to_eoc_list = {"global_ibcs_battalion_eoc", "AEW_C2"}; //MIKE
+   Array<string> hardReport_to_eoc_list = {"global_ibcs_battalion_eoc", "AEW_C2"}; #MIKE
    Map<string,WsfPlatform> blueMissleTargetMap = Map<string,WsfPlatform>();
    Map<string,WsfPlatform> blueMissleLauncherMap = Map<string,WsfPlatform>();
    Map<string,WsfPlatform> redMissleTargetMap = Map<string,WsfPlatform>();
    Map<string,double> redMissleLaunchTimeMap = Map<string,double>();
-   Set<string> redWeaponTypes = {"Su-34", "Su-35", "GENERIC_UAV", "SSM_MISSILE"}; //{"Su-34", "Su-35"}; //
+   Set<string> redWeaponTypes = {"Su-34", "Su-35", "GENERIC_UAV", "SSM_MISSILE"}; #{"Su-34", "Su-35"}; #
 end_script_variables
 
 ######################################################

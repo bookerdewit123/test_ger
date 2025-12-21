@@ -46,7 +46,7 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
    comm L16_R 4thGen_Receiver  
       on
       internal_link data_mgr
-      //network_name Topology
+      #network_name Topology
       internal_link weapon_target_pairing
    #   router_name Comm_Router
    end_comm
@@ -55,14 +55,14 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
    comm MADL_T 5thGen_Transmit
       off
       internal_link data_mgr
-      //network_name Topology
+      #network_name Topology
    #   router_name Comm_Router
    end_comm
 
    comm MADL_R 5thGen_Receiver 
       off
       internal_link data_mgr
-         //network_name Topology
+         #network_name Topology
    #   router_name Comm_Router
    end_comm
 

@@ -1,27 +1,27 @@
 observer
-    //TODO:
-    // include observers for WEAPON_MISS and WEAPON_KILLED
+    #TODO:
+    # include observers for WEAPON_MISS and WEAPON_KILLED
     
-    // enable PLATFORM_INITIALIZED platformInitialized #
-    // enable PLATFORM_INITIALIZED platformTracker //with the string inclusino, this will be called within the platformInitialized
-    //enable PLATFORM_DELETED PlatformDel #
-    //enable PLATFORM_KILLED // deprecated in 2.9
-    enable WEAPON_TERMINATED WeaponTerminated_observer_weapon # // wdl_missile_out
-    //enable WEAPON_TERMINATED mslendMSL
-    enable WEAPON_FIRED WeaponFired_observer_weapon  # //uncommented to add the platform tracker to
-    //enable LOCAL_TRACK_UPDATED compareRange
-    //enable LOCAL_TRACK_UPDATED LocalTrackUpdate
-    //enable LOCAL_TRACK_UPDATED digitalSpine #
-    //enable LOCAL_TRACK_UPDATED digitalSpineTracks #
-    //enable LOCAL_TRACK_INITIATED LocalTrackCreated #new
-    //enable LOCAL_TRACK_DROPPED LocalTrackDropped #new
-    //enable LOCAL_TRACK_CORRELATION tester2 #new
-    //enable LOCAL_TRACK_DECORRELATION tester2 #new
-    enable SIMULATION_INITIALIZING SimulationInitializing_observer_weapon // need for header line creation
-    //enable CRASHED_INTO_GROUND ImpactedGround
-    //enable PLATFORM_ADDED PlatformAdded
-    //enable SENSOR_TRACK_INITIATED SensorTrackInit #
-    //enable SENSOR_TRACK_DROPPED SensorTrackDrop #
+    # enable PLATFORM_INITIALIZED platformInitialized #
+    # enable PLATFORM_INITIALIZED platformTracker #with the string inclusino, this will be called within the platformInitialized
+    #enable PLATFORM_DELETED PlatformDel #
+    #enable PLATFORM_KILLED # deprecated in 2.9
+    enable WEAPON_TERMINATED WeaponTerminated_observer_weapon # # wdl_missile_out
+    #enable WEAPON_TERMINATED mslendMSL
+    enable WEAPON_FIRED WeaponFired_observer_weapon  # #uncommented to add the platform tracker to
+    #enable LOCAL_TRACK_UPDATED compareRange
+    #enable LOCAL_TRACK_UPDATED LocalTrackUpdate
+    #enable LOCAL_TRACK_UPDATED digitalSpine #
+    #enable LOCAL_TRACK_UPDATED digitalSpineTracks #
+    #enable LOCAL_TRACK_INITIATED LocalTrackCreated #new
+    #enable LOCAL_TRACK_DROPPED LocalTrackDropped #new
+    #enable LOCAL_TRACK_CORRELATION tester2 #new
+    #enable LOCAL_TRACK_DECORRELATION tester2 #new
+    enable SIMULATION_INITIALIZING SimulationInitializing_observer_weapon # need for header line creation
+    #enable CRASHED_INTO_GROUND ImpactedGround
+    #enable PLATFORM_ADDED PlatformAdded
+    #enable SENSOR_TRACK_INITIATED SensorTrackInit #
+    #enable SENSOR_TRACK_DROPPED SensorTrackDrop #
 end_observer 
     
 
@@ -32,13 +32,13 @@ script_variables
    
    double distFromPlat;
    
-   double commRange = 0.0;      // Can be safely removed after merged with commit 0808507db04
+   double commRange = 0.0;      # Can be safely removed after merged with commit 0808507db04
    double packet_loss;
    int increment = 0;
-   // ^^^ These three (commRange, packet_loss, increment) really shouldn't be here. ^^^
+   # ^^^ These three (commRange, packet_loss, increment) really shouldn't be here. ^^^
    
    # Added by LCB to tinker with unique red track observer
-   //extern bool drawingFlag;
+   #extern bool drawingFlag;
    global double quality = 1;
   
    global Array<double> snrAbs = {
@@ -58,14 +58,14 @@ script_variables
 #      {wpn_open_method = "append";}
   
   string wpn_open_method = "out";
-   // creates a lot of the output files
+   # creates a lot of the output files
    #FileIO wdl_mess_out = FileIO();
    FileIO wdl_missile_out = FileIO();
 
    string rel_path_2 = Path.GetWorkingDirectory().ToString() + "/output/Missile_Output";
 
    
-   // confirms files can be used
+   # confirms files can be used
    writeln(rel_path_2);
 #   assert(wdl_mess_out.Open((rel_path + (string)wpn_run_num + ".csv"), "out"),
 #     "WeaponComm_Output.csv output file falied to open");
@@ -74,10 +74,10 @@ script_variables
      "Missile_Output.csv output file falied to open");
 end_script_variables
 
-// include_once observers_aims/observer_utils.txt // All uses of these functions are commented out
+# include_once observers_aims/observer_utils.txt # All uses of these functions are commented out
 
 
-// Writes the header to the output file
+# Writes the header to the output file
 script void write_file_observer_weapon()
    
    Array<string> header = {"Treatment", 
@@ -142,7 +142,7 @@ script void WeaponTerminated_observer_weapon(WsfWeaponEngagement aWeaponEngageme
       firingSide = shooter.Side();
       firingType = shooter.Type();
    } else {
-      // WARNING: Platform index is unreliable if the platform is gone. You'll just get pointed to some other platform.
+      # WARNING: Platform index is unreliable if the platform is gone. You'll just get pointed to some other platform.
       #shooter_index = aWeaponEngagement.WeaponPlatform().AuxDataInt("shooterIndex");
       #shooter = WsfSimulation.PlatformEntry(shooter_index);
       firingName = "unknown";
@@ -208,10 +208,10 @@ script void WeaponTerminated_observer_weapon(WsfWeaponEngagement aWeaponEngageme
                (string)PkDrawn,        # Probability of kill assigned to the weapon
                (string)result_string,
                (string)missDist,          
-               (string)"WEAPON_TERMINATED",    // Was firing_distance_nmi, but only applicable to WEAPON_FIRED
+               (string)"WEAPON_TERMINATED",    # Was firing_distance_nmi, but only applicable to WEAPON_FIRED
                (string)distFromPlat,                                             
-               //(string)weaponDetonateTime,
-               //(string)finalTrackUpdateCount
+               #(string)weaponDetonateTime,
+               #(string)finalTrackUpdateCount
             };
             
    string line = ",".Join(words);
@@ -225,19 +225,19 @@ script void WeaponTerminated_observer_weapon(WsfWeaponEngagement aWeaponEngageme
 end_script
 
 
-script void SimulationInitializing_observer_weapon() // need to have the header of output file created
-   // NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
+script void SimulationInitializing_observer_weapon() # need to have the header of output file created
+   # NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
    MATH.SetSeed(WsfSimulation.RandomSeed());
    
 #   if (WsfSimulation.RunNumber() == 1)
 #   {
       write_file_observer_weapon();
-      //wpn_write_IO.Open(wpn_write_path, "out"); // Keep in case of MC runs
-      //write_out.Close();
+      #wpn_write_IO.Open(wpn_write_path, "out"); # Keep in case of MC runs
+      #write_out.Close();
 #   }
-#   else // KEEP in case we need for MC runs
+#   else # KEEP in case we need for MC runs
 #   {
-#      // write_file_observer_weapon(); // this would rewrite the header file
+#      # write_file_observer_weapon(); # this would rewrite the header file
 #      wpn_write_IO.Open(wpn_write_path,"append");
 #   }
 #   
@@ -285,7 +285,7 @@ script void WeaponFired_observer_weapon(WsfWeaponEngagement aWeaponEngagement, W
    
    WsfGeoPoint targetLoc = aWeaponEngagement.TargetLocationAtLaunch();
    WsfGeoPoint launchLoc = aWeaponEngagement.WeaponLocationAtLaunch();
-   double firing_distance_nmi = launchLoc.SlantRangeTo(targetLoc)*MATH.NM_PER_M(); // range at time of shot
+   double firing_distance_nmi = launchLoc.SlantRangeTo(targetLoc)*MATH.NM_PER_M(); # range at time of shot
    
    words = {
                (string)TREATMENT_NUMBER, 
@@ -309,16 +309,16 @@ script void WeaponFired_observer_weapon(WsfWeaponEngagement aWeaponEngagement, W
                (string)"TrackQuality", # Track Quality               
                (string)Pk,
                (string)PkDrawn,        # Probability of kill assigned to the weapon
-               (string)"WEAPON_FIRED",           // Was result_string, but only applicable to WEAPON_TERMINATED
-               (string)"WEAPON_FIRED",           // was missDist, but only applicable to WEAPON_TERMINATED
+               (string)"WEAPON_FIRED",           # Was result_string, but only applicable to WEAPON_TERMINATED
+               (string)"WEAPON_FIRED",           # was missDist, but only applicable to WEAPON_TERMINATED
                (string)firing_distance_nmi,
                (string)distFromPlat,
                
 
-               //(string)weaponFireTime,
-               //(string)"FIRE_EVENT",
-               //(string)"FIRE_EVENT",
-               //(string)finalTrackUpdateCount
+               #(string)weaponFireTime,
+               #(string)"FIRE_EVENT",
+               #(string)"FIRE_EVENT",
+               #(string)finalTrackUpdateCount
             };
             
    string line = ",".Join(words);

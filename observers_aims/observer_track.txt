@@ -7,8 +7,8 @@ end_observer
 
 script_variables
 
-#   bool track_log_print = true; // set to true if desire to create a log.txt output that mimmicks brawler's standard output
-#   bool track_iout_print = true; // set to true if desire to create an iout.txt output
+#   bool track_log_print = true; # set to true if desire to create a log.txt output that mimmicks brawler's standard output
+#   bool track_iout_print = true; # set to true if desire to create an iout.txt output
 #
 #   Array<string> track_log_string = {"output/","TRACK_LOG"};
 #   Array<string> track_iout_string = {"output/","TRACK_IOUT"};
@@ -25,8 +25,8 @@ script_variables
 #   FileIO track_sensorIO = FileIO();
 #   FileIO track_write_out = FileIO();
 
-   double track_platLat; // for the track observer
-   double track_platLon; // for the track observer
+   double track_platLat; # for the track observer
+   double track_platLon; # for the track observer
    double track_platAlt;
    string track_platSide;
    string track_platName;
@@ -54,26 +54,26 @@ script_variables
 #      {track_open_method = "append";}
   
    track_open_method = "out";
-   // creates output files
+   # creates output files
    FileIO track_file = FileIO();
 
-   // Appending ot output file
-   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/track_file";     //   single track file name
-   assert(track_file.Open((rel_path_02 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), track_open_method),                     // uses out or append
+   # Appending ot output file
+   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/track_file";     #   single track file name
+   assert(track_file.Open((rel_path_02 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), track_open_method),                     # uses out or append
         rel_path_02 + ".csv" + " output file failed to open");
 
-   // new output file each run
-//   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/MC_track/track_file_";   // for multiple output files, in folder
-//   assert(track_file.Open((rel_path_02 + (string)run_num + ".csv"), "out"),                       // only uses "out"
-//        rel_path_02 + ".csv" + " output file failed to open");
+   # new output file each run
+#   string rel_path_02 = Path.GetWorkingDirectory().ToString() + "/output/MC_track/track_file_";   # for multiple output files, in folder
+#   assert(track_file.Open((rel_path_02 + (string)run_num + ".csv"), "out"),                       # only uses "out"
+#        rel_path_02 + ".csv" + " output file failed to open");
         
 
      
 end_script_variables
 
-// Preallocation scripts to create headers of files ////////////////////////////////////////////////////////////////////////////////
+# Preallocation scripts to create headers of files ########################################
 
-script void write_trackObserver_file() // preallocates
+script void write_trackObserver_file() # preallocates
    
       Array<string> header = {"Treatment",
                               "Replicate",
@@ -110,18 +110,18 @@ script void write_trackObserver_file() // preallocates
 end_script
 
 script void TrackSimInitialize()
-   // NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
+   # NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
    MATH.SetSeed(WsfSimulation.RandomSeed());
    
 #   if (WsfSimulation.RunNumber() == 1)
 #   {
       write_trackObserver_file();
-      //track_write_out.Open(track_write_path, "out");
+      #track_write_out.Open(track_write_path, "out");
       
 #   }
 #   else 
 #   {
-#      //track_write_out.Open(track_write_path,"append");
+#      #track_write_out.Open(track_write_path,"append");
 #   }
 #   
 #   if (track_iout_print)
@@ -152,9 +152,9 @@ script void LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, 
    int numContributors = aLocalTrack.NumContributors();
    
    int globalTrackNumber = aLocalTrack.GlobalTrackNumber();
-//   WsfTrackId trackID = aTrack.TrackId(); # Should not need TrackID if using Global Track Number
-//   string trackIDname = trackID.Name();
-//   int trackIDnumber = trackID.Number();
+#   WsfTrackId trackID = aTrack.TrackId(); # Should not need TrackID if using Global Track Number
+#   string trackIDname = trackID.Name();
+#   int trackIDnumber = trackID.Number();
    
    double trackQuality = aLocalTrack.Quality();
    double targetLat, targetLon, targetAlt;
@@ -178,7 +178,7 @@ script void LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, 
          targetLat = targetLocation.Latitude();
          targetLon = targetLocation.Longitude();
          targetAlt = targetLocation.Altitude();
-         targetDamaged = aLocalTrack.TargetDamaged(); // returns target platform's current damage level; ranges from 0...1 with 0 being undamaged and 1 being fully damaged or destroyed
+         targetDamaged = aLocalTrack.TargetDamaged(); # returns target platform's current damage level; ranges from 0...1 with 0 being undamaged and 1 being fully damaged or destroyed
          
          
          #####################
@@ -233,8 +233,8 @@ script void LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, 
             (string)trackQuality,
             (string)updatedCount,
             (string)numContributors,                                                     
-//          (string)trackIDnumber,
-//          (string)trackIDname,
+#          (string)trackIDnumber,
+#          (string)trackIDname,
             };
 
    string line = ", ".Join(words);

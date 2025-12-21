@@ -4,7 +4,7 @@
 #
 # References:
 #
-#    http://www.globalsecurity.org/space/systems/patriot-ac-3.htm
+#    http:#www.globalsecurity.org/space/systems/patriot-ac-3.htm
 #
 #    "The missile flies to an intercept point specified prior to launch by its
 #    ground-based fire solution computer, which is embedded in the engagement
@@ -24,7 +24,7 @@
 #    Max Range: 15 km for PAC-3, 35 km for PAC-3 MSE against ballistic
 #                                100km for PAC-3 MSE agaist aerial targets         
 #
-#Ref 3 - http://en.wikipedia.org/wiki/MIM-104_Patriot
+#Ref 3 - http:#en.wikipedia.org/wiki/MIM-104_Patriot
 #    'The system's missiles are transported on and launched from the M901
 #    Launching Station, which can carry up to four PAC-2 missiles or up to
 #    sixteen PAC-3 missiles.'
@@ -63,8 +63,8 @@ weapon_effects PAC-3_EFFECT WSF_GRADUATED_LETHALITY
 #      WsfPlatform weapon = WeaponPlatform();
 #      if (! (aTarget.IsValid() && weapon.IsValid())) return;
 #
-#      // Compute the angle between the velocity vectors. A head-on hit would be 180 degrees.
-#      // (velocity vectors in opposite directions).
+#      # Compute the angle between the velocity vectors. A head-on hit would be 180 degrees.
+#      # (velocity vectors in opposite directions).
 #      Vec3 weaponVel = weapon.VelocityWCS();
 #      Vec3 targetVel = aTarget.VelocityWCS();
 #      double weaponVelMag = weaponVel.Magnitude();
@@ -76,7 +76,7 @@ weapon_effects PAC-3_EFFECT WSF_GRADUATED_LETHALITY
 #         if (cosAngle >  1.0) cosAngle =  1.0;
 #         double angle = Math.ACos(cosAngle);
 #         #writeln("Angle=", angle);
-#         //TODO if (angle < xxx) SetPkDegrade(0.6);
+#         #TODO if (angle < xxx) SetPkDegrade(0.6);
 #      }
 #   end_script
 

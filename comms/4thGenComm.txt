@@ -10,7 +10,7 @@
 # TO DO: Likely need better antenna parameters as well
 antenna_pattern LINK_16_OMNI_ANTENNA
 #	 uniform_pattern
-#		 // Apeture Area: 0.041 m^2
+#		 # Apeture Area: 0.041 m^2
 #		 peak_gain 12.5 dB
 #	 end_uniform_pattern
    constant 12.5 dB
@@ -23,8 +23,8 @@ comm 4thGen_Transmit WSF_RADIO_XMTR
 		 power 50 watts
 		 #attenuation_model itu_attenuation
 		 check_terrain_masking true
-       //add medium LATENCY end_medium 
-       //network_name Topology
+       #add medium LATENCY end_medium 
+       #network_name Topology
 end_comm
 
 comm 4thGen_Receiver WSF_RADIO_RCVR 
@@ -32,7 +32,7 @@ comm 4thGen_Receiver WSF_RADIO_RCVR
 		antenna_pattern LINK_16_OMNI_ANTENNA
 		bandwidth 304.6 KHz
 		check_terrain_masking true
-      //network_name Topology
+      #network_name Topology
 end_comm
 
 #comm TEST_BLUE2 WSF_RADIO_TRANSCEIVER

@@ -2,25 +2,25 @@ include_once observers_aims\observer_functions.txt
 
 script_variables
    int globalTrackNumber = 0;
-   Array<string> eventData = Array<string>();               // The information that is output to the csvgit
-   string outputPath = "output//event__timeline_output_" + (string)OVERALL_RUN_NUMBER;    // The file location the csv should be output to
-   Array<string> eventDataHeaders = {                       // The list of columns, in the order you want them to appear. You can restructure the output file here.
+   Array<string> eventData = Array<string>();               # The information that is output to the csvgit
+   string outputPath = "output#event__timeline_output_" + (string)OVERALL_RUN_NUMBER;    # The file location the csv should be output to
+   Array<string> eventDataHeaders = {                       # The list of columns, in the order you want them to appear. You can restructure the output file here.
          "TIME", "PLATFORM", "PLATFORM LATITUDE", "PLATFORM LONGITUDE", "TRACK ID", "TARGET", "TARGET LATITUDE", "TARGET LONGITUDE", "EVENT"};
 end_script_variables
-// Other ideas from Scott for future implementation
-// PLATFORM_TYPE | TARGET_TYPE | aTrack.TrackQuality() | aTrack.Latitude() | aTrack.Longitude()
+# Other ideas from Scott for future implementation
+# PLATFORM_TYPE | TARGET_TYPE | aTrack.TrackQuality() | aTrack.Latitude() | aTrack.Longitude()
 
-// Function used to add an event to the csv without the use of observers
+# Function used to add an event to the csv without the use of observers
 script void manuallyRecordEvent(string anEvent)
-// @param string anEvent: The event to record, as a string.
+# @param string anEvent: The event to record, as a string.
    eventData.PushBack(anEvent);
 end_script
 
-// Construct anEventData map that can be added to the timeline via storeEventToEventTimeline later.
-// This map will contain N/A for most fields.
-// It will auto-populate the TIME_NOW.
+# Construct anEventData map that can be added to the timeline via storeEventToEventTimeline later.
+# This map will contain N/A for most fields.
+# It will auto-populate the TIME_NOW.
 script Map<string, Object> constructBlankEventData()
-// @return: toReturn: anEventData map will default values.
+# @return: toReturn: anEventData map will default values.
 
    Map<string, Object> toReturn = Map<string, Object>();
    for (int i = 0; i < eventDataHeaders.Size(); i += 1)
@@ -31,10 +31,10 @@ script Map<string, Object> constructBlankEventData()
    return toReturn;   
 end_script
 
-// Store the anEventData file to the eventData timeline.
-// The full dataset will be output to a csv file when the simulation completes.
+# Store the anEventData file to the eventData timeline.
+# The full dataset will be output to a csv file when the simulation completes.
 script void storeEventToEventTimeline(Map<string, Object> anEventData)
-// @param Map<string, Object> anEventData: The data for a single event. This will be added to the timeline.
+# @param Map<string, Object> anEventData: The data for a single event. This will be added to the timeline.
    
    Array<string> dataArray = Array<string>();
    for (int i = 0; i < eventDataHeaders.Size(); i += 1)
@@ -44,19 +44,19 @@ script void storeEventToEventTimeline(Map<string, Object> anEventData)
    eventData.PushBack(",".Join(dataArray)); 
 end_script
 
-// Write an event to the eventTimeline.
+# Write an event to the eventTimeline.
 script void recordToEventTimeline(WsfPlatform aPlatform, WsfPlatform aTarget, string aTrackId_str, WsfGeoPoint aTargetLocation, string aStatus)
-// @param WsfPlatform aPlatform: The main platform for this event. If none, then enter null.
-// @param WsfPlatform aTarget: The other platform for this event. If none, enter null.
-// @param WsfTrackId aTrackId: The relevant track. If none, then enter null
-// @param string aTargetLocation: The location to use for the target. (Could be either track location, Target.Location(), blank, or something else)
-// @param string aStatus: The 'type' of event to record.
+# @param WsfPlatform aPlatform: The main platform for this event. If none, then enter null.
+# @param WsfPlatform aTarget: The other platform for this event. If none, enter null.
+# @param WsfTrackId aTrackId: The relevant track. If none, then enter null
+# @param string aTargetLocation: The location to use for the target. (Could be either track location, Target.Location(), blank, or something else)
+# @param string aStatus: The 'type' of event to record.
    Map<string, Object> anEventData = constructBlankEventData();
    
    if (aPlatform.IsValid())
    {
       anEventData.Set("PLATFORM",            aPlatform.Name());
-//      anEventData.Set("SIDE",                aPlatform.Side());
+#      anEventData.Set("SIDE",                aPlatform.Side());
       anEventData.Set("PLATFORM LATITUDE",   aPlatform.Latitude());
       anEventData.Set("PLATFORM LONGITUDE",  aPlatform.Longitude());
    }
@@ -92,11 +92,11 @@ script void eventTimeline_WeaponFired(WsfWeaponEngagement aWeaponEngagement, Wsf
 end_script
 
 script void eventTimeline_WeaponHit(WsfWeaponEngagement aWeaponEngagement, WsfPlatform aTargetPlatform) 
-   if (aWeaponEngagement.TargetResult() == "KILLED") // double check
+   if (aWeaponEngagement.TargetResult() == "KILLED") # double check
    {
       string data;
       data = (string) TIME_NOW + "," + aWeaponEngagement.FiringPlatformName() + "," + 
-//      aWeaponEngagement.FiringPlatform().Side() + "," + 
+#      aWeaponEngagement.FiringPlatform().Side() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().Latitude() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().Longitude() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().AuxDataInt("GlobalTrackNumber")  + "," + 
@@ -108,11 +108,11 @@ script void eventTimeline_WeaponHit(WsfWeaponEngagement aWeaponEngagement, WsfPl
 end_script
 
 script void eventTimeline_WeaponMissed(WsfWeaponEngagement aWeaponEngagement, WsfPlatform aTargetPlatform) 
-//   if (aWeaponEngagement.TargetResult() == "MISSED") // if missed, does not publish a target result
-//   {
+#   if (aWeaponEngagement.TargetResult() == "MISSED") # if missed, does not publish a target result
+#   {
       string data;
       data = (string) TIME_NOW + "," + aWeaponEngagement.FiringPlatformName() + "," +
-//      aWeaponEngagement.FiringPlatform().Side() + "," + 
+#      aWeaponEngagement.FiringPlatform().Side() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().Latitude() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().Longitude() + "," + 
       (string) aWeaponEngagement.WeaponPlatform().AuxDataInt("GlobalTrackNumber")  + "," + 
@@ -120,13 +120,13 @@ script void eventTimeline_WeaponMissed(WsfWeaponEngagement aWeaponEngagement, Ws
       (string) aTargetPlatform.Latitude() + "," + 
       (string) aTargetPlatform.Longitude() + "," + "MISSED"; 
       eventData.PushBack(data);
-//   }
+#   }
 end_script
 
 /*
 
 script void eventTimeline_WeaponTerminated(WsfWeaponEngagement aWeaponEngagement, WsfPlatform aTargetPlatform) 
-//   if (aWeaponEngagement.TargetResult() == "MISSED")
+#   if (aWeaponEngagement.TargetResult() == "MISSED")
    {
       string data;
       data = (string) TIME_NOW + "," + aWeaponEngagement.FiringPlatformName() + "," +
@@ -142,7 +142,7 @@ script void eventTimeline_WeaponTerminated(WsfWeaponEngagement aWeaponEngagement
 end_script
 */
 
-// Message Received
+# Message Received
 script void eventTimeline_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult)
    if(aMsg.Type() == "WSF_TRACK_MESSAGE")
    {
@@ -164,7 +164,7 @@ script void eventTimeline_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessa
    }
 end_script
 
-// Sensor track initiated
+# Sensor track initiated
 script void eventTimeline_SensorTrackInitiated(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack)
    if (!aTrack.IsValid())
       return;
@@ -177,12 +177,12 @@ script void eventTimeline_SensorTrackInitiated(WsfPlatform aPlatform, WsfSensor 
                          "SENSOR TRACK INITIATED");
 end_script
 
-// Sensor Track Dropped
+# Sensor Track Dropped
 script void eventTimeline_SensorTrackDropped(WsfPlatform aPlatform, WsfSensor aSensor, WsfTrack aTrack)
    string data;
    data = (string) TIME_NOW + "," +
    aTrack.Originator().Name() + "," +
-//   aTrack.Originator().Side() + "," +
+#   aTrack.Originator().Side() + "," +
    (string) aPlatform.Latitude() + "," + 
    (string) aPlatform.Longitude() + "," + 
    (string) aTrack.GlobalTrackNumber() + "," + 
@@ -193,7 +193,7 @@ script void eventTimeline_SensorTrackDropped(WsfPlatform aPlatform, WsfSensor aS
    if (data != "") eventData.PushBack(data);
 end_script
 
-// Message Transmitted
+# Message Transmitted
 script void eventTimeline_MessageAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
    string data;
    if((aMsg.Type() == "WSF_TRACK_MESSAGE") && (aResult.Succeeded()))
@@ -201,7 +201,7 @@ script void eventTimeline_MessageAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessag
       WsfTrackMessage aTrackMessage = (WsfTrackMessage) aMsg;
       data = (string) TIME_NOW + "," +
       aXmtr.Platform().Name() + "," +
-//      aXmtr.Platform().Side() + "," +
+#      aXmtr.Platform().Side() + "," +
       (string) aXmtr.Platform().Latitude() + "," + 
       (string) aXmtr.Platform().Longitude() + "," + 
       (string) aTrackMessage.Track().GlobalTrackNumber() + "," + 
@@ -216,7 +216,7 @@ script void eventTimeline_MessageAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessag
       WsfControlMessage aControlMessage = (WsfControlMessage) aMsg;
       data = (string) TIME_NOW + "," +
       aXmtr.Platform().Name() + "," +
-//      aXmtr.Platform().Side() + "," +
+#      aXmtr.Platform().Side() + "," +
       (string) aXmtr.Platform().Latitude() + "," + 
       (string) aXmtr.Platform().Longitude() + "," + 
       (string) aControlMessage.Track().GlobalTrackNumber() + "," + 
@@ -228,13 +228,13 @@ script void eventTimeline_MessageAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessag
    }
 end_script
 
-// Red Platform Created
+# Red Platform Created
 script void eventTimeline_PlatformInitialized(WsfPlatform aPlatform) 
-   if (aPlatform.Side() != "red") return; // Why is this only being used for RED platforms?
+   if (aPlatform.Side() != "red") return; # Why is this only being used for RED platforms?
    string data;
    data = (string) TIME_NOW + "," +
    aPlatform.Name() + "," +
-//   aPlatform.Side() + "," +
+#   aPlatform.Side() + "," +
    (string) aPlatform.Latitude() + "," + 
    (string) aPlatform.Longitude() + "," + 
    "N/A" + "," + 
@@ -254,10 +254,10 @@ observer
    enable PLATFORM_INITIALIZED      eventTimeline_PlatformInitialized
    enable SIMULATION_COMPLETE       eventTimeline_SimulationComplete
    enable WEAPON_FIRED              eventTimeline_WeaponFired
-   enable MESSAGE_RECEIVED          eventTimeline_MessageReceived          // Note the recieving platform is the target
+   enable MESSAGE_RECEIVED          eventTimeline_MessageReceived          # Note the recieving platform is the target
    enable SENSOR_TRACK_INITIATED    eventTimeline_SensorTrackInitiated
    enable SENSOR_TRACK_DROPPED      eventTimeline_SensorTrackDropped
    enable WEAPON_HIT                eventTimeline_WeaponHit
-   enable WEAPON_MISSED             eventTimeline_WeaponMissed             // Added to know when re-attack needed. What happens to the track?
-   enable MESSAGE_DELIVERY_ATTEMPT  eventTimeline_MessageAttempt           // Platform and Target good
+   enable WEAPON_MISSED             eventTimeline_WeaponMissed             # Added to know when re-attack needed. What happens to the track?
+   enable MESSAGE_DELIVERY_ATTEMPT  eventTimeline_MessageAttempt           # Platform and Target good
 end_observer 

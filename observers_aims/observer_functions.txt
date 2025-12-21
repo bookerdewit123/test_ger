@@ -1,8 +1,8 @@
-// Formats headers and corresponding data
+# Formats headers and corresponding data
 script string joinObserverOutputs(Array<string> words, string type)
-   // @param Array<string> words: The data to be formatted
-   // @param string type: The type of data; 'header' or 'data'
-   // @return: string of headers or data
+   # @param Array<string> words: The data to be formatted
+   # @param string type: The type of data; 'header' or 'data'
+   # @return: string of headers or data
    Map<string, bool>allowableTypes = {"header" : true, "data" : true};
    assert(allowableTypes.Exists(type), "*****ERROR - unknown type in joinObserverOutputs");
    if (type == "header")
@@ -17,13 +17,13 @@ script string joinObserverOutputs(Array<string> words, string type)
    return "";
 end_script
 
-// This function is used on simulation complete to format the event data and output it to the csv
+# This function is used on simulation complete to format the event data and output it to the csv
 script void generateOutputFile(string filePrefix, Array<string>headerNames, Array<string> dataLines, string PATH_TO_OUTPUT)
-   // @param string filePrefix: What the file should be named
-   // @param Array<string>headerNames: The names for the table headers in the output file csv
-   // @param Array<string> dataLines: The data to be output to csv rows
-   // @param string PATH_TO_OUTPUT: Where to store the csv
-   // @return: None
+   # @param string filePrefix: What the file should be named
+   # @param Array<string>headerNames: The names for the table headers in the output file csv
+   # @param Array<string> dataLines: The data to be output to csv rows
+   # @param string PATH_TO_OUTPUT: Where to store the csv
+   # @return: None
    FileIO outfile = FileIO();
    string filename = filePrefix + ".csv";
    if (!outfile.Open(filename, "append"))

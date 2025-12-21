@@ -16,11 +16,11 @@ network Topology WSF_COMM_NETWORK_GENERIC
       
       link EuroFighter2_Group1 L16_T EuroFighter1_Group1 L16_R
       link EuroFighter2_Group1 L16_T 5thGen1_Group1 L16_R
-      //link EuroFighter2_Group1 MADL_T 5thGen1_Group1 MADL_R
+      #link EuroFighter2_Group1 MADL_T 5thGen1_Group1 MADL_R
       
       link EuroFighter3_Group2 L16_T EuroFighter4_Group2 L16_R
       link EuroFighter3_Group2 L16_T 5thGen2_Group1 L16_R
-      //link EuroFighter3_Group2 MADL_T 5thGen2_Group1 MADL_R
+      #link EuroFighter3_Group2 MADL_T 5thGen2_Group1 MADL_R
       
       link EuroFighter4_Group2 L16_T EuroFighter3_Group2 L16_R
       

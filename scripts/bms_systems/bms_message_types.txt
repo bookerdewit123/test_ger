@@ -8,7 +8,7 @@
 
 ####################### Bid Message ##############################
 script WsfMessage GetBidMessage(int inBidID, WsfPlatform inOriginator,bidMessageStruct inBidMessageStruct,WsfPlatform inThreat, fireSolutionStruct inFireSolution)
-   //initialize variables
+   #initialize variables
    WsfMessage bidMessage = WsfMessage();
 
    bidMessage.SetType("BidMessage");
@@ -23,7 +23,7 @@ end_script
 
 ####################### Bid Action Message ##############################
 script WsfMessage GetBidActionMessage(int inBidID,string inAction, WsfPlatform inPlatform, double inInterceptTime, fireSolutionStruct inFireSolution)
-   //initialize variables
+   #initialize variables
    WsfMessage bidActionMessage = WsfMessage();
    
    bidActionMessage.SetType("BidActionMessage");
@@ -38,7 +38,7 @@ end_script
 
 ####################### Bid Action Verfication Message ##############################
 script WsfMessage GetBidActionVerifyMessage(int inThreatID,string inAction, WsfPlatform inPlatform)
-   //initialize variables
+   #initialize variables
    WsfMessage bidActionVerifyMessage = WsfMessage();
 
    bidActionVerifyMessage.SetType("BidActionVerifyMessage");
@@ -51,7 +51,7 @@ end_script
 
 ####################### Bid Action Verfication Message ##############################
 script WsfMessage GetThreatOpenMessage(int inThreatID, WsfPlatform inPlatform)
-   //initialize variables
+   #initialize variables
    WsfMessage threatOpenMessage = WsfMessage();
 
    threatOpenMessage.SetType("ThreatOpenMessage");
@@ -63,7 +63,7 @@ end_script
 
 ##################### Cue Message #######################################
 script WsfMessage GetCueMessage(WsfTrack inTrack, WsfPlatform inPlatform)
-   //initialize variables
+   #initialize variables
    WsfMessage cueMessage = WsfMessage();
 
    cueMessage.SetType("CueMessage");
@@ -75,7 +75,7 @@ end_script
 
 ##################### Alive Message #######################################
 script WsfMessage GetAliveMessage(WsfPlatform inPlatform)
-   //initialize variables
+   #initialize variables
    WsfMessage aliveMessage = WsfMessage();
 
    aliveMessage.SetType("AliveMessage");
@@ -86,7 +86,7 @@ end_script
 
 ####################### Launch Message ##############################
 script WsfMessage GetLaunchMessage(fireSolutionStruct inFireSolution, string inOriginator)
-   //initialize variables
+   #initialize variables
    WsfMessage launchMessage = WsfMessage();
 
    launchMessage.SetType("LaunchMessage");
@@ -98,7 +98,7 @@ end_script
 
 ####################### StandDown Message ##############################
 script WsfMessage GetStandDownMessage(activeSolutionsStruct inStandDownInfo, string inOriginator, string inThreatName)
-   //initialize variables
+   #initialize variables
    WsfMessage standDownMessage = WsfMessage();
 
    standDownMessage.SetType("StandDownMessage");
@@ -111,7 +111,7 @@ end_script
 
 ####################### Batch Track Message ##############################
 script WsfMessage GetBatchTrackMessage(Array<WsfTrackMessage> inBatchTracks, string inOriginator)
-   //initialize variables
+   #initialize variables
    WsfMessage batchMessage = WsfMessage();
 
    batchMessage.SetType("BatchTrackMessage");
@@ -124,7 +124,7 @@ end_script
 ####################### TrackDrop Message ##############################
 script WsfMessage GetBMSTrackDropMessage(WsfTrackId inTrack, double inSimTime, int inIndex, 
                                           string inOriginator, string inProcName)
-   //initialize variables
+   #initialize variables
    WsfMessage dropMessage = WsfMessage();
 
    dropMessage.SetType("BMSTrackDropMessage");

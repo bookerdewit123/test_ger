@@ -17,28 +17,28 @@ script_variables
 ## Monte Carlo Simulation Inputs ##
 # Latitude are degrees north and Longitude are degrees east
 #.1 is 6 nmi
- double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; //- 1.5;
- double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ - 1.7; //2.2; //-1.1; // - 1.9; //13.1;
+ double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; #- 1.5;
+ double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ - 1.7; #2.2; #-1.1; # - 1.9; #13.1;
  
- double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; //+ $<BLUE_OFFSET:.5>$;
- double mcLongitudeInput4thGen_Group1 = mcLongitudeInput5thGen - .3; //13;
+ double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; #+ $<BLUE_OFFSET:.5>$;
+ double mcLongitudeInput4thGen_Group1 = mcLongitudeInput5thGen - .3; #13;
 
- double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen - $<BLUE_OFFSET:.28>$; //.54; //mcLatitudeInput5thGen - ($<BLUE_OFFSET:.5>$ + 2.1); //+ ($<BLUE_OFFSET:.5>$+.15); //($<BLUE_OFFSET:.5>$+.15);
- double mcLongitudeInput4thGen_Group2 = mcLongitudeInput5thGen - .3; //13
+ double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen - $<BLUE_OFFSET:.28>$; #.54; #mcLatitudeInput5thGen - ($<BLUE_OFFSET:.5>$ + 2.1); #+ ($<BLUE_OFFSET:.5>$+.15); #($<BLUE_OFFSET:.5>$+.15);
+ double mcLongitudeInput4thGen_Group2 = mcLongitudeInput5thGen - .3; #13
 
- double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen; //+ ($<BLUE_OFFSET:.5>$+.2); //($<BLUE_OFFSET:.5>$+.2);
- double mcLongitudeInputBlueAEW = mcLongitudeInput5thGen - 3; //1.6; //12.5
+ double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen; #+ ($<BLUE_OFFSET:.5>$+.2); #($<BLUE_OFFSET:.5>$+.2);
+ double mcLongitudeInputBlueAEW = mcLongitudeInput5thGen - 3; #1.6; #12.5
  
- double mcLatitudeInputREDAEW = $<RED_WRL_LAT:54>$ -.5; // - 1;
- double mcLongitudeInputREDAEW = $<RED_WRL_LON:15>$ + 1; //16
+ double mcLatitudeInputREDAEW = $<RED_WRL_LAT:54>$ -.5; # - 1;
+ double mcLongitudeInputREDAEW = $<RED_WRL_LON:15>$ + 1; #16
 
  double mcLatitudeInputRedFighter = $<RED_WRL_LAT:54>$ - .8;
- double mcLongitudeInputRedFighter = $<RED_WRL_LON:15>$ + 1; //.5; //14.5
+ double mcLongitudeInputRedFighter = $<RED_WRL_LON:15>$ + 1; #.5; #14.5
  
 # double mcLatitudeInputRedBomber = 30.5;
 # double mcLongitudeInputRedBomber = 124;
 
- global double mcRange = 0; //.1; //1;
+ global double mcRange = 0; #.1; #1;
 
 #extern double mcLatitudeInput5thGen;      # Refer to design_variables_(region).txt
 #extern double mcLongitudeInput5thGen;     # Refer to design_variables_(region).txt

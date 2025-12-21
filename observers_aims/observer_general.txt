@@ -1,12 +1,12 @@
 observer
     enable PLATFORM_INITIALIZED platformInitialized
     enable PLATFORM_DELETED PlatformDel
-    enable WEAPON_TERMINATED mslendMissile // wdl_track_out
-    enable WEAPON_FIRED FiredAt //uncommented to add the platform tracker to
+    enable WEAPON_TERMINATED mslendMissile # wdl_track_out
+    enable WEAPON_FIRED FiredAt #uncommented to add the platform tracker to
     enable LOCAL_TRACK_UPDATED digitalSpine
     enable LOCAL_TRACK_UPDATED digitalSpineTracks
     enable MESSAGE_DELIVERY_ATTEMPT CommOutput
-    enable SIMULATION_COMPLETE EndTotal // ADD final outputs
+    enable SIMULATION_COMPLETE EndTotal # ADD final outputs
     enable SIMULATION_STARTING SimStart
     enable SIMULATION_INITIALIZING SimInitialize
     enable SENSOR_TRACK_INITIATED SensorTrackInit
@@ -60,10 +60,10 @@ script_variables
    int commReconnect;
    
    double closest_hostile = 1000*MATH.M_PER_NM();
-   bool log_print = true; // set to true if desire to create a log.txt output that mimmicks brawler's standard output
-   bool iout_print = true; // set to true if desire to create an iout.txt output
-   bool sensor_print =  false; // **WARNING**, setting this to true causes errors, still debugging this tool
-   WsfGeoPoint origin = WsfGeoPoint.Construct("00:00:00.00n 00:00:00.00e"); // scenario origin point for log print out
+   bool log_print = true; # set to true if desire to create a log.txt output that mimmicks brawler's standard output
+   bool iout_print = true; # set to true if desire to create an iout.txt output
+   bool sensor_print =  false; # **WARNING**, setting this to true causes errors, still debugging this tool
+   WsfGeoPoint origin = WsfGeoPoint.Construct("00:00:00.00n 00:00:00.00e"); # scenario origin point for log print out
    int rseed = (int)WsfSimulation.RandomSeed();
    Array<string> log_string = {"output/","LOG"};
    Array<string> iout_string = {"output/","IOUT"};
@@ -94,7 +94,7 @@ script_variables
    #implemented initially on every missile fired, dealt with in msl endgame
    Array<WsfPlatform> dead_aircraft = Array<WsfPlatform>();
    Array<int> msl_sht_tgt = Array<int>();
-  //string MessageOutput = WsfSimulation.ExpandPathVariables("$(OUTPUT_FOLDER)") + "/outputMetrics" + "_" + (string)WsfSimulation.RunNumber() + ".csv";
+  #string MessageOutput = WsfSimulation.ExpandPathVariables("$(OUTPUT_FOLDER)") + "/outputMetrics" + "_" + (string)WsfSimulation.RunNumber() + ".csv";
    global double messageReceptionTime = 0.0;
    global double messageDeliveryAttemptTime = 0.0;
    global double commRange = 0.0;
@@ -118,30 +118,30 @@ script_variables
    double cue_to_loc;
    double heading;
 
-   // Keenan added vars 
-   // strings
+   # Keenan added vars 
+   # strings
    string failStatus = "";
-   //string jamEffect = "";
+   #string jamEffect = "";
    string messageType = "";
-   // int
+   # int
    int messageNum = 0;
-   // double
+   # double
    double messageTag;
 
 /*
-   string platName; // for the platform tracker
-   string platType; // for the platform tracker
-   double platLat; // for the platform tracker
-   double platLon; // for the platform tracker
-   double platTime = 0.000; // for the platform tracker, idk why the decimals don't show for the results
-   double bomberOneTimer = 0; // measures time beyond fire line
-   double bomberTwoTimer = 0; // measures time beyond fire line
-   double bomberOneDist = 100000000; // measures distance to BLUE C2
-   double bomberTwoDist = 100000000; // measures distance to BLUE C2
-   double bomberOneLaunchTime; // time that bomber one is able to launch, within range
-   double bomberTwoLaunchTime; // time that bomber two is able to launch, within range
-   // WsfGeoPoint locC2 = WsfSimulation.FindPlatform("Ground_Commander").Location(); //locally calls Blue C2 location, DYNAMIC
-   WsfGeoPoint locC2 = WsfGeoPoint.Construct("62:20:01.82n 22:40:00.43e"); //coords of the C2, MANUAL
+   string platName; # for the platform tracker
+   string platType; # for the platform tracker
+   double platLat; # for the platform tracker
+   double platLon; # for the platform tracker
+   double platTime = 0.000; # for the platform tracker, idk why the decimals don't show for the results
+   double bomberOneTimer = 0; # measures time beyond fire line
+   double bomberTwoTimer = 0; # measures time beyond fire line
+   double bomberOneDist = 100000000; # measures distance to BLUE C2
+   double bomberTwoDist = 100000000; # measures distance to BLUE C2
+   double bomberOneLaunchTime; # time that bomber one is able to launch, within range
+   double bomberTwoLaunchTime; # time that bomber two is able to launch, within range
+   # WsfGeoPoint locC2 = WsfSimulation.FindPlatform("Ground_Commander").Location(); #locally calls Blue C2 location, DYNAMIC
+   WsfGeoPoint locC2 = WsfGeoPoint.Construct("62:20:01.82n 22:40:00.43e"); #coords of the C2, MANUAL
 */
   
    # Added by LCB to tinker with unique red track observer
@@ -218,7 +218,7 @@ script_variables
    else
       {open_method = "append";}
   
-   // creates a lot of the output files
+   # creates a lot of the output files
    FileIO wdl_mess_out = FileIO();
    FileIO wdl_track_out = FileIO();
    FileIO intl_kl_out = FileIO();
@@ -230,15 +230,15 @@ script_variables
    FileIO platform_life = FileIO();
    string rel_path = Path.GetWorkingDirectory().ToString() + "/output/Monte Carlo/WeaponComm_Output_";
    string rel_path_2 = Path.GetWorkingDirectory().ToString() + "/output/Missile_Output";
-   string rel_path_3 = Path.GetWorkingDirectory().ToString() + "/output/INTL_KL_Output"; // collects the end total number of platforms
+   string rel_path_3 = Path.GetWorkingDirectory().ToString() + "/output/INTL_KL_Output"; # collects the end total number of platforms
    string rel_path_4 = Path.GetWorkingDirectory().ToString() + "/output/SENSOR_TRY";
    string rel_path_5 = Path.GetWorkingDirectory().ToString() + "/output/Weapon_Engages";
    string rel_path_6 = Path.GetWorkingDirectory().ToString() + "/output/Mission_Range";
    string rel_path_7 = Path.GetWorkingDirectory().ToString() + "/output/Digital_Spine";
-   //string rel_path_75 = Path.GetWorkingDirectory().ToString() + "/output/Digital_Spine_Track";
-   //string rel_path_8 = Path.GetWorkingDirectory().ToString() + "/output/Platform_Lifecycle"; // New file to gather all platform lifecycle events
+   #string rel_path_75 = Path.GetWorkingDirectory().ToString() + "/output/Digital_Spine_Track";
+   #string rel_path_8 = Path.GetWorkingDirectory().ToString() + "/output/Platform_Lifecycle"; # New file to gather all platform lifecycle events
    
-   // confirms files can be used
+   # confirms files can be used
    writeln(rel_path);
    assert(wdl_mess_out.Open((rel_path + (string)run_num + ".csv"), "out"),
      "WeaponComm_Output.csv output file falied to open");
@@ -261,19 +261,19 @@ script_variables
    assert(digital_spine.Open((rel_path_7 + ".csv"), open_method),
         rel_path_7 + ".csv" + " output file falied to open");
 
-   //assert(digital_spine_track.Open((rel_path_75 + ".csv"), open_method),
-   //     rel_path_75 + ".csv" + " output file falied to open");
+   #assert(digital_spine_track.Open((rel_path_75 + ".csv"), open_method),
+   #     rel_path_75 + ".csv" + " output file falied to open");
 
-   //assert(platform_life.Open((rel_path_8 + ".csv"), open_method),
-    //    rel_path_8 + ".csv" + " output file falied to open");
+   #assert(platform_life.Open((rel_path_8 + ".csv"), open_method),
+    #    rel_path_8 + ".csv" + " output file falied to open");
      
 end_script_variables
 
 include_once observers_aims/observer_utils.txt
 
-// Execute at time interval scripts ///////////////////////////////////////////////////////////////////////////////////////////////
+# Execute at time interval scripts ###############################################/
 
-execute at_interval_of 5 s // time interval execution!
+execute at_interval_of 5 s # time interval execution!
    extern WsfGeoPoint origin; 
    if (log_print)
    {
@@ -281,7 +281,7 @@ execute at_interval_of 5 s // time interval execution!
 
       log.Writeln(write_str("\nSIMULATION TIME HAS REACHED ",Format.Fixed(TIME_NOW,1), " s"));
       log.Writeln(write_str("Min Perceived Range to Hostile ( ",Format.Fixed(closest_hostile*MATH.NM_PER_M(),1)," nmi )"));
-      closest_hostile = 200.0*MATH.M_PER_NM(); // re-set this so it's recalculated
+      closest_hostile = 200.0*MATH.M_PER_NM(); # re-set this so it's recalculated
       for (int i = 0; i <= total_entities; i = i + 1)
       {
          if (WsfSimulation.FindPlatform(i).IsValid() && !WsfSimulation.FindPlatform(i).CategoryMemberOf("missile"))
@@ -375,9 +375,9 @@ end_execute
 
 
 
-// Preallocation scripts to create headers of files ////////////////////////////////////////////////////////////////////////////////
+# Preallocation scripts to create headers of files ########################################
 
-script void write_snrRange_file() // preallocates
+script void write_snrRange_file() # preallocates
 
    
    Array<string> header = {"Time",
@@ -391,8 +391,8 @@ script void write_snrRange_file() // preallocates
                            "Run Number",
                            "Random Seed",
                            "Succeeded or Failed",
-                           "Failure Status", // is blank for successes but tells for failures
-                           //"Jamming Effect"
+                           "Failure Status", # is blank for successes but tells for failures
+                           #"Jamming Effect"
                            "Serial Number",
                            "Data Tag",
                            "Message Type",
@@ -405,7 +405,7 @@ script void write_snrRange_file() // preallocates
    
 end_script
 
-script void write_track_file() // preallocates
+script void write_track_file() # preallocates
    
    Array<string> header = {"Run Number",
                            "TIME",
@@ -418,11 +418,11 @@ script void write_track_file() // preallocates
                            "Pk Drawn",
                            "Result",
                            "Miss Distance",
-                           //"Blue Remaining",
-                           //"Red Remaining",
+                           #"Blue Remaining",
+                           #"Red Remaining",
                            "Firing Distance (NMI)",
                            "AC to MSL Range (NMI)",
-                           //"Track Update Count"
+                           #"Track Update Count"
                            };
 
    string header_line = ", ".Join(header);
@@ -432,7 +432,7 @@ script void write_track_file() // preallocates
    
 end_script
 
-script void write_intl_file() // preallocates
+script void write_intl_file() # preallocates
 
    
    Array<string> header = {"Run Number",
@@ -504,7 +504,7 @@ script void write_weapon_file()
    
 end_script
 
-script void write_missionRange_file() // preallocates
+script void write_missionRange_file() # preallocates
    
    Array<string> header = {"Time",
                            "Scenario",
@@ -518,7 +518,7 @@ script void write_missionRange_file() // preallocates
 
 end_script
 
-script void write_digitalspine_file() // preallocates
+script void write_digitalspine_file() # preallocates
    
       Array<string> header = {"TIME_NOW",
                               "platName",
@@ -532,7 +532,7 @@ script void write_digitalspine_file() // preallocates
 
 end_script
 
-script void write_digitalspinetrack_file() // preallocates
+script void write_digitalspinetrack_file() # preallocates
    
       Array<string> header = {"TIME_NOW",
                               "platName",
@@ -552,7 +552,7 @@ script void write_digitalspinetrack_file() // preallocates
 
 end_script
 
-script void write_platformLifecycle_file() // preallocates
+script void write_platformLifecycle_file() # preallocates
    
       Array<string> header = {"Treatment",
                               "Run",
@@ -573,7 +573,7 @@ script void write_platformLifecycle_file() // preallocates
 
 end_script
 
-// End of the preallocation /////////////////////////////////////////////////////////////////////////////////////
+# End of the preallocation ##########################################/
 
 #script Map<string, Array<double>> iterateScenarioPlats(Array<string> scenarioPlats)
 #   Map<string, Array<double>> acceptableOffsets;
@@ -769,7 +769,7 @@ script void platformInitialized(WsfPlatform aPlatform)
 #               else if(aPlatform.CategoryMemberOf("jammer"))
 #                  blue_jammer_current+=1;
 #         }
-         //if (aPlatform.CategoryMemberOf("grinder"))
+         #if (aPlatform.CategoryMemberOf("grinder"))
 #         {
 #         
 #         }
@@ -807,7 +807,7 @@ script void PlatformDel(WsfPlatform aPlatform)
       {
          ### Added for Australia output
          red_killed += 1;
-        // red_remaining -= 1;
+        # red_remaining -= 1;
         red_remaining = red_initiated - red_killed;
          if(aPlatform.CategoryMemberOf("su27"))
             red_su27_killed+=1;
@@ -818,7 +818,7 @@ script void PlatformDel(WsfPlatform aPlatform)
 #         if(aPlatform.CategoryMemberOf("current"))
 #            red_current_killed +=1;
 #         if (aPlatform.CategoryMemberOf("aircraft"))
-#         { //have to use category since spatial domain returns "air" for missiles and aircraft
+#         { #have to use category since spatial domain returns "air" for missiles and aircraft
 #            red_aircraft = red_aircraft - 1;
 #            total_aircraft = total_aircraft - 1;
 #            red_left = red_aircraft;
@@ -844,7 +844,7 @@ script void PlatformDel(WsfPlatform aPlatform)
       {
          ### Added for Australia output
          blue_killed += 1;
-         //blue_remaining -= 1;
+         #blue_remaining -= 1;
          blue_remaining = blue_initiated - blue_killed;
          if(aPlatform.CategoryMemberOf("f35"))
                      blue_f35_killed+=1;
@@ -881,7 +881,7 @@ script void PlatformDel(WsfPlatform aPlatform)
 #               blue_jammer_current_killed+=1;
 #          }
          if (aPlatform.CategoryMemberOf("aircraft"))
-         { //have to use category since spatial domain returns "air" for missiles and aircraft
+         { #have to use category since spatial domain returns "air" for missiles and aircraft
             blue_aircraft = blue_aircraft - 1;
             total_aircraft = total_aircraft - 1;
             blue_left = blue_aircraft;
@@ -905,7 +905,7 @@ script void PlatformDel(WsfPlatform aPlatform)
       if (log_print)
       {
          if (aPlatform.CategoryMemberOf("aircraft"))
-         { //have to use category since spatial domain returns "air" for missiles and aircraft
+         { #have to use category since spatial domain returns "air" for missiles and aircraft
             log.Writeln(write_str(" A/C ",IndexKilled," IS KILLED AT TIME ",Format.Fixed(TimeKilled,2)));
             write_out.Writeln((write_str(" A/C ",IndexKilled," IS KILLED AT TIME ",Format.Fixed(TimeKilled,2))));
          }
@@ -924,7 +924,7 @@ script void engagementRange (WsfWeaponEngagement aWeaponEngagement)
    
 end_script
 
-script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on WEAPON_TERMINATED, missile_output file
+script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) # executes on WEAPON_TERMINATED, missile_output file
    #weapon_terminated
    WsfPlatform target, shooter;
 
@@ -937,7 +937,7 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
    string targetName,targetSide, firingSide, firingName;
    #MTC - added checks for target and shooter being alive
    #Dead platforms are grabbed based on weapon-target-shooter trios stored at launch
-   if(aWeaponEngagement.TargetPlatform().IsValid()) // isn't a killed targeted platform dead?
+   if(aWeaponEngagement.TargetPlatform().IsValid()) # isn't a killed targeted platform dead?
    {
       target = aWeaponEngagement.TargetPlatform();
       target_index = target.Index();
@@ -946,8 +946,8 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
    }
    else
    {
-     // target = getDeadPlat(aWeaponEngagement,"target");
-     // target_index = target.AuxDataInt("platID");
+     # target = getDeadPlat(aWeaponEngagement,"target");
+     # target_index = target.AuxDataInt("platID");
       targetName = "Dead Plat";
    }
    
@@ -961,11 +961,11 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
    }
    else
    {
-      //shooter = getDeadPlat(aWeaponEngagement,"shooter");
-      //shooter_index = shooter.AuxDataInt("platID");
+      #shooter = getDeadPlat(aWeaponEngagement,"shooter");
+      #shooter_index = shooter.AuxDataInt("platID");
       distFromPlat = 0;
       firingSide = "";
-      if(targetSide=="red") // not sure if this will work
+      if(targetSide=="red") # not sure if this will work
       {
          firingSide = "blue";
       }
@@ -982,10 +982,10 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
    double heading_start;
    WsfGeoPoint targetLoc = aWeaponEngagement.TargetLocationAtLaunch();
    WsfGeoPoint launchLoc = aWeaponEngagement.WeaponLocationAtLaunch();
-   firing_distance = launchLoc.SlantRangeTo(targetLoc)*MATH.NM_PER_M(); // range at time of shot
+   firing_distance = launchLoc.SlantRangeTo(targetLoc)*MATH.NM_PER_M(); # range at time of shot
    
-   //trackMSL = aWeaponEngagement.WeaponPlatform().CurrentTargetTrack();
-   //finalTrackUpdateCount = trackMSL.UpdateCount();
+   #trackMSL = aWeaponEngagement.WeaponPlatform().CurrentTargetTrack();
+   #finalTrackUpdateCount = trackMSL.UpdateCount();
    
    if(missile.Side() == "blue")
       {
@@ -1000,7 +1000,7 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
    else
    {
       finalSnr = 0;
-     // finalTrackUpdateCount = 0;
+     # finalTrackUpdateCount = 0;
       }
    
    #Missile Fuse and Kill 
@@ -1040,7 +1040,7 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
          #CJV - Need to actually get TRACKBANK info
          log.Writeln("         GUIDANCE TRACKBANK   1 HAS TRACK ON FUZEE   SEEKERS CONTRIBUITING ACTIVE");
          #MTC - works currently with missiles with one sensor that is the seeker
-         //log.Writeln(write_str("         ENDGAME SEEKER: ",aWeaponEngagement.WeaponPlatform().SensorEntry(0).Type()));
+         #log.Writeln(write_str("         ENDGAME SEEKER: ",aWeaponEngagement.WeaponPlatform().SensorEntry(0).Type()));
          log.Writeln(write_str(" MSLEND..MISSILE ",weapon_name,"(",weapon_type,"   ) VS TGT  ",target_index,"   KILL= ",killed));
          log.Writeln(write_str("         PK= ",Format.Fixed(Pk,3),", DRAW= ",Format.Fixed(PkDrawn,3),
           " AT TIME  ",Format.Fixed(TIME_NOW,2)));
@@ -1056,7 +1056,7 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
          }      
       write_out.Writeln(write_str(" MISSILE ",weapon_name," FUZES AGAINST ",target_index,
           "     RNG=     ",Format.Fixed(aWeaponEngagement.MissDistance()*MATH.FT_PER_M(),2)," T= ",Format.Fixed(TIME_NOW,2)));
-      //write_out.Writeln(write_str("         ENDGAME SEEKER: ",aWeaponEngagement.WeaponPlatform().SensorEntry(0).Type()));
+      #write_out.Writeln(write_str("         ENDGAME SEEKER: ",aWeaponEngagement.WeaponPlatform().SensorEntry(0).Type()));
       write_out.Writeln(write_str(" MSLEND..MISSILE ",weapon_name,"(",weapon_type,"   ) VS TGT  ",target_index,"   KILL= ",killed));
       write_out.Writeln(write_str("         PK= ",Format.Fixed(Pk,3),", DRAW= ",Format.Fixed(PkDrawn,3),
           " AT TIME  ",Format.Fixed(TIME_NOW,2)));
@@ -1096,14 +1096,14 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
        if(missile.Side() == "blue")
           {
              red_left = red_left - 1;
-             //red_remaining -= 1;
+             #red_remaining -= 1;
           }
           
        if(missile.Side() == "red")
           {
-             //blue_left = blue_total_ac;
+             #blue_left = blue_total_ac;
              blue_left = blue_left - 1;
-             //blue_remaining -= 1;
+             #blue_remaining -= 1;
           }
        }
      else
@@ -1124,11 +1124,11 @@ script void mslendMissile(WsfWeaponEngagement aWeaponEngagement) // executes on 
              (string)PkDrawn,
              (string)result_string,
              (string)missDist,
-             //(string)blue_left,
-             //(string)red_left,
+             #(string)blue_left,
+             #(string)red_left,
              (string)firing_distance,
              (string)distFromPlat
-             //(string)finalTrackUpdateCount
+             #(string)finalTrackUpdateCount
             };
   string line = ", ".Join(words);
            
@@ -1304,7 +1304,7 @@ script void digitalSpine (WsfPlatform observer, WsfLocalTrack ltrk, WsfTrack tra
     if(observer.CategoryMemberOf("digitalSpine_back")){
       foreach (WsfTrack track in observer.MasterRawTrackList())
       {
-         //writeln(track.OriginatorName());
+         #writeln(track.OriginatorName());
          orig = track.Originator();
          if (orig.IsValid() && orig.CategoryMemberOf("digitalSpine_fwd"))
             {
@@ -1315,7 +1315,7 @@ script void digitalSpine (WsfPlatform observer, WsfLocalTrack ltrk, WsfTrack tra
                WsfGeoPoint origLoc = WsfGeoPoint.Construct(origLat, observer.Longitude(), origAlt);
                testDist = platLoc.SlantRangeTo(origLoc);
                #writeln("testDist: ", testDist);
-               if (orig.CategoryMemberOf("digitalSpine_current"))//if (orig.CategoryMemberOf("current"))
+               if (orig.CategoryMemberOf("digitalSpine_current"))#if (orig.CategoryMemberOf("current"))
                { # if a current (4th gen) platform
                   if (testDist > maxCurrentDist) # check for longest
                   {
@@ -1325,7 +1325,7 @@ script void digitalSpine (WsfPlatform observer, WsfLocalTrack ltrk, WsfTrack tra
                   }
                }
                
-               if (orig.CategoryMemberOf("digitalSpine_future"))//if (orig.CategoryMemberOf("future"))
+               if (orig.CategoryMemberOf("digitalSpine_future"))#if (orig.CategoryMemberOf("future"))
                { # if a future (5th gen) platform
                   if (testDist > maxFutureDist) # check for longest
                   {
@@ -1392,7 +1392,7 @@ script void digitalSpineTracks (WsfPlatform observer, WsfLocalTrack ltrk, WsfTra
     if(observer.CategoryMemberOf("digitalSpine_back")){
       foreach (WsfTrack track in observer.MasterRawTrackList())
       {
-         //writeln(track.OriginatorName());
+         #writeln(track.OriginatorName());
          orig = track.Originator();
          if (orig.IsValid() && orig.CategoryMemberOf("digitalSpine_fwd"))
             {
@@ -1403,7 +1403,7 @@ script void digitalSpineTracks (WsfPlatform observer, WsfLocalTrack ltrk, WsfTra
                WsfGeoPoint origLoc = WsfGeoPoint.Construct(origLat, observer.Longitude(), origAlt);
                testDist = platLoc.SlantRangeTo(origLoc);
                #writeln("testDist: ", testDist);
-               if (orig.CategoryMemberOf("digitalSpine_current"))//if (orig.CategoryMemberOf("current"))
+               if (orig.CategoryMemberOf("digitalSpine_current"))#if (orig.CategoryMemberOf("current"))
                { # if a current (4th gen) platform
                   if (testDist > maxCurrentDist) # check for longest
                   {
@@ -1419,7 +1419,7 @@ script void digitalSpineTracks (WsfPlatform observer, WsfLocalTrack ltrk, WsfTra
                   }
                }
                
-               if (orig.CategoryMemberOf("digitalSpine_future"))//if (orig.CategoryMemberOf("future"))
+               if (orig.CategoryMemberOf("digitalSpine_future"))#if (orig.CategoryMemberOf("future"))
                { # if a future (5th gen) platform
                   if (testDist > maxFutureDist) # check for longest
                   {
@@ -1494,9 +1494,9 @@ script void LocalTrackUpdate(WsfPlatform observer, WsfLocalTrack ltrk, WsfTrack 
                WsfGeoPoint origLoc = WsfGeoPoint.Construct(origLat, observer.Longitude(), origAlt); # location of track origin
                testDist = platLoc.SlantRangeTo(origLoc); # distance from current platform with updated track to track origin location?
                #writeln("testDist: ", testDist);
-               if (orig.CategoryMemberOf("command"))//if (orig.CategoryMemberOf("current"))
+               if (orig.CategoryMemberOf("command"))#if (orig.CategoryMemberOf("current"))
                { # if the origin of track is the commander, consider it a current platform?
-                  //if (testDist > maxCurrentDist) # I think this check should be perfromed
+                  #if (testDist > maxCurrentDist) # I think this check should be perfromed
                   {
                      maxCurrentDist = testDist; # provides the slant rane distance, not dist via connections
                      closestCurrentPlat = orig.Name();
@@ -1504,9 +1504,9 @@ script void LocalTrackUpdate(WsfPlatform observer, WsfLocalTrack ltrk, WsfTrack 
                   }
                }
                
-               if (orig.CategoryMemberOf("fighter"))//if (orig.CategoryMemberOf("future"))
+               if (orig.CategoryMemberOf("fighter"))#if (orig.CategoryMemberOf("future"))
                { # if the origin of a track is a fighter, consider it a future platform?
-                  //if (testDist > maxFutureDist) # I think this check should be perfromed
+                  #if (testDist > maxFutureDist) # I think this check should be perfromed
                   {
                      maxFutureDist = testDist; # provides the slant rane distance, not dist via connections
                      closestFuturePlat = orig.Name();
@@ -1546,7 +1546,7 @@ if (sensor_print)
    WsfPlatform target;
    WsfCovariance Covariance = WsfCovariance();
    
-   // set the covariance matrix to be used, use the state matrix if it exists, else use the measurment covariance matrix
+   # set the covariance matrix to be used, use the state matrix if it exists, else use the measurment covariance matrix
    if (ltrk.StateCovarianceValid())
    {
       Covariance = ltrk.StateCovariance();
@@ -1560,7 +1560,7 @@ if (sensor_print)
       return;
    }
 
-   // make sure the target is valid in the sim
+   # make sure the target is valid in the sim
    if (ltrk.Target().IsValid() && !ltrk.Target().IsNull())
    {
       target = (WsfPlatform)ltrk.Target();
@@ -1573,21 +1573,21 @@ if (sensor_print)
    string tgt_i = (string)target.Index();
    string obs_i = (string)observer.Index();
 
-   // create Vec3's of the Truth and Track line of sight vectors
+   # create Vec3's of the Truth and Track line of sight vectors
    Vec3 obsLoc = observer.LocationWCS();
    Vec3 targetLoc = target.LocationWCS();
    Vec3 trackLoc = ltrk.CurrentLocation().LocationWCS();
    Vec3 TruthLOS = Vec3.Subtract(targetLoc, obsLoc);
    Vec3 TrackLOS = Vec3.Subtract(trackLoc, obsLoc);
 
-   // range (line of sight)
+   # range (line of sight)
    double r_truth = TruthLOS.Magnitude()*MATH.FT_PER_M();
    double r_sigma = ltrk.RangeErrorSigma()*MATH.FT_PER_M();
    double r_error = MATH.FT_PER_M()*(TruthLOS.Magnitude() - Vec3.Dot(TruthLOS,TrackLOS)/TruthLOS.Magnitude());
    double r_cov   = MATH.Sqrt(Covariance.Element(1,1))*MATH.FT_PER_M();
    double rr_cov  = MATH.Sqrt(Covariance.Element(3,3))*MATH.FT_PER_M();  
 
-   // azimuth & cross-range
+   # azimuth & cross-range
    double az_truth = observer.RelativeBearingTo(target);
    double az_sigma = ltrk.BearingErrorSigma()*MATH.DEG_PER_RAD();
    double az_error = observer.TrueBearingTo(target) - observer.TrueBearingTo(ltrk.CurrentLocation());
@@ -1597,7 +1597,7 @@ if (sensor_print)
    double crr_cov1 = MATH.Sqrt(Covariance.Element(5,5)*MATH.FT_PER_M());
    double azr_cov  = MATH.ASin(crr_cov1/(TrackLOS.Magnitude()*MATH.FT_PER_M()));
 
-   // elevation & vertical-range
+   # elevation & vertical-range
    double el_truth = observer.RelativeElevationOf(target.Location());
    double el_sigma = ltrk.ElevationErrorSigma()*MATH.DEG_PER_RAD();
    double el_error = observer.RelativeElevationOf(target.Location()) - observer.RelativeElevationOf(ltrk.CurrentLocation());
@@ -1607,25 +1607,25 @@ if (sensor_print)
    double vrr_cov1 = MATH.Sqrt(Covariance.Element(4,4))*MATH.FT_PER_M();   
    double elr_cov  = MATH.ASin(vrr_cov1/(TrackLOS.Magnitude()*MATH.FT_PER_M()));  
 
-   // get truth range-rate, az-rate, el-rate
-   Vec3 Po   = (Vec3)observer.LocationWCS(); // m/s
-   Vec3 Vo   = (Vec3)observer.VelocityWCS(); // m/s
-   Vec3 Pt   = (Vec3)target.LocationWCS();   // m/s
-   Vec3 Vt   = (Vec3)target.VelocityWCS();   // m/s
-   Vec3 Vrel = Vec3.Subtract(Vt,Vo);         // m/s
-   Vec3 Prel = Vec3.Subtract(Pt,Po);         // m/s
+   # get truth range-rate, az-rate, el-rate
+   Vec3 Po   = (Vec3)observer.LocationWCS(); # m/s
+   Vec3 Vo   = (Vec3)observer.VelocityWCS(); # m/s
+   Vec3 Pt   = (Vec3)target.LocationWCS();   # m/s
+   Vec3 Vt   = (Vec3)target.VelocityWCS();   # m/s
+   Vec3 Vrel = Vec3.Subtract(Vt,Vo);         # m/s
+   Vec3 Prel = Vec3.Subtract(Pt,Po);         # m/s
    Vec3 Prel2= Vec3.Construct(Prel.X()/Prel.MagnitudeSquared(),Prel.Y()/Prel.MagnitudeSquared(),Prel.Z()/Prel.MagnitudeSquared());   
    double TruthRR = Vec3.Dot(Vrel,Prel.Normal())*MATH.FT_PER_M();
    double term1 = Vec3.Dot(Vrel,Prel);
    Vec3 Vrad = Vec3.Construct(MATH.FT_PER_M()*term1*Prel2.X(),MATH.FT_PER_M()*term1*Prel2.Y(),MATH.FT_PER_M()*term1*Prel2.Z());
    Vec3 Vrad2 = Vec3.Construct(term1*Prel2.X(),term1*Prel2.Y(),term1*Prel2.Z());
-   Vec3 Vtrans= Vec3.Subtract(Vrel,Vrad2);  // m/s
-   double TruthCRR = Vtrans[2]*MATH.FT_PER_M(); // ft/s
+   Vec3 Vtrans= Vec3.Subtract(Vrel,Vrad2);  # m/s
+   double TruthCRR = Vtrans[2]*MATH.FT_PER_M(); # ft/s
    double TruthAZR = MATH.ATan(TruthCRR/(MATH.FT_PER_M()*TruthLOS.Magnitude()));
-   double TruthVRR = Vtrans[0]*MATH.FT_PER_M(); // ft/s
+   double TruthVRR = Vtrans[0]*MATH.FT_PER_M(); # ft/s
    double TruthELR = MATH.ATan(TruthVRR/(MATH.FT_PER_M()*TruthLOS.Magnitude()));
    
-   // get track range-rate, az-rate, el-rate
+   # get track range-rate, az-rate, el-rate
    Pt   = (Vec3)ltrk.CurrentLocation().LocationWCS();
    Vt   = (Vec3)ltrk.VelocityWCS();
    Vrel = Vec3.Subtract(Vt,Vo);
@@ -1641,7 +1641,7 @@ if (sensor_print)
    double TrackVRR = Vtrans[0]*MATH.FT_PER_M();
    double TrackELR = MATH.ATan(TrackVRR/(MATH.FT_PER_M()*TruthLOS.Magnitude()));   
    
-   // set range, az, and el rate errors
+   # set range, az, and el rate errors
    double rr_error  = TruthRR  - TrackRR;
    double crr_error = TruthCRR - TrackCRR;
    double azr_error = TruthAZR - TrackAZR;
@@ -1672,7 +1672,7 @@ if (sensor_print)
 #      sensorIO.Write(write_str("      RANGE, CR, VR      - COVARIANCE",Format.Fixed(r_cov,0).Pad(11),Format.Fixed(cr_cov1,0).Pad(11),Format.Fixed(vr_cov1,0).Pad(11)," [FT,FT,FT]\n"));
 #      sensorIO.Write(write_str("      RANGE, CR, VR RATE - COVARIANCE",Format.Fixed(rr_cov,0).Pad(11),Format.Fixed(crr_cov1,0).Pad(11),Format.Fixed(vrr_cov1,0).Pad(11)," [FT/S,FT/S,FT/S]\n"));                        
 
-// writing this in east-north-up coordinates
+# writing this in east-north-up coordinates
    sensorIO.Write(write_str("      TRUTH LOS ",Format.Fixed(TruthLOS.Y()*MATH.FT_PER_M(),0).Pad(11)," ",Format.Fixed(TruthLOS.X()*MATH.FT_PER_M(),0).Pad(11)
    ," ",Format.Fixed(-TruthLOS.Z()*MATH.FT_PER_M(),0).Pad(11),"\n"));
    sensorIO.Write(write_str("      TRACK LOS ",Format.Fixed(TrackLOS.Y()*MATH.FT_PER_M(),0).Pad(11)," ",Format.Fixed(TrackLOS.X()*MATH.FT_PER_M(),0).Pad(11)
@@ -1685,7 +1685,7 @@ script void PlatformAdded (WsfPlatform aPlatform)
    string side = aPlatform.Side();
    total_entities+=1;
    if (aPlatform.CategoryMemberOf("aircraft"))
-   { //have to use category since spatial domain returns "air" for missiles and aircraft
+   { #have to use category since spatial domain returns "air" for missiles and aircraft
       total_aircraft = total_aircraft + 1;
       total_total_ac = total_total_ac + 1;
    }
@@ -1698,7 +1698,7 @@ script void PlatformAdded (WsfPlatform aPlatform)
    if (side == "blue")
    {
       if (aPlatform.CategoryMemberOf("aircraft"))
-      { //have to use category since spatial domain returns "air" for missiles and aircraft
+      { #have to use category since spatial domain returns "air" for missiles and aircraft
          blue_aircraft = blue_aircraft + 1;
          blue_total_ac = blue_total_ac + 1;
       }
@@ -1712,7 +1712,7 @@ script void PlatformAdded (WsfPlatform aPlatform)
    if (side == "red")
    {
       if (aPlatform.CategoryMemberOf("aircraft"))
-      { //have to use category since spatial domain returns "air" for missiles and aircraft
+      { #have to use category since spatial domain returns "air" for missiles and aircraft
          red_aircraft = red_aircraft + 1;
          red_total_ac = red_total_ac + 1;
       }
@@ -1727,8 +1727,8 @@ end_script
 
 script void SimStart ()
    
-   //blue_remaining = blue_initiated;
-   //red_remaining = red_initiated;
+   #blue_remaining = blue_initiated;
+   #red_remaining = red_initiated;
    
    write_out.Writeln(write_str("Monte Carlo Run: ", WsfSimulation.RunNumber()));
    write_out.Writeln(write_str("Random Seed: ", WsfSimulation.RandomSeed()));
@@ -1773,7 +1773,7 @@ script void SimStart ()
    }
 end_script
 
-// Check the results of modifying a track
+# Check the results of modifying a track
 script void compareRange (WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack)
    Array<string> words;
    double trackBearing = 0;
@@ -1793,7 +1793,7 @@ script void compareRange (WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfT
       tgtRange = aPlatform.SlantRangeTo(aTrack.Target().Location());
       if (aTrack.Range() != tgtRange)
       {
-         //writeln(TIME_NOW, " Track Range = ", aTrack.Range(), " and true range = ", tgtRange);
+         #writeln(TIME_NOW, " Track Range = ", aTrack.Range(), " and true range = ", tgtRange);
          write_out.Writeln(write_str(TIME_NOW, " Track Range = ", aTrack.Range(), " and true range = ", tgtRange));
          #writeln(TIME_NOW, " Track Sensor Name = ", aTrack.SensorName());
          write_out.Writeln(write_str(TIME_NOW, " Track Sensor Name = ", aTrack.SensorName()));
@@ -1957,7 +1957,7 @@ script void EndTotal()
 end_script
 
 script void SimInitialize()
-   // NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
+   # NAS - need to set the math random seed on sim initialize, seems kind of rediculous that a monte carlo sim would not automate this
    MATH.SetSeed(WsfSimulation.RandomSeed());
    
    if (WsfSimulation.RunNumber() == 1)
@@ -1972,7 +1972,7 @@ script void SimInitialize()
       write_platformLifecycle_file();
       write_out.Open(write_path, "out");
       
-      //write_out.Close();
+      #write_out.Close();
    }
    else 
    {
@@ -1994,13 +1994,13 @@ script void SimInitialize()
    if (log_print)
    {
        log.Open(log_path, "out");
-       //write_out.Open(write_path, "out");
+       #write_out.Open(write_path, "out");
        log.Writeln(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
-       //write_out.Writeln(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
+       #write_out.Writeln(write_str(" TEST... Starting seed ", WsfSimulation.RandomSeed()));
        log.Close();
-       //write_out.Close();
+       #write_out.Close();
        log.Open(log_path,"append");
-       //write_out.Open(write_path, "append");
+       #write_out.Open(write_path, "append");
    }
 end_script
 
@@ -2019,7 +2019,7 @@ script void CommTurnedOff(WsfComm aComm)
    commOff = true;
 end_script
 
-script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommInteraction aResult) //WsfEM_Interaction emResult)
+script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommInteraction aResult) #WsfEM_Interaction emResult)
    
    int sizeOfArray = snrAbs.Size();
 
@@ -2033,29 +2033,29 @@ script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommIn
    RecvPlatformName = aResult.RcvrPlatformName();
    transPower = aResult.XmtdPower();
    recPower = aResult.RcvdPower();
-   string failStatus = aResult.FailedStatus(); // added to test what this is
-   // bool jamEffect = emResult.EW_Effects.EA_CoherencyCheck(); // added to see if this is for jamming
-   //yaw_msl = aRcvr.Yaw();
+   string failStatus = aResult.FailedStatus(); # added to test what this is
+   # bool jamEffect = emResult.EW_Effects.EA_CoherencyCheck(); # added to see if this is for jamming
+   #yaw_msl = aRcvr.Yaw();
    yaw_msl = aRcvr.Platform().RelativeBearingTo(aResult.TargetLocation());
    heading = aRcvr.Platform().Heading();
    string commType = aXmtr.Type();
    sucFail = aResult.Succeeded();
    isConnected = aXmtr.IsConnectionEnabled(aRcvr.GetAddress());
    hceRange = getSmallerDist(aXmtr.Platform()) *MATH.NM_PER_M();
-   messageNum = hello.SerialNumber(); // added to extract more info
-   messageTag = hello.DataTag(); // added to pull more info out
-   string messageType = hello.Type(); // added to pull more data out
+   messageNum = hello.SerialNumber(); # added to extract more info
+   messageTag = hello.DataTag(); # added to pull more info out
+   string messageType = hello.Type(); # added to pull more data out
    
    if(aXmtr.Platform().IsValid() || aRcvr.Platform().IsValid())
       jamBool = (aXmtr.Platform().AuxDataBool("isJammed") || aRcvr.Platform().AuxDataBool("isJammed"));
    else
       jamBool = 1;
    
-   //jamBool = prevBool;
-   //writeln("PREBOOL" + (string)prevBool);
+   #jamBool = prevBool;
+   #writeln("PREBOOL" + (string)prevBool);
    
-  // if(aXmtr.Name() == "4thGenComm" || aRcvr.Name() == "4thGenComm")
-    //{
+  # if(aXmtr.Name() == "4thGenComm" || aRcvr.Name() == "4thGenComm")
+    #{
 #      if (WsfSimulation.FindPlatform("Jammer1").IsValid() || WsfSimulation.FindPlatform("Jammer2"))
 #      {
 #         jam1Dist = WsfSimulation.FindPlatform("Jammer1");
@@ -2083,7 +2083,7 @@ script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommIn
 ##         aRcvr.TurnOn();
 #         jamBool = false; 
 #         }  
-#      //}
+#      #}
 #      
 #   if (prevBool == true && jamBool == false)
 #      reconCount = reconCount + 1;
@@ -2094,9 +2094,9 @@ script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommIn
 #   else
 #      jamBool = false;
  
-    //if (aXmtr.Platform().Name() == "100B_flightlead")
-      // if(aResult.Failed())
-          //numFailed = numFailed + 1;
+    #if (aXmtr.Platform().Name() == "100B_flightlead")
+      # if(aResult.Failed())
+          #numFailed = numFailed + 1;
 
    #writeln("Message sent @ ", (string)messageDeliveryAttemptTime);
    #writeln("Target To Rcvr Range: ", (string)commRange);
@@ -2110,11 +2110,11 @@ script void CommOutput(WsfComm aXmtr, WsfComm aRcvr, WsfMessage hello, WsfCommIn
             (string)commType,
             (string)transPower,
             (string)recPower,
-            (string)run_num, // because of this, is the same output file used for every run? 
-            (string)random_seed, // seeds should also be diferent
+            (string)run_num, # because of this, is the same output file used for every run? 
+            (string)random_seed, # seeds should also be diferent
             (string)sucFail,
             (string)failStatus,
-            //(string)jamEffect,
+            #(string)jamEffect,
             (string)messageNum,
             (string)messageTag,
             (string)messageType,

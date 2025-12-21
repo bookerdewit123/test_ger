@@ -41,33 +41,33 @@ end_script
 comm L16_T 4thGen_Transmit  
    on
    internal_link targeting
-   //network_name Topology
+   #network_name Topology
 #   router_name Comm_Router
 end_comm
 
 comm L16_R 4thGen_Receiver  
    on
-   //network_name Topology
+   #network_name Topology
 #   router_name Comm_Router
 end_comm
 
 
 comm MADL_T 5thGen_Transmit
    on
-   //network_name Topology
+   #network_name Topology
 #   router_name Comm_Router
 end_comm
 
 comm MADL_R 5thGen_Receiver 
    on
-   //network_name Topology
+   #network_name Topology
 #   router_name Comm_Router
 end_comm
 
 
    weapon aam BLUE_SAM 
       aux_data 
-         //int magazineSize = $<BLUE_FIGHTER_WEAPON_COUNT:-1>$ 
+         #int magazineSize = $<BLUE_FIGHTER_WEAPON_COUNT:-1>$ 
       end_aux_data
       quantity 4 ### This is so that we control when to fire by having it ocurr with reloads
       maximum_request_count 1
@@ -123,12 +123,12 @@ end_comm
    #end_execute
    
    processor  task_mgr  WSF_QUANTUM_TASKER_PROCESSOR
-      //script_debug_writes  off      
+      #script_debug_writes  off      
       update_interval 1 sec
       
       behavior_tree
          selector 
-           // behavior_node head_to_CRL
+           # behavior_node head_to_CRL
             behavior_node cap
          end_selector
       end_behavior_tree

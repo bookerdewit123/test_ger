@@ -23,9 +23,9 @@ platform_type GENERIC_SAM WSF_PLATFORM
    radar_signature    SAM_RADAR_SIGNATURE
    
    mover WSF_STRAIGHT_LINE_MOVER 
-     //average_speed                 $<BLUE_AVERAGE_SPEED_MPS:100>$ kts  # mach 4
+     #average_speed                 $<BLUE_AVERAGE_SPEED_MPS:100>$ kts  # mach 4
      maximum_lateral_acceleration  20.0 g
-     guidance_mode                 pure_pursuit //lead_pursuit
+     guidance_mode                 pure_pursuit #lead_pursuit
      guide_to_truth true
    end_mover
 
@@ -34,7 +34,7 @@ platform_type GENERIC_SAM WSF_PLATFORM
 #   end_processor
 
    processor fuse WSF_AIR_TARGET_FUSE
-     max_time_of_flight_to_detonate $<FUSE_TIME:27>$ s //27.0 sec  # 25 nm range
+     max_time_of_flight_to_detonate $<FUSE_TIME:27>$ s #27.0 sec  # 25 nm range
   end_processor
 
 #  processor seeker WSF_PERFECT_TRACKER

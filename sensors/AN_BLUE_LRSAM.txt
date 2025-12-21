@@ -16,11 +16,11 @@
 #    c) 3-170 km detection range.
 #    d) Search sector is 90 deg, track is 120 deg
 #
-# 2) http://www.globalsecurity.org/space/library/policy/army/fm/3-01-85/appb.htm
+# 2) http:#www.globalsecurity.org/space/library/policy/army/fm/3-01-85/appb.htm
 #    a) 'Radar antenna is positioned at the forward end of the shelter and is
 #       erected to a fixed 67.5 deg angle relative to the horizontal plane'.
 #
-# 3) http://www.mobileradar.org/radar_descptn_2.html
+# 3) http:#www.mobileradar.org/radar_descptn_2.html
 #    a) AN/MPQ-53 can track 50 targets and control 9 missiles.
 #       (Other sources have said it can track 100 targets)
 # *********************************************************************************************** #

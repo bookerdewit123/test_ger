@@ -30,17 +30,17 @@ weapon BLUE_SAM GENERIC_SAM
    # This built-in script is called whenever this weapon is launched
    script void on_create(WsfPlatform aWeapon, WsfTrack aTrack)
       # Record which blue launcher launched this blue missile
-      //blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
+      #blueMissleLauncherMap[aWeapon.Name()] = PLATFORM;
       
       # Record which red missile is target of this blue missile
-      //blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
+      #blueMissleTargetMap[aWeapon.Name()] = aTrack.Target();
    end_script
 end_weapon
 
 platform_type RED_GLIDE GENERIC_SAM 
    
    edit mover 
-      average_speed $<RED_AVERAGE_SPEED_GLIDE:100>$ m/s //kts # set on assumptions.txt, speed is way faster for video purposes
+      average_speed $<RED_AVERAGE_SPEED_GLIDE:100>$ m/s #kts # set on assumptions.txt, speed is way faster for video purposes
       guide_to_truth true # For similpicity
       guidance_mode lead_pursuit
     end_mover

@@ -54,12 +54,12 @@ $define gcTargetLon 121.7
 $define redWave2StartTime_min       29
 $define blueWave2StartTime_min      25
 
-// Distance that CBAD sits from the platform its protecting. (Left and right sides)
+# Distance that CBAD sits from the platform its protecting. (Left and right sides)
 $define cbadOffsetDistance_m 1000
 $define cbadOffsetDistanceLeft_m -$<cbadOffsetDistance_m: 500>$
 
 
-// Record settings to an output file
+# Record settings to an output file
 script_variables
    Map<string, string> paramsMap = Map<string, string>();
 end_script_variables

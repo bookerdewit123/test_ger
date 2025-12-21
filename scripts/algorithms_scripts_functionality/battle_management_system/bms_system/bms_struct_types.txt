@@ -209,28 +209,28 @@ script double GetPK(WsfPlatform inWeapon, WsfPlatform inThreat, WsfGeoPoint inIn
             
 #         writeln(TIME_NOW, " Shot Angle = ", shotAngle);
          
-             //if aim-9x
+             #if aim-9x
          if(inWeapon.Type().Contains("IFPC")) 
             {
                 slantMin = 1000.05;
                 slantMax = 500004;
             } 
-         //else if pac3 mse
+         #else if pac3 mse
          else if(inWeapon.Type().Contains("PATRIOT"))
             {
-                slantMin = 3000; //need to update
-                slantMax = 80000; //need to update
+                slantMin = 3000; #need to update
+                slantMax = 80000; #need to update
             }
-         //else if sm6 
+         #else if sm6 
          else if(inWeapon.Type().Contains("SM-6"))
             {
                 slantMin = 10000.5;
                 slantMax = 1.00101e+06;
             }        
-         //else if sm3
+         #else if sm3
          else if(inWeapon.Type().Contains("SM-3"))
             {
-                slantMin = 0; //todo did not see min, need to update if found
+                slantMin = 0; #todo did not see min, need to update if found
                 slantMax = 1800000;
             } 
                     

@@ -6,9 +6,9 @@ script_variables
    # extern string scenario;
    string other_open_method;
    
-#   global int ds_run_num = WsfSimulation.RunNumber(); // global so dont need
+#   global int ds_run_num = WsfSimulation.RunNumber(); # global so dont need
 #   global int ds_random_seed = WsfSimulation.RandomSeed();
-#//   extern int startup_file_no;
+##   extern int startup_file_no;
 #   if(ds_run_num == 1)
 #      {other_open_method = "out";}
 #   else
@@ -25,7 +25,7 @@ script_variables
 end_script_variables
 
 
-execute at_interval_of 5 s    // reduce or increase as needed
+execute at_interval_of 5 s    # reduce or increase as needed
 #   extern WsfGeoPoint origin; 
 #   if (log_print)
 #   {
@@ -33,7 +33,7 @@ execute at_interval_of 5 s    // reduce or increase as needed
 #
 #      log.Writeln(write_str("\nSIMULATION TIME HAS REACHED ",Format.Fixed(TIME_NOW,1), " s"));
 #      log.Writeln(write_str("Min Perceived Range to Hostile ( ",Format.Fixed(closest_hostile*MATH.NM_PER_M(),1)," nmi )"));
-#      closest_hostile = 200.0*MATH.M_PER_NM(); // re-set this so it's recalculated
+#      closest_hostile = 200.0*MATH.M_PER_NM(); # re-set this so it's recalculated
 #      for (int i = 0; i <= total_entities; i = i + 1)
 #      {
 #         if (WsfSimulation.FindPlatform(i).IsValid() && !WsfSimulation.FindPlatform(i).CategoryMemberOf("missile"))
@@ -64,11 +64,11 @@ execute at_interval_of 5 s    // reduce or increase as needed
 #   string currPlat;
 #   string futurePlat;
 
-// C2 Node of interest:
-// International - "Ground_Cammander"
-// LBMC3 - "MQ-9"/"CA2CS"
-// Intl Pacific - "Wedgetail"
-   WsfPlatform target_plat = WsfSimulation.FindPlatform("Wedgetail"); // C2 node that you want to measure from
+# C2 Node of interest:
+# International - "Ground_Cammander"
+# LBMC3 - "MQ-9"/"CA2CS"
+# Intl Pacific - "Wedgetail"
+   WsfPlatform target_plat = WsfSimulation.FindPlatform("Wedgetail"); # C2 node that you want to measure from
    
 #   if(totalPlats == 0) {
 #      totalPlats = WsfSimulation.PlatformCount();
@@ -147,27 +147,27 @@ execute at_interval_of 5 s    // reduce or increase as needed
     # Digital Spine
     WsfPlatform orig;
     double maxDist = MATH.LIGHT_SPEED();
-    string farPlat = "none";    // name of furthest current platform
-    int trackGTAN;           // furthest platform GTAN  
+    string farPlat = "none";    # name of furthest current platform
+    int trackGTAN;           # furthest platform GTAN  
 
 /*
     double maxCurrentDist = MATH.LIGHT_SPEED();
     double maxFutureDist = MATH.LIGHT_SPEED();
-    double maxTotalDist;      // max distance between the two wince simple calculation
-    string farCurrentPlat;    // name of furthest current platform 
-    string farFuturePlat;     // name of furthest future platform
-    int futureGTAN;           // furthest future platform GTAN 
-    int currentGTAN;          // furthest current platform GTAN
+    double maxTotalDist;      # max distance between the two wince simple calculation
+    string farCurrentPlat;    # name of furthest current platform 
+    string farFuturePlat;     # name of furthest future platform
+    int futureGTAN;           # furthest future platform GTAN 
+    int currentGTAN;          # furthest current platform GTAN
 */
     # Number of tracks
-    int totNumTracks = 0;         // total number of tracks that the target platform has
-//    int numIndividualPlats = 0;   // number of individual platforms that the target platform has
-//    Array<string> trackedPlats;   // Array to add of platforms that are found
+    int totNumTracks = 0;         # total number of tracks that the target platform has
+#    int numIndividualPlats = 0;   # number of individual platforms that the target platform has
+#    Array<string> trackedPlats;   # Array to add of platforms that are found
      
     
     if (target_plat.IsValid())
-    { // if the target (C2) exists
-      if (target_plat.MasterRawTrackList().Empty())   // if there are no tracks, don't record anything
+    { # if the target (C2) exists
+      if (target_plat.MasterRawTrackList().Empty())   # if there are no tracks, don't record anything
       {
          return;
       }
@@ -178,7 +178,7 @@ execute at_interval_of 5 s    // reduce or increase as needed
          {
             double testDist = target_plat.SlantRangeTo(orig);
             testDist = testDist * 0.000539957; #nmi
-            totNumTracks = totNumTracks + 1;   // add one to the total track count at moment in time
+            totNumTracks = totNumTracks + 1;   # add one to the total track count at moment in time
             
             if(maxDist == MATH.LIGHT_SPEED()) 
             {
@@ -193,7 +193,7 @@ execute at_interval_of 5 s    // reduce or increase as needed
                   trackGTAN = t.GlobalTrackNumber();
             }
 
-/* // for if there are multiple categories    
+/* # for if there are multiple categories    
       
           if (orig.CategoryMemberOf("current")) {
              if(maxCurrentDist == MATH.LIGHT_SPEED()) {
@@ -216,30 +216,30 @@ execute at_interval_of 5 s    // reduce or increase as needed
                 futureGTAN = t.GlobalTrackNumber();
 
              }
-*/ // for if there are multiple categories
+*/ # for if there are multiple categories
 
           }
        }
-//    }
+#    }
 
-/* // for if there are multiple categories
+/* # for if there are multiple categories
     if(maxFutureDist != MATH.LIGHT_SPEED() || maxCurrentDist != MATH.LIGHT_SPEED()) { 
-      // for if at least one of the two exists and is not light speed
-       if(maxFutureDist == MATH.LIGHT_SPEED())     // if future doesn't exist
+      # for if at least one of the two exists and is not light speed
+       if(maxFutureDist == MATH.LIGHT_SPEED())     # if future doesn't exist
        {   
           farFuturePlat = "NA";
           maxFutureDist = 0;
           futureGTAN = 0;
        }    
-       if(maxCurrentDist == MATH.LIGHT_SPEED())    // if current doesn't exist
+       if(maxCurrentDist == MATH.LIGHT_SPEED())    # if current doesn't exist
        {  
           farCurrentPlat = "NA";
           maxCurrentDist = 0;
           currentGTAN = 0;
        }
        
-//       maxTotalDist = MATH.Max(maxFutureDist,maxCurrentDist); // for if there are multiple categories
-*/ // for if there are multiple categories     
+#       maxTotalDist = MATH.Max(maxFutureDist,maxCurrentDist); # for if there are multiple categories
+*/ # for if there are multiple categories     
   
        words = {(string)TREATMENT_NUMBER,
                 (string)REPLICATE_NUMBER,
@@ -249,23 +249,23 @@ execute at_interval_of 5 s    // reduce or increase as needed
                 farPlat,
                 (string)maxDist,
                 (string)trackGTAN,
-//                farCurrentPlat,
-//                (string)maxCurrentDist,
-//                (string)currentGTAN,
-//                farFuturePlat,
-//                (string)maxFutureDist,
-//                (string)futureGTAN,
+#                farCurrentPlat,
+#                (string)maxCurrentDist,
+#                (string)currentGTAN,
+#                farFuturePlat,
+#                (string)maxFutureDist,
+#                (string)futureGTAN,
                 (string)totNumTracks   
                 };
        line = ", ".Join(words);
        digital_spine.Write(line + "\n");
       
-    } // if the target (C2) exists, then write something
+    } # if the target (C2) exists, then write something
     
 end_execute
 
 script void SimInitDS()
-#   if (WsfSimulation.RunNumber() == 1)       // may need to remove to allow header printing when running MC
+#   if (WsfSimulation.RunNumber() == 1)       # may need to remove to allow header printing when running MC
 #   {
       Array<string> header = {"Treatment",
                               "Replicate",
@@ -275,12 +275,12 @@ script void SimInitDS()
                               "furthestPlatform",
                               "maxDistance",
                               "trackGTAN",
-//                             "furthestCurrentPlat",
-//                             "maxCurrentDist",
-//                             "maxCurrentGTAN",
-//                             "furthestFuturePlat",
-//                             "maxFutureDist",
-//                             "maxFutureGTAN",
+#                             "furthestCurrentPlat",
+#                             "maxCurrentDist",
+#                             "maxCurrentGTAN",
+#                             "furthestFuturePlat",
+#                             "maxFutureDist",
+#                             "maxFutureGTAN",
                               "totalNumberTracks"
                               };
       string header_line = ", ".Join(header);

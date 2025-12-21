@@ -9,7 +9,7 @@
 # TO DO: Need realistic comms parameters
 antenna_pattern OMNI_ANTENNA
 #	 uniform_pattern
-#		 // Apeture Area: 0.041 m^2
+#		 # Apeture Area: 0.041 m^2
 #		 peak_gain 12.5 dB
 #	 end_uniform_pattern
    constant 12.5 dB
@@ -23,7 +23,7 @@ comm 5thGen_Transmit WSF_RADIO_XMTR
 		 #attenuation_model itu_attenuation
 		 check_terrain_masking true
       network_name Topology
-      //add medium LATENCY end_medium 
+      #add medium LATENCY end_medium 
 end_comm
 
 comm 5thGen_Receiver WSF_RADIO_RCVR 

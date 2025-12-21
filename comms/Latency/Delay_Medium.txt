@@ -9,7 +9,7 @@ medium LATENCY WSF_COMM_MEDIUM_UNGUIDED
 
 #transfer_rate /variable 10
 packet_loss_time 0 s
-//packet_loss_time $<LATENCY: 1>$ s
+#packet_loss_time $<LATENCY: 1>$ s
 
 end_medium
 

@@ -8,7 +8,7 @@ end_comm
 #### IFCN ####
 antenna_pattern IFCN_OMNI_ANTENNA
 	 uniform_pattern
-		 // Apeture Area: 0.041 m^2
+		 # Apeture Area: 0.041 m^2
 		 peak_gain 9 dB
 	 end_uniform_pattern
 end_antenna_pattern
@@ -47,7 +47,7 @@ end_comm
 #### CEC ####
 antenna_pattern CEC_OMNI_ANTENNA
 	 uniform_pattern
-		 // Apeture Area: 0.041 m^2
+		 # Apeture Area: 0.041 m^2
 		 peak_gain 12.5 dB
 	 end_uniform_pattern
 end_antenna_pattern

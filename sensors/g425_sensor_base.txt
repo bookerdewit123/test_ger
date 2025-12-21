@@ -63,7 +63,7 @@ sensor G425_SENSOR_BASE WSF_RADAR_SENSOR
                # In order to ensure the drawing here matches the sensor volume, we compensate the effective values
                int az_eff = az - 1;
                int el_eff = el - 1;
-               //draw.SetDuration(3);
+               #draw.SetDuration(3);
                draw.BeginPolyline();
                draw.VertexECS( PLATFORM,
                                range_nm*Math.Cos(el_eff)*Math.Cos(az_eff), 
@@ -105,7 +105,7 @@ sensor G425_SENSOR_BASE WSF_RADAR_SENSOR
       double el_max = ScanMaximumElevation();
       double sensor_range = FOV_MaximumRange();
 
-      // DRAW inner shell wireframes based on RCS
+      # DRAW inner shell wireframes based on RCS
       if(rcs_sensor_mode == "large")
       {
          draw.SetLayer(PLATFORM.Name() + " Large");

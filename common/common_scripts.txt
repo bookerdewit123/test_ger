@@ -143,9 +143,9 @@ script string returnName(WsfObject anObject)
    }
 end_script
 
-//
-// EMCON Functions
-//
+#
+# EMCON Functions
+#
 script bool turnOnSensors(WsfPlatform aPlatform)
    bool out = false;
    for (int i = 0; i < aPlatform.SensorCount(); i+=1)

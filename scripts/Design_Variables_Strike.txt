@@ -13,7 +13,7 @@ $define GLOBAL_IBCS_LON 14e
 $define RED_WRL_LAT 54
 $define RED_WRL_LON 15
 
-//RED WRL LAT is 54 and LON is 15
+#RED WRL LAT is 54 and LON is 15
 ############################################
 ############## E2D #####################
 ############################################
@@ -83,12 +83,12 @@ $define RED_GLIDE_PK 1
 #$define gcBlue5thGen003Loc 32:40:00.00n 128:00:00.00e
 #$define gcBlue5thGen004Loc 32:30:00.00n 128:00:00.00e
 #
-#//$define gcBlue5thGen010Loc 61:30:00.00n 28:00:00.00e
-#//$define gcBlue5thGen020Loc 61:20:00.00n 28:00:00.00e
+##$define gcBlue5thGen010Loc 61:30:00.00n 28:00:00.00e
+##$define gcBlue5thGen020Loc 61:20:00.00n 28:00:00.00e
 #$define gcBlueAirGatewayLoc 32:00:00.00n 129:00:00.00e
 #
-#//$define gcBlueGrinder001Loc 61:40:00.00n 28:40:00.00e
-#//$define gcBlueGrinder002Loc 61:50:00.00n 29:00:00.00e
+##$define gcBlueGrinder001Loc 61:40:00.00n 28:40:00.00e
+##$define gcBlueGrinder002Loc 61:50:00.00n 29:00:00.00e
 #
 #$define gcBlueFighterAlt 25000
 #$define gcBlueGatewayAlt 40000

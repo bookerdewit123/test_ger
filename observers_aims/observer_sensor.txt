@@ -1,8 +1,8 @@
 observer
-    // All three observers accept the same three objects, so can all work for same script
-    // enable SENSOR_TRACK_INITIATED SensorUpdate  // next steps, distinguish event
-    enable SENSOR_TRACK_UPDATED SensorUpdate       // only observer for now
-    // enable SENSOR_TRACK_DROPPED SensorUpdate    // next steps, distinguish event
+    # All three observers accept the same three objects, so can all work for same script
+    # enable SENSOR_TRACK_INITIATED SensorUpdate  # next steps, distinguish event
+    enable SENSOR_TRACK_UPDATED SensorUpdate       # only observer for now
+    # enable SENSOR_TRACK_DROPPED SensorUpdate    # next steps, distinguish event
     enable SIMULATION_INITIALIZING SensorSimInitialize #
 end_observer 
     
@@ -35,19 +35,19 @@ script_variables
    else
       {sensor_open_method = "append";}
   
-   // creates output files
+   # creates output files
    FileIO sensor_file = FileIO();
 
-   string rel_path_03 = Path.GetWorkingDirectory().ToString() + "/output/sensor_output"; // name is good
+   string rel_path_03 = Path.GetWorkingDirectory().ToString() + "/output/sensor_output"; # name is good
         
    assert(sensor_file.Open((rel_path_03 + "_" + (string)OVERALL_RUN_NUMBER + ".csv"), sensor_open_method),
-      rel_path_03 + ".csv" + " output file failed to open");   // added overall run number
+      rel_path_03 + ".csv" + " output file failed to open");   # added overall run number
      
 end_script_variables
 
-// Preallocation scripts to create headers of files //
+# Preallocation scripts to create headers of files #
 
-script void write_sensorObserver_file() // preallocates
+script void write_sensorObserver_file() # preallocates
       Array<string> header = {"Treatment",
                               "Replicate",
                               "Seed",
@@ -97,10 +97,10 @@ script void write_sensorObserver_file() // preallocates
 
 end_script
 
-// End of the preallocation /////////////////////////////////////////////////////////////////////////////////////
+# End of the preallocation ##########################################/
 
 script void SensorSimInitialize()
-   // NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
+   # NAS - need to set the math random seed on sim initialize, seems kind of ridiculous that a monte carlo sim would not automate this
    MATH.SetSeed(WsfSimulation.RandomSeed());
 #   write_sensorObserver_file();
 #   if (WsfSimulation.RunNumber() == 1)
@@ -109,7 +109,7 @@ script void SensorSimInitialize()
 #   }
 #   else 
 #   {
-#      # return;   // this would have prevented any results form being produced after the first run of a MC
+#      # return;   # this would have prevented any results form being produced after the first run of a MC
 #   }
 
 end_script
@@ -137,7 +137,7 @@ script void SensorUpdate(WsfPlatform observer, WsfSensor sensor, WsfTrack track)
          
          string sensorName = sensor.Name();
          string sensorType = sensor.Type();
-         int sensorTrackCount = sensor.ActiveTrackCount();  // New
+         int sensorTrackCount = sensor.ActiveTrackCount();  # New
          
          #####################
          ## Target Platform ##
@@ -148,9 +148,9 @@ script void SensorUpdate(WsfPlatform observer, WsfSensor sensor, WsfTrack track)
          string targetType = target.Type();
          string targetSide = target.Side();
          int targetPlatIndex = target.Index(); 
-         double targetPlatLat = track.Latitude();     // currently the track location, NOT Target Location
-         double targetPlatLon = track.Longitude();    // currently the track location, NOT Target Location
-         double targetPlatAlt = track.Altitude();     // currently the track location, NOT Target Location
+         double targetPlatLat = track.Latitude();     # currently the track location, NOT Target Location
+         double targetPlatLon = track.Longitude();    # currently the track location, NOT Target Location
+         double targetPlatAlt = track.Altitude();     # currently the track location, NOT Target Location
 
    
          Array<string> words;
@@ -158,19 +158,19 @@ script void SensorUpdate(WsfPlatform observer, WsfSensor sensor, WsfTrack track)
                   (string)REPLICATE_NUMBER,
                   (string)WsfSimulation.RandomSeed(),
                   (string)TIME_NOW,
-                  "SENSOR_TRACK_UPDATED",       // unsure how to show which event happened w/o splitting script by triggered observer
-                  (string)globalTrackNumber,    // need to check if GTAN is valid or not
+                  "SENSOR_TRACK_UPDATED",       # unsure how to show which event happened w/o splitting script by triggered observer
+                  (string)globalTrackNumber,    # need to check if GTAN is valid or not
                   (string)sensorPlatSide,
                   (string)sensorPlatName,
                   (string)sensorPlatType,
-                  (string)sensorPlatIndex,      // need to check if indexes are valid
+                  (string)sensorPlatIndex,      # need to check if indexes are valid
                   (string)sensorPlatLat,
                   (string)sensorPlatLon,
                   (string)sensorPlatAlt,
                   (string)targetSide,            
                   (string)targetName,
                   (string)targetType,
-                  (string)targetPlatIndex,      // need to check if indexes are valid
+                  (string)targetPlatIndex,      # need to check if indexes are valid
                   (string)targetPlatLat,
                   (string)targetPlatLon,
                   (string)targetPlatAlt,
@@ -184,7 +184,7 @@ script void SensorUpdate(WsfPlatform observer, WsfSensor sensor, WsfTrack track)
          sensor_file.Write("\n");
       }
    }
-   else     // moved this to the end
+   else     # moved this to the end
    {
       return;
    }

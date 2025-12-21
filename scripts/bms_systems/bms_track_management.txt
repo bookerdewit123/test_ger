@@ -266,8 +266,8 @@ processor BMS_TRACK_MANAGEMENT_PROCESSOR WSF_TRACK_PROCESSOR
    end_on_message 
    
    script bool is_track_reportable(WsfTrack aTrack)
-      // Define the script body here to return a 'true' value if the track should
-      // be reported and 'false' if it should not.
+      # Define the script body here to return a 'true' value if the track should
+      # be reported and 'false' if it should not.
       
       return false;
    end_script 
@@ -303,11 +303,11 @@ end_processor
 
 #void WsfTrackProcessor::SendTrackP(double aSimTime, const WsfTrack& aTrack)
 #{
-#   if (aTrack.IsReportable() &&                // Checks the track attribute
-#       IsTrackReportable(aSimTime, &aTrack) && // Checks for scripted condition
-#       (!aTrack.IsStale()))                    // Checks for non-stale data
+#   if (aTrack.IsReportable() &&                # Checks the track attribute
+#       IsTrackReportable(aSimTime, &aTrack) && # Checks for scripted condition
+#       (!aTrack.IsStale()))                    # Checks for non-stale data
 #   {
-#      // Check for sending unchanged tracks.
+#      # Check for sending unchanged tracks.
 #      double timeSinceLastUpdate = aSimTime - aTrack.GetUpdateTime();
 #      if (mReportUnchangedTracks || (timeSinceLastUpdate <= mReportInterval))
 #      {
@@ -347,14 +347,14 @@ end_processor
 
 
 # SOURCE CODE FOR TRACK REPORTING ###################################################################
-#// virtual
+## virtual
 #WsfTrackReportingStrategy* WsfBatchTrackReporting::Clone() const
 #{
 #   return new WsfBatchTrackReporting(*this);
 #}
 #
-#// protected
-#//! Send all fused tracks over external links.
+## protected
+##! Send all fused tracks over external links.
 #void WsfBatchTrackReporting::ReportFusedTracks(double aSimTime)
 #{
 #   WsfTrackManager&   trackManager  = GetTrackProcessor().GetTrackManager();
@@ -365,15 +365,15 @@ end_processor
 #   {
 #      for (unsigned int trackIndex = 0; trackIndex < trackCount; ++trackIndex)
 #      {
-#         // Force the type to be WsfTrack; this is considered a non-local track.
+#         # Force the type to be WsfTrack; this is considered a non-local track.
 #         WsfLocalTrack* trackPtr = trackManager.GetTrackEntry(trackIndex);
 #         GetTrackProcessor().SendTrack(aSimTime, *trackPtr);
 #      }
 #   }
 #}
 #
-#// protected
-#//! Send all raw tracks over external links.
+## protected
+##! Send all raw tracks over external links.
 #void WsfBatchTrackReporting::ReportRawTracks(double aSimTime)
 #{
 #   WsfTrackList&      rawTrackList  = GetTrackProcessor().GetTrackManager().GetRawTrackList();

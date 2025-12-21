@@ -8,7 +8,7 @@ end_radar_signature
 platform_type SURFACE_SHIP_BASE WSF_PLATFORM 
    icon ship
    category SHIP
-   //spatial_domain surface
+   #spatial_domain surface
    radar_signature SHIP_DEFAULT_RCS
    
    mover WSF_SURFACE_MOVER    

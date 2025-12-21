@@ -3,7 +3,7 @@
 
 behavior head_to_CRL
 precondition 
-    //PLATFORM.AuxDataBool("AT_CRL");
+    #PLATFORM.AuxDataBool("AT_CRL");
    return true;
 end_precondition
 

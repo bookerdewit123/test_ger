@@ -26,7 +26,7 @@ comm RF_COMM WSF_RADIO_TRANSCEIVER
    transmitter
       power 20 w
       antenna_pattern RADIO_ANTENNA_PATTERN
-      frequency 1.0875 GHz //960-1215 MHz according to Wikipedia
+      frequency 1.0875 GHz #960-1215 MHz according to Wikipedia
       bandwidth 5.0 MHz
    end_transmitter
    

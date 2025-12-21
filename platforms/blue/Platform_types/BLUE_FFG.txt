@@ -8,7 +8,7 @@ include sensors/an_ffg.txt
 platform_type BLUE_FFG RCS_SURFACE_SHIP_BASE 
    icon ship
    category SHIP
-   //spatial_domain surface
+   #spatial_domain surface
    radar_signature SHIP_DEFAULT_RCS 
    
 

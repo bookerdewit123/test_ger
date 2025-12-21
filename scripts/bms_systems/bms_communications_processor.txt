@@ -106,10 +106,10 @@ processor BMS_COMMUNICATIONS_PROCESSOR WSF_SCRIPT_PROCESSOR
                         {
 #                          writeln("--->>>", TIME_NOW, ": ", PLATFORM.Name(), " Attempting to send message to ", route.Get(1), " via commLink ", commLink);
 
-                           //No Instant Comms 
+                           #No Instant Comms 
 #                          comm.SendMessage(inMessage, route.Get(1), commLink);
                          
-                           //Instant Comms
+                           #Instant Comms
                            WsfPlatform nextPlat = WsfSimulation.FindPlatform(route.Get(1));
                            WsfComm nextPlatComm = nextPlat.Comm(commLink);
                            nextPlatComm.SendMessage(inMessage);                           

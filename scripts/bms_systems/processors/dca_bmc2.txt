@@ -168,7 +168,7 @@ processor BMC2 WSF_SCRIPT_PROCESSOR
          # Fire one at a time per track
          if (closestFighter.ActiveWeaponPlatformsFor(organicTrack.TrackId()).Empty()) 
          #MIKE The following can be useful for range of weapon firing
-         //&& closestFighter.SlantRangeTo(organicTrack) < 100000)
+         #&& closestFighter.SlantRangeTo(organicTrack) < 100000)
          {
             WsfTrackMessage msg = WsfTrackMessage();
             msg.SetTrack(organicTrack);
@@ -177,7 +177,7 @@ processor BMC2 WSF_SCRIPT_PROCESSOR
             # Send command to fire to fighters
             PLATFORM.Comm("L16_T").SendMessage(msg, closestFighter.Name(), "L16_T");
             #Uncommenting this has weapons firing
-            //closestFighter.Weapon("aam").Fire(organicTrack);
+            #closestFighter.Weapon("aam").Fire(organicTrack);
          }
          
       end_script
