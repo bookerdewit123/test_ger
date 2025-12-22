@@ -25,7 +25,130 @@ track platform global_ibcs_battalion_eoc end_track
    end_execute
 end_platform
 
+platform Su34_3 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_4 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_5 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_6 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_7 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_8 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_9 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_10 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_11 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+platform Su34_12 Su-34
+track platform global_ibcs_battalion_eoc end_track
+   execute at_interval_of 1 s  
+   if (WsfSimulation.FindPlatform("global_ibcs_battalion_eoc").IsValid())
+         if ((PLATFORM.Longitude() < $<RED_WRL_LON:15>$) && PLATFORM.SlantRangeTo(WsfSimulation.FindPlatform("global_ibcs_battalion_eoc")) < 80000){
+            PLATFORM.Weapon("glide").Fire(PLATFORM.MasterTrackList().TrackEntry(0));
+            PLATFORM.Comment("GLIDE BOMB RELEASED");
+            }
+   end_execute
+end_platform
+
+
 platform Su35_1 Su-35
+end_platform
+
+platform Su35_2 Su-35
+end_platform
+
+platform Su35_3 Su-35
+end_platform
+
+platform Su35_4 Su-35
+end_platform
+
+platform Su35_5 Su-35
 end_platform
 
 platform Su35_6 Su-35
@@ -53,12 +176,12 @@ side red
    position 53:45:14.84n 15:39:47.83e
    heading -90 deg
 end_platform
-platform RED_MRSAM_2_NONTARGET WSF_PLATFORM
-icon car
-side red
-   position 53:25:14.84n 15:39:47.83e
-      heading -90 deg
-end_platform
+#platform RED_MRSAM_2_NONTARGET WSF_PLATFORM
+#icon car
+#side red
+#   position 53:25:14.84n 15:39:47.83e
+#      heading -90 deg
+#end_platform
 platform RED_MRSAM_3_NONTARGET WSF_PLATFORM
 icon car
 side red

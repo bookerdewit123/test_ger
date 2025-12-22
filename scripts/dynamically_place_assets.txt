@@ -17,28 +17,28 @@ script_variables
 ## Monte Carlo Simulation Inputs ##
 # Latitude are degrees north and Longitude are degrees east
 #.1 is 6 nmi
- double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; #- 1.5;
- double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ - 1.7; #2.2; #-1.1; # - 1.9; #13.1;
+ double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; //- 1.5;
+ double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ - 1.7; //2.2; //-1.1; // - 1.9; //13.1;
  
- double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; #+ $<BLUE_OFFSET:.5>$;
- double mcLongitudeInput4thGen_Group1 = mcLongitudeInput5thGen - .3; #13;
+ double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; //+ $<BLUE_OFFSET:.5>$;
+ double mcLongitudeInput4thGen_Group1 = mcLongitudeInput5thGen - .3; //13;
 
- double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen - $<BLUE_OFFSET:.28>$; #.54; #mcLatitudeInput5thGen - ($<BLUE_OFFSET:.5>$ + 2.1); #+ ($<BLUE_OFFSET:.5>$+.15); #($<BLUE_OFFSET:.5>$+.15);
- double mcLongitudeInput4thGen_Group2 = mcLongitudeInput5thGen - .3; #13
+ double mcLatitudeInput4thGen_Group2 = mcLatitudeInput5thGen - $<BLUE_OFFSET:.28>$; //.54; //mcLatitudeInput5thGen - ($<BLUE_OFFSET:.5>$ + 2.1); //+ ($<BLUE_OFFSET:.5>$+.15); //($<BLUE_OFFSET:.5>$+.15);
+ double mcLongitudeInput4thGen_Group2 = mcLongitudeInput5thGen - .3; //13
 
- double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen; #+ ($<BLUE_OFFSET:.5>$+.2); #($<BLUE_OFFSET:.5>$+.2);
- double mcLongitudeInputBlueAEW = mcLongitudeInput5thGen - 3; #1.6; #12.5
+ double mcLatitudeInputBlueAEW = mcLatitudeInput5thGen; //+ ($<BLUE_OFFSET:.5>$+.2); //($<BLUE_OFFSET:.5>$+.2);
+ double mcLongitudeInputBlueAEW = mcLongitudeInput5thGen - 3; //1.6; //12.5
  
- double mcLatitudeInputREDAEW = $<RED_WRL_LAT:54>$ -.5; # - 1;
- double mcLongitudeInputREDAEW = $<RED_WRL_LON:15>$ + 1; #16
+ double mcLatitudeInputREDAEW = $<RED_WRL_LAT:54>$ -.5; // - 1;
+ double mcLongitudeInputREDAEW = $<RED_WRL_LON:15>$ + 1; //16
 
  double mcLatitudeInputRedFighter = $<RED_WRL_LAT:54>$ - .8;
- double mcLongitudeInputRedFighter = $<RED_WRL_LON:15>$ + 1; #.5; #14.5
+ double mcLongitudeInputRedFighter = $<RED_WRL_LON:15>$ + 1; //.5; //14.5
  
 # double mcLatitudeInputRedBomber = 30.5;
 # double mcLongitudeInputRedBomber = 124;
 
- global double mcRange = 0; #.1; #1;
+ global double mcRange = 0; //.1; //1;
 
 #extern double mcLatitudeInput5thGen;      # Refer to design_variables_(region).txt
 #extern double mcLongitudeInput5thGen;     # Refer to design_variables_(region).txt
@@ -112,7 +112,8 @@ double lon_RED_AEW = WsfRandom.Uniform(mcLongitudeInputREDAEW, mcLongitudeInputR
 Array<double> latlon_RED_AEW = {lat_RED_AEW, lon_RED_AEW};
 
 ## Setting up location of RED Fighters - Single Row "Great Wall" Formation
-# 20 aircraft total: 8x Su-35 (fighters/escorts) + 12x Su-34 (bombers)
+# 18 aircraft total: 6x Su-35 (fighters/escorts) + 12x Su-34 (bombers)
+# Ratio: 2 Su-34 : 1 Su-35 (2:1 bomber to escort ratio)
 # All on same longitude line with 2 nmi spacing between each aircraft
 
 # Base position for the formation
@@ -125,35 +126,33 @@ double nmi_to_deg = 0.016667;
 # Spacing between aircraft in formation
 double aircraftSpacing = 2.0 * nmi_to_deg;  # 2 nmi between each aircraft
 
-# Calculate positions for all 20 aircraft in a single row
-# Pattern: Su-35s first (8 aircraft), then Su-34s (12 aircraft)
+# Calculate positions for all 18 aircraft in a single row
+# Pattern: Su-35s first (6 aircraft), then Su-34s (12 aircraft)
 # This creates a wall with escorts in front, bombers behind
 
-# Su-35 Fighters (positions 1-8)
+# Su-35 Fighters (positions 1-6)
 Array<double> latlon_Su35_001 = {lat_RedFighter, lon_RedFighter};
 Array<double> latlon_Su35_002 = {lat_RedFighter + (aircraftSpacing*1), lon_RedFighter};
 Array<double> latlon_Su35_003 = {lat_RedFighter + (aircraftSpacing*2), lon_RedFighter};
 Array<double> latlon_Su35_004 = {lat_RedFighter + (aircraftSpacing*3), lon_RedFighter};
 Array<double> latlon_Su35_005 = {lat_RedFighter + (aircraftSpacing*4), lon_RedFighter};
 Array<double> latlon_Su35_006 = {lat_RedFighter + (aircraftSpacing*5), lon_RedFighter};
-Array<double> latlon_Su35_007 = {lat_RedFighter + (aircraftSpacing*6), lon_RedFighter};
-Array<double> latlon_Su35_008 = {lat_RedFighter + (aircraftSpacing*7), lon_RedFighter};
 
-# Su-34 Bombers (positions 9-20)
-Array<double> latlon_Su34_001 = {lat_RedFighter + (aircraftSpacing*8), lon_RedFighter};
-Array<double> latlon_Su34_002 = {lat_RedFighter + (aircraftSpacing*9), lon_RedFighter};
-Array<double> latlon_Su34_003 = {lat_RedFighter + (aircraftSpacing*10), lon_RedFighter};
-Array<double> latlon_Su34_004 = {lat_RedFighter + (aircraftSpacing*11), lon_RedFighter};
-Array<double> latlon_Su34_005 = {lat_RedFighter + (aircraftSpacing*12), lon_RedFighter};
-Array<double> latlon_Su34_006 = {lat_RedFighter + (aircraftSpacing*13), lon_RedFighter};
-Array<double> latlon_Su34_007 = {lat_RedFighter + (aircraftSpacing*14), lon_RedFighter};
-Array<double> latlon_Su34_008 = {lat_RedFighter + (aircraftSpacing*15), lon_RedFighter};
-Array<double> latlon_Su34_009 = {lat_RedFighter + (aircraftSpacing*16), lon_RedFighter};
-Array<double> latlon_Su34_010 = {lat_RedFighter + (aircraftSpacing*17), lon_RedFighter};
-Array<double> latlon_Su34_011 = {lat_RedFighter + (aircraftSpacing*18), lon_RedFighter};
-Array<double> latlon_Su34_012 = {lat_RedFighter + (aircraftSpacing*19), lon_RedFighter};
+# Su-34 Bombers (positions 7-18)
+Array<double> latlon_Su34_001 = {lat_RedFighter + (aircraftSpacing*6), lon_RedFighter};
+Array<double> latlon_Su34_002 = {lat_RedFighter + (aircraftSpacing*7), lon_RedFighter};
+Array<double> latlon_Su34_003 = {lat_RedFighter + (aircraftSpacing*8), lon_RedFighter};
+Array<double> latlon_Su34_004 = {lat_RedFighter + (aircraftSpacing*9), lon_RedFighter};
+Array<double> latlon_Su34_005 = {lat_RedFighter + (aircraftSpacing*10), lon_RedFighter};
+Array<double> latlon_Su34_006 = {lat_RedFighter + (aircraftSpacing*11), lon_RedFighter};
+Array<double> latlon_Su34_007 = {lat_RedFighter + (aircraftSpacing*12), lon_RedFighter};
+Array<double> latlon_Su34_008 = {lat_RedFighter + (aircraftSpacing*13), lon_RedFighter};
+Array<double> latlon_Su34_009 = {lat_RedFighter + (aircraftSpacing*14), lon_RedFighter};
+Array<double> latlon_Su34_010 = {lat_RedFighter + (aircraftSpacing*15), lon_RedFighter};
+Array<double> latlon_Su34_011 = {lat_RedFighter + (aircraftSpacing*16), lon_RedFighter};
+Array<double> latlon_Su34_012 = {lat_RedFighter + (aircraftSpacing*17), lon_RedFighter};
 
-## Setting up Random location of RED Bombers (legacy - commented out)
+## Setting up Random location of RED Bombers
 #double lat_RedBomber = WsfRandom.Uniform(mcLatitudeInputRedBomber, mcLatitudeInputRedBomber+mcRange);
 #double lon_RedBomber = WsfRandom.Uniform(mcLongitudeInputRedBomber, mcLongitudeInputRedBomber+mcRange);
 #double latSep_RedBomber = 1;
@@ -196,16 +195,15 @@ execute at_time .01 s absolute
    WsfSimulation.FindPlatform("RED_AEW").SetLocation(latlon_RED_AEW[0], latlon_RED_AEW[1], alt);
 
    
-   # Setting new location of RED Fighters - Single Row Formation (20 aircraft)
-   # Su-35 Fighters (8 aircraft)
+   # Setting new location of RED Fighters - Single Row Formation (18 aircraft)
+   # Ratio: 2 Su-34 : 1 Su-35 (2:1 bomber to escort ratio)
+   # Su-35 Fighters (6 aircraft)
    WsfSimulation.FindPlatform("Su35_1").SetLocation(latlon_Su35_001[0], latlon_Su35_001[1], alt);
    WsfSimulation.FindPlatform("Su35_2").SetLocation(latlon_Su35_002[0], latlon_Su35_002[1], alt);
    WsfSimulation.FindPlatform("Su35_3").SetLocation(latlon_Su35_003[0], latlon_Su35_003[1], alt);
    WsfSimulation.FindPlatform("Su35_4").SetLocation(latlon_Su35_004[0], latlon_Su35_004[1], alt);
    WsfSimulation.FindPlatform("Su35_5").SetLocation(latlon_Su35_005[0], latlon_Su35_005[1], alt);
    WsfSimulation.FindPlatform("Su35_6").SetLocation(latlon_Su35_006[0], latlon_Su35_006[1], alt);
-   WsfSimulation.FindPlatform("Su35_7").SetLocation(latlon_Su35_007[0], latlon_Su35_007[1], alt);
-   WsfSimulation.FindPlatform("Su35_8").SetLocation(latlon_Su35_008[0], latlon_Su35_008[1], alt);
    
    # Setting new location of RED Bombers (Su-34 - 12 aircraft)
    WsfSimulation.FindPlatform("Su34_1").SetLocation(latlon_Su34_001[0], latlon_Su34_001[1], alt);
@@ -222,7 +220,7 @@ execute at_time .01 s absolute
    WsfSimulation.FindPlatform("Su34_12").SetLocation(latlon_Su34_012[0], latlon_Su34_012[1], alt);
 
    
-   # Setting new location of RED Bombers
+   # Setting new location of RED Bombers 
 #   WsfSimulation.FindPlatform("Red_A2G_1").SetLocation(latlon_RedBomber_001[0], latlon_RedBomber_001[1], alt);
 #   WsfSimulation.FindPlatform("Red_A2G_2").SetLocation(latlon_RedBomber_002[0], latlon_RedBomber_002[1], alt);
          # Draw assignments by line
