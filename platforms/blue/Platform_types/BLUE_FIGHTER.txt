@@ -70,7 +70,7 @@ end_comm
          #int magazineSize = $<BLUE_FIGHTER_WEAPON_COUNT:-1>$ 
       end_aux_data
       quantity 4 ### This is so that we control when to fire by having it ocurr with reloads
-      maximum_request_count 1
+      maximum_request_count 4
    end_weapon
    
    # Fire when tasked by AEW

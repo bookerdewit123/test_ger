@@ -210,16 +210,22 @@ script G425BlueBms G425BlueBmsInstance()
 end_script
 
 script void handleWeaponEndOfLife(WsfWeaponEngagement aWeaponEngagement, WsfPlatform aTargetPlatform)
-   # Check if weapon platform is still valid before accessing it
-   if (aWeaponEngagement.WeaponPlatform().IsValid())
+   # Get the shooter (the aircraft that fired, not the weapon)
+   WsfPlatform shooter = aWeaponEngagement.FiringPlatform();
+   
+   # Only disengage if the shooter is still valid
+   if (shooter.IsValid() && aTargetPlatform.IsValid())
    {
-      # Only try to delete aux data if the platform exists
-      if (aWeaponEngagement.WeaponPlatform().AuxDataExists("GlobalTrackNumber"))
-      {
-         aWeaponEngagement.WeaponPlatform().DeleteAuxData("GlobalTrackNumber");
-      }
+      G425BlueBmsInstance().Disengage(shooter, aTargetPlatform);
    }
-
+   
+   # Handle weapon platform cleanup separately
+   WsfPlatform weaponPlat = aWeaponEngagement.WeaponPlatform();
+   if (weaponPlat.IsValid() && weaponPlat.AuxDataExists("GlobalTrackNumber"))
+   {
+      weaponPlat.DeleteAuxData("GlobalTrackNumber");
+   }
+end_script
 observer
    enable WEAPON_HIT handleWeaponEndOfLife
    enable WEAPON_MISSED handleWeaponEndOfLife

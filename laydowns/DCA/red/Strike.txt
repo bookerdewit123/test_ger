@@ -154,12 +154,6 @@ end_platform
 platform Su35_6 Su-35
 end_platform
 
-platform Su35_7 Su-35
-end_platform
-
-platform Su35_8 Su-35
-end_platform
-
 platform RED_AEW AEW_RED 
    route
      position 53n 14e
