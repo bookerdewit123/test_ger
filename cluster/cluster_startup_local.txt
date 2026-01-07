@@ -3,7 +3,7 @@ $define EXCURSION Baseline
 #Baseline, Excursion 1-7
 $define VIGNETTE Strike
 #Strike, MultiAxis
-#random_seed 23
+#random_seed 2
 file_path ../..
 script_variables
    string rootPath = "../";
