@@ -16,23 +16,34 @@ define_path_variable CASE DCA #DCA, SEAD
 define_path_variable EXCURSION $<EXCURSION: baseline>$ # "baseline, excursions
 define_path_variable VIGNETTE $<VIGNETTE: Strike>$ #Strike, Multi-Axis
 define_path_variable OUTPUT_FOLDER output #refences output folder
+define_path_variable UUID $<unique_id:%d>$ #will use the unique id if given, otherwise will use the run number
 
 include_once setup.txt
 
-# Excrusion/Vignette Specific Laydown Files
+# Excursion/Vignette Specific Laydown Files
 include_once laydowns/$(CASE)/blue/$(EXCURSION).txt
 include_once laydowns/$(CASE)/red/$(VIGNETTE).txt
 
 event_pipe
-   file $(OUTPUT_FOLDER)/$(CASE)_$(VIGNETTE)_$(EXCURSION)_%d.aer
+   file $(OUTPUT_FOLDER)/$(CASE)/$(VIGNETTE)/$(EXCURSION)/$(UUID)_replay.aer
    enable MESSAGE_RECEIVED
    enable MESSAGE_TRANSMITTED
 end_event_pipe 
 
 csv_event_output 
    enable MESSAGE_RECEIVED
-   file $(OUTPUT_FOLDER)/$(CASE)_$(VIGNETTE)_$(EXCURSION)_%d.csv
+   file $(OUTPUT_FOLDER)/$(CASE)/$(VIGNETTE)/$(EXCURSION)/$(UUID)_csv_event.csv
 end_csv_event_output
+
+# Uncomment this to write out writelns other than just writeln (i.e. writeln_debug) 
+# script_debug_writes enable
+
+console_output
+   file $(OUTPUT_FOLDER)/$(CASE)/$(VIGNETTE)/$(EXCURSION)/$(UUID)_console_output.txt end_file  # write simulation console to file
+   preset high
+   force_flushing true
+end_console_output
+
 #log_file mission.log
 
 # Turn on or off the go to location processor for all controllable platforms.  Use on or off
@@ -41,8 +52,19 @@ $define gcSeed 1
 
 file_path .
 
+# This global script will be called by the CsvLogFileManager
+script string GetOutputFilePath(){
+   string filepath = WsfSimulation.ExpandPathVariables("$(OUTPUT_FOLDER)/$(CASE)/$(VIGNETTE)/$(EXCURSION)/");
+   return filepath;
+}
+end_script
 
-
+# This optional global script will be called by the CsvLogFileManager
+script string GetOutputFilePrefix(){
+   string prefix = WsfSimulation.ExpandPathVariables("$(UUID)_");
+   return prefix;
+}
+end_script
 
 
 final_run_number $<gcSeed: 1>$
@@ -50,3 +72,7 @@ final_run_number $<gcSeed: 1>$
 
 end_time 10 m #200 min #700 s #700 s
 
+
+# ******************    Use or disclosure of the information contained herein     ******************
+# ******************      is subject to the restrictions on the Cover page        ******************
+# **********************************        UNCLASSIFIED        ************************************

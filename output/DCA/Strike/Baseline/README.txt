@@ -1,0 +1,3 @@
+This folder is where all of the outputs for the DCA Strike Baseline scenario will be found when executed via Wizard. Because AFSIM event_pipe will not create a file path if it is missing, we need to have that path manually created before executing the scenario using Wizard.
+
+Note: The cluster runs executed via  cluster/hybrid_doe.py will have their output routed to another folder (TBD) and the paths will be created by that python code before invoking Wizard.

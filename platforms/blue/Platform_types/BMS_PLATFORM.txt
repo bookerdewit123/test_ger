@@ -1,6 +1,3 @@
-##################################################################################################################################
-# BATTLE MANAGEMENT SYSTEM                                                                                                       #
-
 ######################################## INFORMATION #############################################################################
 # NOTE: This system is a continuous work in progress and will have new capabilities added when needed
 #
@@ -35,7 +32,7 @@
 
 ######################################## BASE PLATFORM TYPE ######################################################################
 
-platform_type BMS_PLATFORM G425_PLATFORM_BASE
+platform_type BMS_PLATFORM WSF_PLATFORM
    side blue
    icon awacs
 #   track_manager
@@ -129,5 +126,4 @@ platform_type BMS_PLATFORM G425_PLATFORM_BASE
 #   end_processor  
 
 end_platform_type
-
 

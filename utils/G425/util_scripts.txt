@@ -1,0 +1,227 @@
+#----------------------------
+# CREATE DISTANCE MATRIX
+#----------------------------
+# Creates a matrix with the distance between every combo of two arrays of platforms
+# Author: Douglas Hull
+script Array<Array<double>> CreateDistanceMatrix(Array<WsfPlatform> originPlatform, Array<WsfPlatform> destinationPlatform)
+   
+   # Loop through
+   Array<Array<double>> closestPointMatrix = Array<Array<double>>();
+   for (int ii = 0; ii < originPlatform.Size(); ii += 1) {
+   
+      # Get platform
+      WsfPlatform iOriginPlatform = originPlatform.Get(ii);
+      if (iOriginPlatform.IsNull()) continue;
+      
+      # Get distances from this origin platform to all destination platforms
+      Array<double> currentDistanceArray = Array <double>();
+      for (int jj = 0; jj < destinationPlatform.Size(); jj += 1) {
+         
+         # Calculate distance
+         double jDistance = iOriginPlatform.SlantRangeTo(destinationPlatform.Get(jj));
+         currentDistanceArray[jj] = jDistance;
+      }
+      
+      # Update array
+      closestPointMatrix[ii] = currentDistanceArray;
+   }
+   
+   return closestPointMatrix;
+end_script
+   
+   
+
+#----------------------------
+# TRANSPOSE
+#----------------------------
+# Switch the columns and rows of a rectangular matrix
+# Author: Douglas Hull
+script Array<Array<WsfPlatform>> Transpose(Array<Array<WsfPlatform>> matrixInput)
+   # TODO: Validate input, warning if not rectangular
+   
+   if (matrixInput.Empty()) return {};
+   
+   Array<Array<WsfPlatform>> matrixOutput = Array<Array<WsfPlatform>>();
+   for (int ii = 0; ii < matrixInput[0].Size(); ii += 1) {
+      Array<WsfPlatform> tempRow = Array<WsfPlatform>();
+      for (int jj = 0; jj < matrixInput.Size(); jj += 1) {
+         tempRow[jj] = matrixInput[jj][ii];
+      }
+      matrixOutput[ii] = tempRow;
+   }
+   return matrixOutput;
+end_script
+
+
+######################################
+# CREATE PLATFORM GROUP
+######################################
+# Grab a list of all platforms of this type
+# Author: Douglas Hull
+script Array<WsfPlatform> GetPlatformsOfType(string aPlatformType) 
+   
+   # Loop through all platforms in simulation
+   Array <WsfPlatform> platformGroup =  Array<WsfPlatform>();
+   for (int ii = 0; ii < WsfSimulation.PlatformCount(); ii += 1) {
+   
+      # Initialize and validate variables
+      WsfPlatform iPlatform = WsfSimulation.PlatformEntry(ii);
+      if (iPlatform.IsNull()) continue;
+      
+      # Must be of correct type
+      if (!iPlatform.IsA_TypeOf(aPlatformType)) continue;
+      
+      # Add platform to group
+      platformGroup.PushBack(iPlatform);
+   }
+   
+   # Validate output
+   if (platformGroup.Empty()) writeln_warning("Platform Group is Empty, see GetPlatformsOfType");
+      
+   return platformGroup;
+end_script
+
+
+
+######################################
+# CREATE PLATFORM GROUP
+######################################
+# Grab a list of all platforms of this type
+# Author: Douglas Hull
+script Array<string> GetPlatformNamesOfType(string aPlatformType) 
+   
+   # Loop through all platforms in simulation
+   Array <string> platformGroup =  Array<string>();
+   for (int ii = 0; ii < WsfSimulation.PlatformCount(); ii += 1) {
+   
+      # Initialize and validate variables
+      WsfPlatform iPlatform = WsfSimulation.PlatformEntry(ii);
+      if (iPlatform.IsNull()) continue;
+      
+      # Must be of correct type
+      if (!iPlatform.IsA_TypeOf(aPlatformType)) continue;
+      
+      # Add platform to group
+      platformGroup.PushBack(iPlatform.Name());
+   }
+   
+   # Validate output
+   if (platformGroup.Empty()) writeln_warning("Platform Group is Empty, see GetPlatformNamesOfType");
+      
+   return platformGroup;
+end_script
+
+
+
+##############################
+# ZERO FILL
+##############################
+# Pad zeros before a number and convert to string
+script string ZeroFill(double val, int num_char)
+
+   # Convert number to string
+   string filled_str = (string)val;
+   
+   # loop through until number of characters has been reached
+   for (int ii = 0; filled_str.Length() < num_char; ii += 1)
+   {
+      # Add a leading zero
+      filled_str = "0" + filled_str;
+   }
+   
+   return filled_str;
+end_script
+
+
+
+#==========================================
+# GET RANDOM POINT WITHIN ZONE
+#==========================================
+# Return a random location within the given zone
+# Zone must be 
+script WsfGeoPoint getRandomPointWithinZone(string zoneName)
+   
+   # Extract Zone span in Lat/Long
+   WsfZone zone = WsfZone.FindZone(zoneName);
+   WsfGeoPoint minPoint = zone.MinPoint(); # lower left bottom
+   WsfGeoPoint maxPoint = zone.MaxPoint(); # upper right top
+   double zoneWidth = maxPoint.Latitude() - minPoint.Latitude();
+   double zoneHeight = maxPoint.Longitude() - minPoint.Longitude();
+   
+   # Approximate as Nautical Mile and convert to meters
+   zoneWidth = zoneWidth * 60 * MATH.M_PER_NM();
+   zoneHeight = zoneHeight * 60 * MATH.M_PER_NM();
+   
+   # Choose Random Number until it is within zone
+   # Keep try up to a maximum number of tries
+   int cnt = 0;
+   int maxCnt = 100;
+   WsfGeoPoint randomPoint;
+   do {
+      # Start at min and offset some random amount inside span
+      randomPoint = WsfGeoPoint(minPoint);
+      double offsetNorth = RANDOM.Uniform(0, zoneWidth);
+      double offsetEast = RANDOM.Uniform(0, zoneHeight);
+      randomPoint.Offset(0, offsetNorth, offsetEast, 0);
+      
+      cnt += 1;
+   } while (!zone.PointIsInside(randomPoint) && cnt < maxCnt);
+   
+   return randomPoint;
+end_script
+
+
+
+#======================================
+# PLATFORM HAS ZONE NAMED
+#======================================
+script bool PlatformHasZoneNamed(WsfPlatform aPlatform, string aZoneName)
+   foreach(string name in aPlatform.ZoneNames()) {
+      if (name == aZoneName) {
+         return true;
+      }
+   }
+   return false;
+end_script
+
+
+#=======================================
+# HOUR MIN SECOND (HMS)
+#=======================================
+script string HMS(double t)
+   int h, m;
+   string s;
+   double x;
+   Array<string> w;
+   
+   h = Math.Floor(t/3600);
+   m = Math.Floor((t-h/3600)/60);
+   w = ((string) Math.Fmod(t,60.)).Split(".");
+   w.PushBack("");
+   return ((string) h).Pad(2,"0") + ":" + 
+      ((string) m).Pad(2, "0") + ":" +
+      w[0].Pad(2,"0") + "." + w[1];
+end_script
+
+
+#=================================
+# TRUE/FALSE
+#=================================
+script string TF(bool val)
+   if (val) return "TRUE";
+   return "FALSE";
+end_script
+
+
+#=================================
+# MATH LIST
+#=================================
+# Checks if string matches a strine in a list
+script bool MatchList(string str, Array<string> list)
+   string strl = str.Lower();
+   
+   foreach (string s in list) {
+      if (s.Lower() == strl) return true;
+   }
+   return false;
+end_script

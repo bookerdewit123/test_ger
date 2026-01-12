@@ -1,0 +1,32 @@
+# Charles Connors (M57957)
+
+# This is the full equation approximated by 1.23*sqrt(x)
+script double GetHorizon2(double alt, string mode)
+
+   double R;
+   if (mode == "geometry")
+   {
+      R = Earth.MEAN_RADIUS();
+   }
+   else if(mode == "radar")
+   {
+      # It is common prcatice to use 4/3 Earth Radius
+      # to account for atmosphere on radar propogation
+      R = 4.0/3*Earth.MEAN_RADIUS();
+   }
+   else
+   {
+      writeln("Unknown mode, see horizon_calc.txt");
+   }
+   
+   double ratio = R/(R+alt);
+   double horizon = R*MATH.ACos(ratio)*MATH.RAD_PER_DEG();
+   
+   return horizon;
+end_script
+
+# Radar horizon base on two altitudes
+script double GetHorizon(double threat_alt, double radar_alt, string mode)
+   double horizon = GetHorizon2(threat_alt, mode) + GetHorizon2(radar_alt, mode);
+   return horizon;
+end_script

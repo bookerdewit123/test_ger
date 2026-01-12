@@ -1,0 +1,86 @@
+include_once Jammer.txt
+
+# JammerManager - Struct that controls the simplified jammer model.
+# Is responsible for configuring the jammer, setting the state of the jammer,
+# and calculating whether a platform is jammed.
+# Use the JammerManager whenever you want to change the state of the jammer
+# or check if a platform is being jammed.
+script_struct JammerManager
+   script_variables
+      Array<Jammer> jammers = Array<Jammer>();
+   end_script_variables
+
+   # Defines the jammer instance using the given arguments
+   #
+   # string aCommType          The name of the comm network impacted by this jammer
+   # double aLongitude         Longitude of the jammer
+   # double aRangeNmi          Range of the jammer in nautical miles. Default is -1.0
+   # bool   aIsActive          If true then the jammer is currently active
+   script void ConfigureJammer(string aCommType, double aLongitude, double aRangeNmi, bool aIsActive){
+      Jammer jammer = ConstructJammer(aCommType, aLongitude, aRangeNmi, aIsActive);
+      jammers.PushBack(jammer);
+      return;
+   }
+   end_script
+   
+   script int GetJammerCount(){
+      return jammers.Size();
+   }
+   end_script
+   
+   # Retrieves the Jammer at the given index. Note, if the index is invalid
+   # then an invalid jammer will be returned. Callers should check IsValid()
+   # on the returned reference
+   script Jammer GetJammer(int nIndex){
+      if(nIndex >= 0 && nIndex < jammers.Size()) {
+         Jammer jammer = jammers.Get(nIndex);
+         return jammer;
+      }
+      
+      writeln("ERROR: Invalid Jammer Index: " + (string)nIndex);
+      return Jammer();
+   }
+   end_script
+   
+   # Method to check whether a location is jammed that checks if closest point
+   # to a platform on the jammer longitude is within the jammer's range
+   #
+   # double aPlatformLocation       Location of the platform being checked
+   # string aCommType               The name of the comm network of interest
+   script bool IsLocationJammed(WsfGeoPoint aPlatformLocation, string aCommType){
+      foreach(Jammer jammer in jammers) {
+         # Does this jammer affect the given commtype?
+         if(jammer.GetCommType() != aCommType)
+            continue;
+            
+         # Is jammer active?
+         if (!jammer.GetIsActive())
+            continue;
+
+         # find closest point to the platform along the jamming longitude
+         # and the platform latitude
+         WsfGeoPoint closestPoint = WsfGeoPoint.Construct(aPlatformLocation.Latitude(), jammer.GetLongitude(), 0.0);
+         # find the ground range between the two points
+         double groundRange = closestPoint.GroundRangeTo(aPlatformLocation) * MATH.NM_PER_M();
+         # if ground range > jamming range, return false
+         if (groundRange > jammer.GetRangeNMI()){
+            continue;
+         }
+         
+         # The location is jammed for the given network at the given point
+         return true;
+      }
+      
+      # The location is NOT jammed for the given network at the given point
+      return false;
+   }
+   end_script
+   
+end_script_struct
+
+# Global method that creates/gets a static instance of
+# the struct to attempt to treat it as a singleton.
+script JammerManager JammerManagerInstance()
+   static JammerManager jammer_manager =  JammerManager();
+   return jammer_manager;
+end_script

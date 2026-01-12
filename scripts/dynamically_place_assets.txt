@@ -26,21 +26,7 @@ script_variables
 
  global double mcRange = 0; //.1; //1;
 
-#extern double mcLatitudeInput5thGen;      # Refer to design_variables_(region).txt
-#extern double mcLongitudeInput5thGen;     # Refer to design_variables_(region).txt
-#extern double mcLatitudeInput4thGen_Group1;      # Refer to design_variables_(region).txt
-#extern double mcLongitudeInput4thGen_Group1;     # Refer to design_variables_(region).txt
-#extern double mcLatitudeInput4thGen_Group2;      # Refer to design_variables_(region).txt
-#extern double mcLongitudeInput4thGen_Group2;     # Refer to design_variables_(region).txt
-#extern double mcLatitudeInputRedFighter;  # Refer to design_variables_(region).txt
-#extern double mcLongitudeInputRedFighter; # Refer to design_variables_(region).txt
-#extern double mcLatitudeInputRedBomber;   # Refer to design_variables_(region).txt
-#extern double mcLongitudeInputRedBomber;  # Refer to design_variables_(region).txt
-#extern double mcLatitudeInputBlueAEW;
-#extern double mcLongitudeInputBlueAEW;
-#extern double mcLatitudeInputREDAEW;
-#extern double mcLongitudeInputREDAEW;
-#extern double mcRange;                    # Refer to design_variables_(region).txt
+
  bool MC_flag = true;                      # Set MC_flag in startup file
 
 # Setting up Random location of BLUE 5thGen Fighters 

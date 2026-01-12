@@ -30,47 +30,26 @@ execute at_time 0.001 s absolute
    position_csv.Write("\n");
 end_execute
 
-# get sensor range for a platform
-script double getSensorRange(WsfPlatform aPlatform)
+# get large RCS sensor range from sensor definitions
+script double getLargeRCSSensorRange(WsfPlatform aPlatform)
    double range_nm = 0.0;
-   string platType = aPlatform.Type();
    
-   # check platform type and return appropriate sensor range (slide deck)
-   if (platType == "Su-34")
+   # iterate through platform's sensors to find the large RCS sensor
+   for (int i = 0; i < aPlatform.SensorCount(); i += 1)
    {
-      range_nm = 115.0;  
-   }
-   else if (platType == "Su-35")
-   {
-      range_nm = 144.0;  # Su-35 sensor range (slide deck)
-   }
-   else if (platType == "AEW_RED")
-   {
-      range_nm = 220.0;  # RED AEW sensor range (slide deck)
-   }
-   else if (platType == "WSF_PLATFORM")
-   {
-      # Check if it's MRSAM or LRSAM by name
-      if (aPlatform.Name().Contains("MRSAM"))
+      WsfSensor sensor = aPlatform.SensorEntry(i);
+      
+      # check if sensor is of type G425_SENSOR_BASE
+      if (WsfSensor.IsA_TypeOf(sensor.Type(), "G425_SENSOR_BASE"))
       {
-         range_nm = 96.0;  # MRSAM sensor range (slide deck)
+         # check if this is the large RCS sensor by name
+         if (sensor.Name().Contains("LARGE"))
+         {
+            # get its maximum range
+            range_nm = sensor.FOV_MaximumRange();
+            break;
+         }
       }
-      else if (aPlatform.Name().Contains("LRSAM"))
-      {
-         range_nm = 241.0;  # LRSAM sensor range (slide deck)
-      }
-   }
-   else if (platType == "AEW_BMS_BLUE")
-   {
-      range_nm = 309.0;  # BLUE AEW sensor range (slide deck)
-   }
-   else if (platType == "5th_Gen_Fighter")
-   {
-      range_nm = 120.0;  # 5th gen
-   }
-   else if (platType == "4th_Gen_Fighter" || platType == "EuroFighter")
-   {
-      range_nm = 100.0;  # 4th gen
    }
    
    return range_nm;
@@ -126,7 +105,7 @@ execute at_time 2 s absolute
          double lon_diff_nm = (lon - 14.0) * 60.0 * cos_lat;
          
         
-         double sensor_range = getSensorRange(plat);
+         double sensor_range = getLargeRCSSensorRange(plat);
          
          
          Array<string> data = {
@@ -151,4 +130,3 @@ execute at_time 2 s absolute
       writeln("Platform positions recorded at T=", TIME_NOW, " seconds");
    }
 end_execute
-

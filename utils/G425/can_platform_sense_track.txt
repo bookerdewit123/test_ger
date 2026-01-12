@@ -1,0 +1,35 @@
+
+##############################################
+# Can Platform Sense Track
+##############################################
+# Input: SensingPlatform, TrackProcessorName, Track
+# Output: if SensingPlatform has the track in tracklist
+# Use: Check for organic tracks
+script bool DoesPlatformHaveTrack(WsfPlatform aSensingPlatform, string aTrackProcessorName, WsfPlatform aTarget)
+   
+   # Validate inputs
+   if (aSensingPlatform.IsNull()) return false;
+   string warning = "***** Warning: There is no processor " + aTrackProcessorName + " on " + aSensingPlatform.Name(); 
+   if (aSensingPlatform.Processor(aTrackProcessorName).IsNull()) {writeln_warning(warning); return false;}
+   if (aTarget.IsNull()) return false;
+   
+   # Initialize: assume you cannot sense
+   bool canSense = false;
+   
+   # Look at all tracks in IADS organic tracklist
+   foreach (WsfTrack iTrack in aSensingPlatform.TrackList(aTrackProcessorName))
+   {
+   
+      # Compare targets objects
+      if (iTrack.Target() == aTarget) 
+      {
+         # This target is close to the sensing platform (not guaranteed)
+         canSense = true;
+         
+         # Found it, not need to keep looking
+         break;
+      }
+   }
+   
+   return canSense;
+end_script

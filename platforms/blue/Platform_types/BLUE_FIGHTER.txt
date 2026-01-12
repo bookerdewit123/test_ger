@@ -2,6 +2,9 @@
 # TO DO: Need accurate sensors (ranges and volumes)
 # TO DO: Simple behavior tree needed for CAP, basic pursue (up to CRL), and Scoot (after shoot)
 # TO DO: Likely need scripts that take sensor detections and determine if the track is of LOW, MED, or HIGH RCS
+
+include_once weapons/blue/g425/g425_weapon_effect.txt
+
 platform_type BLUE_FIGHTER G425_PLATFORM_BASE 
 spatial_domain air
 command_chain FIGHTER_TASKING AEW_C2
@@ -41,94 +44,45 @@ end_script
 comm L16_T 4thGen_Transmit  
    on
    internal_link targeting
-   #network_name Topology
+   //network_name Topology
 #   router_name Comm_Router
 end_comm
 
 comm L16_R 4thGen_Receiver  
    on
-   #network_name Topology
+   //network_name Topology
 #   router_name Comm_Router
 end_comm
 
 
 comm MADL_T 5thGen_Transmit
    on
-   #network_name Topology
+   //network_name Topology
 #   router_name Comm_Router
 end_comm
 
 comm MADL_R 5thGen_Receiver 
    on
-   #network_name Topology
+   //network_name Topology
 #   router_name Comm_Router
 end_comm
 
 
-   weapon aam BLUE_SAM 
+   weapon AIM120_MRAAM_Launcher BLUE_AAM 
       aux_data 
-         #int magazineSize = $<BLUE_FIGHTER_WEAPON_COUNT:-1>$ 
+         //int magazineSize = $<BLUE_FIGHTER_WEAPON_COUNT:-1>$ 
       end_aux_data
       quantity 4 ### This is so that we control when to fire by having it ocurr with reloads
       maximum_request_count 4
    end_weapon
-   
-   # Fire when tasked by AEW
-   # TO DO: Likely need to add logic in here to determine if the task is within range 
-   processor  targeting WSF_TASK_PROCESSOR 
-   off
-      on_message 
-         #MIKE CHANGE: Changed from checking WSF_TRACK_MESSAGE to something else
-         type SHOOT
-         script
-         
-         if(WsfSimulation.FindPlatform("AEW_C2").IsValid())
-         {
-            if(PLATFORM.Comm("L16_T").IsConnectedTo(WsfSimulation.FindPlatform("AEW_C2").Comm("L16_R").GetAddress()))
-            {
-               WsfTrackMessage msg = (WsfTrackMessage)MESSAGE;
-               int relative_heading = PLATFORM.RelativeHeadingOf(msg.Track());
-               string rel_head = "NO SHOT" + (string)relative_heading;
-               if((relative_heading < 110 && relative_heading > 70) || (relative_heading < 20)) #TODO TO DO MIKE: This is to stop missiles from firing when turning
-                  {
-                  if(PLATFORM.WeaponsActiveFor(msg.Track().TrackId()))
-                     return;
-                  else
-                  {
-                     if(PLATFORM.GroundRangeTo(msg.Track()) < 120000)
-                     {
-                     PLATFORM.Weapon("aam").Fire(msg.Track());
-                     PLATFORM.Comment("Released weapon targeting " + msg.Track().TargetName());
-                     }
-                     }
-                  }
-                  else
-                  {
-                     PLATFORM.Comment(rel_head);
-                     
-                  }
-   #            WsfMessage reply = (WsfMessage)MESSAGE;
-   #            reply.SetType("REPLY");
-   #            PLATFORM.Comm("L16_T").SendMessage(msg, WsfSimulation.FindPlatform("AEW_C2").Name(), "L16_T");
-            } 
-          }
-          else
-            PLATFORM.Execute("SELF_TASKING");
-         end_script
-      end_on_message
-   end_processor 
-   
-   #execute at_time 100 sec absolute
-   #   FollowRoute("capRoute");
-   #end_execute
-   
+  
    processor  task_mgr  WSF_QUANTUM_TASKER_PROCESSOR
-      #script_debug_writes  off      
+      //script_debug_writes  off      
       update_interval 1 sec
       
       behavior_tree
          selector 
-           # behavior_node head_to_CRL
+           // behavior_node head_to_CRL
             behavior_node cap
          end_selector
       end_behavior_tree
@@ -151,3 +105,27 @@ end_comm
 #end_comm
 
 end_platform_type
+
+# This script calculates the pk for a missile based on its launch
+# conditions and stores that data on the weapon
+script void BlueFighterWeaponFired(WsfWeaponEngagement aWeaponEngagement, WsfTrack aTargetTrack)
+   if(aWeaponEngagement.WeaponSystemName() == "AIM120_MRAAM_Launcher") {
+      WsfPlatform shooter = aWeaponEngagement.FiringPlatform();
+      WsfPlatform target = aWeaponEngagement.TargetPlatform();
+      WsfPlatform weaponPlatform = aWeaponEngagement.WeaponPlatform();
+      
+      double rangeNm = shooter.GroundRangeTo(target)*Math.NM_PER_M();
+      
+      double calculatedPk = CalculateAim120Pk(rangeNm);
+      
+      weaponPlatform.SetAuxData("CalculatedPK", calculatedPk);
+
+      string comment = "Incoming Weapon Fired with pk=" + (string)((double)((int)(calculatedPk*10000))/100.0) + "%";
+      target.Comment(comment);
+   }
+   
+end_script
+
+observer
+   enable WEAPON_FIRED BlueFighterWeaponFired
+end_observer

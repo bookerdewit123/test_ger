@@ -110,6 +110,11 @@ execute at_time 40 nanosecond absolute
 
 end_execute
 
+# NOTE: POI 3 and 4 are related to the FLOT and as such the values used here MUST
+#       match those found in the defined scenario (Currently Baseline.txt). Since
+#       it appears the POIs are only used to render the FLOT line, it might make 
+#       more sense to define their geopoints in the execute section below so that   
+#       the design variables values can be used rather than hard coding values here  
 platform POI_3 POI
 position 54.6n 13.7e
 altitude 30000 ft

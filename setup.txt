@@ -5,12 +5,12 @@ script_variables
   # CSV Output Control
    string case = WsfSimulation.ExpandPathVariables("$(CASE)");
    #int TREATMENT_NUMBER = 1;
-   bool writeOutput       = false;    # control ALL csv write outputs
-   bool writeTracks       = true;   # Writing track data CSV (tracks/detections over time)
-   bool writeWeapons      = true;   # Write weapon fired/hit/termination data to CSV
-   bool writeMessages     = true;   # Write all message send/receive data to CSV
-   bool writeSensorDetect = false;   # DEBUG: write sensor detection attempt output to CSV
-   bool writeMovement     = true;   # Write coverage data to CSV
+   bool writeOutput       = false;    // control ALL csv write outputs
+   bool writeTracks       = true;   // Writing track data CSV (tracks/detections over time)
+   bool writeWeapons      = true;   // Write weapon fired/hit/termination data to CSV
+   bool writeMessages     = true;   // Write all message send/receive data to CSV
+   bool writeSensorDetect = false;   // DEBUG: write sensor detection attempt output to CSV
+   bool writeMovement     = true;   // Write coverage data to CSV
    bool multiRun          = true;
    bool drawBehaviorDraws = false;
    bool drawCommander     = true;
@@ -23,12 +23,12 @@ script_variables
    ### switch between these two sets for patriot and ibcs ###
    string ibcs_global_shot_manager = "global_ibcs_battalion_eoc";
    ### These are used to enable reporting to each EOC ###
-   Array<string> hardReport_to_eoc_list = {"global_ibcs_battalion_eoc", "AEW_C2"}; #MIKE
+   Array<string> hardReport_to_eoc_list = {"global_ibcs_battalion_eoc", "AEW_C2"}; //MIKE
    Map<string,WsfPlatform> blueMissleTargetMap = Map<string,WsfPlatform>();
    Map<string,WsfPlatform> blueMissleLauncherMap = Map<string,WsfPlatform>();
    Map<string,WsfPlatform> redMissleTargetMap = Map<string,WsfPlatform>();
    Map<string,double> redMissleLaunchTimeMap = Map<string,double>();
-   Set<string> redWeaponTypes = {"Su-34", "Su-35", "GENERIC_UAV", "SSM_MISSILE"}; #{"Su-34", "Su-35"}; #
+   Set<string> redWeaponTypes = {"Su-34", "Su-35", "GENERIC_UAV", "SSM_MISSILE"}; //{"Su-34", "Su-35"}; //
 end_script_variables
 
 ######################################################
@@ -54,7 +54,7 @@ include_once platforms/red/Platform_Types/red_lrsam.txt
 include_once platforms/red/Platform_Types/red_mrsam.txt
 ######################################################
 ###### PLATFORMS ################################
-include_once platforms/rcs_platform_base.txt
+include_once platforms/g425_platform_base.txt
 include_once platforms/blue/platforms/AEW_BLUE.txt
 include_once platforms/blue/platforms/AEW_RED.txt
 ######################################################
@@ -65,8 +65,7 @@ include comms/Latency/Delay_Medium.txt
 include comms/Topologies/$(EXCURSION)_Topology.txt #Network currently doesn't work
 ######################################################
 ###### SENSORS ################################
-# These should be individually included by the platform for the sensor
-
+# These should be individually included by the platform for the sensor 
 ######################################################
 ###### WEAPONS ################################
 include_once weapons/generic_weapon_base.txt
@@ -75,7 +74,7 @@ include_once weapons/generic_weapon.txt
 ######################################################
 ###### BMS PROCESSORS ################################
    # Utils
-   include_once utils/util_scripts.txt
+include_once utils/util_scripts.txt
 include_once utils/can_platform_sense_track.txt
 include_once utils/horizon_calc.txt
    # Data
@@ -95,7 +94,6 @@ include_once scripts/bms_systems/bms_cue_tasker.txt
 ###### LAYDOWNS ###################################
 include_once laydowns/$(CASE)/blue/Ground.txt
 include_once laydowns/$(CASE)/blue/Surface.txt
-include_once laydowns/$(CASE)/blue/AEW.txt
 include_once cluster/cluster_runs/cluster_startup_local.txt
 #include_once scenarios/define_cases.txt
 
@@ -114,7 +112,7 @@ include_once observers_aims/observer_sensor.txt
 include_once observers_aims/observer_track.txt
 include_once observers_aims/observer_weapon.txt
 include_once observers_aims/observer_utils.txt
-include_once observers_aims/observer_functions.txt
+include_once observers_aims/observer_ranges.txt
 
 ################################################
 #### LOCAL OBSERVERS ###########################

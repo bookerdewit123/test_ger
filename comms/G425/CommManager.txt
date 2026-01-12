@@ -2,6 +2,8 @@ include_once CommMessage.txt
 include_once CommNetwork.txt
 include_once CommLink.txt 
 include_once CommManagerObserver.txt
+include_once observers_aims/CsvLogFileManager.txt
+include_once utils/G425/JammerManager.txt
 
 # The CommManager is a "singleton-like" manager for the comm model for the
 # G425 effort. Use the global CommManagerInstance() method to access the
@@ -12,7 +14,7 @@ script_struct CommManager
       # of this script is required and is scenario specific. 
       string cDEFINE_COMM_NETWORKS_SCRIPT_NAME = "DefineCommNetworks";
       
-      # Tracks the initialization state of the CommManger. See the Initialize()
+      # Tracks the initialization state of the CommManager. See the Initialize()
       # method for more details
       bool mIsInitialized = false;
 
@@ -23,13 +25,8 @@ script_struct CommManager
       # Source -> MessageName -> CommLink: Target(s) 
       Map<WsfPlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>> mCommLinksBySource =
          Map<WsfPlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>>();
-      
-      # CSV Logging suport objects
-      FileIO messagingCsvFile = FileIO();
-      string cOutputFilePath =
-         WsfSimulation.ExpandPathVariables("$(OUTPUT_FOLDER)/$(CASE)_$(VIGNETTE)_$(EXCURSION)_") +
-         (string)WsfSimulation.RunNumber() + "_CommManager.csv";
-      assert(messagingCsvFile.Open(cOutputFilePath, "out"), cOutputFilePath + " output file failed to open"); 
+
+      string cCOMM_MANAGER_LOG_FILE_NAME = "CommManager";
    end_script_variables
    
    # Attempts to register a CommNetwork
@@ -108,8 +105,7 @@ script_struct CommManager
    script void Initialize()
       if(!mIsInitialized) {
          writeln("Initializing CommManager");
-         
-         writeln("CommManager will log messages to: " + cOutputFilePath);
+      
          
          # Attempt to invoke the laydown specific script which defines the mCommNetworks
          writeln("Attempting to invoke the global script, " + cDEFINE_COMM_NETWORKS_SCRIPT_NAME);
@@ -177,7 +173,7 @@ script_struct CommManager
                }
             }
          }
-         
+         CSV_DATA_TYPES csvDataTypes = CSV_DATA_TYPES();
          # Initialize log file header with names and types (Note: may want to create a manager for this for validation)
          Array<string> header_names = {
             "Time (Send)",
@@ -187,22 +183,22 @@ script_struct CommManager
             "MessageSubType",
             "Transmitter",
             "CommsType",
-            "Receiver"
+            "Receiver",
+            "Failure Reason"
          };
          Array<string> header_types = {
-            "double",
-            "double",
-            "???",
-            "string",
-            "string",
-            "string",
-            "string",
-            "string"
+            csvDataTypes.cDECIMAL_TYPE,
+            csvDataTypes.cDECIMAL_TYPE,
+            csvDataTypes.cINT_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE
          };
 
-         messagingCsvFile.Write(", ".Join(header_names) + "\n");
-         messagingCsvFile.Write(", ".Join(header_types));
-         
+         CSVLogFileManagerInstance().CreateLogFile(cCOMM_MANAGER_LOG_FILE_NAME, header_names, header_types);
          #Disallow reinitialization
          mIsInitialized=true;
       }
@@ -218,7 +214,8 @@ script_struct CommManager
    script void LogCommMessage( double aSendTime, 
                                double aReceiveTime,
                                CommMessage aCommMessage,
-                               CommNetwork aCommNetwork ) {
+                               CommNetwork aCommNetwork,
+                               string failureReason ) {
       Array<string> fields = {
          (string)aSendTime,
          (string)aReceiveTime,
@@ -227,9 +224,10 @@ script_struct CommManager
          aCommMessage.GetMessage().SubType(),
          aCommMessage.GetSourcePlatform().Name(),
          aCommNetwork.GetName(),
-         aCommMessage.GetTargetPlatform().Name()
+         aCommMessage.GetTargetPlatform().Name(),
+         failureReason
       };
-      messagingCsvFile.Write("\n" + ", ".Join(fields) );
+      CSVLogFileManagerInstance().LogToFile(cCOMM_MANAGER_LOG_FILE_NAME, fields);
    }
    end_script
 
@@ -290,13 +288,15 @@ script_struct CommManager
             # Create and dispatch the commMessage
             CommMessage commMessage =
                ConstructCommMessage(executionTime, aSourcePlatform, aTargetPlatform, aMessage);
-            WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName,{commMessage}); 
-            
-            # Append this comm to the results
-            results.Set(commNetwork, delay);
-            
-            # Log the message to the csv
-            LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork);           
+            if (JammerManager().IsLocationJammed(aTargetPlatform.Location(), commNetwork.GetName())){
+               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "Jammed");   
+            } else {
+               WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});
+               # Log the message to the csv
+               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, ""); 
+               # Append this comm to the results
+               results.Set(commNetwork, delay);  
+            }                     
          }
       }
       return results;
@@ -347,6 +347,7 @@ script_struct CommManager
                continue; 
             }         
 
+            
             # Generate a delay based on the registered comm links configuration
             double delay = commNetwork.GenerateDelay();
             double executionTime = aTimeNow + delay;
@@ -354,10 +355,15 @@ script_struct CommManager
             # Create and dispatch the commMessage
             CommMessage commMessage =
                ConstructCommMessage(executionTime, aSourcePlatform, targetPlatform, aMessage);
-            WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});             
-
-            # Log the message to the csv
-            LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork);           
+            # Check if commMessage is over Link16 and if target platform is jammed
+            # if so, do not call ExecuteAtTime and log failure reason as "jammed"
+            if ( JammerManager().IsLocationJammed(targetPlatform.Location(), commNetwork.GetName()) ) {
+               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "Jammed");   
+            } else {
+               WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});
+               # Log the message to the csv
+               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "");   
+            }                     
          }
       } 
      
@@ -379,4 +385,3 @@ script void InitializeCommManager() {
    CommManagerInstance().Initialize();
 }
 end_script
-

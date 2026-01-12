@@ -18,16 +18,16 @@ platform AEW_C2 AEW_BMS_BLUE
 
    script_variables
       # Identifies the global script for handling incoming messages from the CommManager 
-      messageHandlerScriptName = "blueC2HandleCommMessage";
+      messageHandlerScriptName = "blueHandleCommMessage";
       
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"} },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"} },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"} },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"} },
-         { "target": "5thGen1_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE"} },
-         { "target": "5thGen2_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE"} }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} }
       };
    end_script_variables
 end_platform
@@ -40,11 +40,11 @@ platform EuroFighter1_Group1 4thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  }
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
 
@@ -58,11 +58,11 @@ platform EuroFighter2_Group1 4thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
 
@@ -76,11 +76,11 @@ platform EuroFighter3_Group2 4thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
 
@@ -94,11 +94,11 @@ platform EuroFighter4_Group2 4thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
 
@@ -112,11 +112,11 @@ platform 5thGen1_Group1 5thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen2_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE"} , "direction": "forward"  }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen2_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} , "direction": "forward"  }
       };
    end_script_variables
 
@@ -131,14 +131,26 @@ platform 5thGen2_Group1 5thGenFighter
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  },
-         { "target": "5thGen1_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE"}, "direction": "forward"  }
+         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
+         { "target": "5thGen1_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
    
 end_platform
 
 
+script void handleBaselineSimulationInitializing() {
+   # Configure jamming for this scenario
+   JammerManagerInstance().ConfigureJammer( gcLINK16_NETWORK_NAME,
+                                            $<FLOT_LONGITUDE_DBL: 0>$,
+                                            0.0,  # TODO - handle jamming ranges 0, 50, 100 nmi
+                                            false );
+}
+end_script
+
+observer
+   enable SIMULATION_INITIALIZING handleBaselineSimulationInitializing
+end_observer
