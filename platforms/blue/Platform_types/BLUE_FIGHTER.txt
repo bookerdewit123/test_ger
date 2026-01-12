@@ -83,7 +83,8 @@ end_comm
       behavior_tree
          selector 
            // behavior_node head_to_CRL
-            behavior_node cap
+           //behavior_node cap
+           behavior_node racetrack_cap
          end_selector
       end_behavior_tree
    end_processor
