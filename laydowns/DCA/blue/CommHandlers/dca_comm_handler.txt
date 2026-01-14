@@ -21,113 +21,24 @@ script void AddTrackToTrackManager(WsfPlatform aPlatform, WsfTrackMessage aTrack
 }
 end_script
 
-# Non-C2 platform handling an incoming message
+# blue platform handling an incoming message
 script void blueHandleCommMessage(CommMessage aCommMessage) {
+   # Get the platform that is processing this message
+   WsfPlatform handlingPlatform = aCommMessage.GetTargetPlatform();
+   
+   # If the handlingPlatform is null, then it has been destroyed so don't handle the message
+   if( handlingPlatform.IsNull() )
+      return;
+   
+   # Get the message to be processed
    WsfMessage message = aCommMessage.GetMessage();
-   if(message.Type() == "WSF_TRACK_MESSAGE") {
-      WsfTrackMessage trackMsg = (WsfTrackMessage)message;
-      if(message.SubType() == "") {
-         # Add track reports to the track manager
-         AddTrackToTrackManager(aCommMessage.GetTargetPlatform(), trackMsg);
-      } else if(message.SubType() == "SHOOT") {
-         # Attempt to shoot
-         WsfPlatform shooter = aCommMessage.GetTargetPlatform();
-         
-         # check if in racetrack mode
-         bool inRacetrack = false;
-         if (shooter.AuxDataExists("in_racetrack"))
-         {
-            inRacetrack = shooter.AuxDataBool("in_racetrack");
-         }
-         
-         if (inRacetrack)
-         {
-            # racetrack firing logic - only fire if facing east toward red
-            double heading = shooter.Heading();
-            bool facingEast = (heading > 45 && heading < 135);
-            
-            if (!facingEast)
-            {
-               # not facing threat direction - report failure
-               shooter.Comment("Racetrack: Not facing east (hdg=" + (string)heading + ") - no shot");
-               
-               # notify C2 of failure so it can reassign
-               WsfMessage responseMsg = WsfMessage(message);
-               responseMsg.SetSubType("FAILED_TO_FIRE");
-               
-               CommManagerInstance().SendMessageToTarget( aCommMessage.GetTimestamp(), 
-                                                          aCommMessage.GetTargetPlatform(), 
-                                                          aCommMessage.GetSourcePlatform(),
-                                                          responseMsg );
-               return;
-            }
-            
-            # check relative heading to target - must be in forward arc
-            int relative_heading = shooter.RelativeHeadingOf(trackMsg.Track());
-            if (relative_heading > 60 && relative_heading < 300)
-            {
-               shooter.Comment("Racetrack: Target not in forward arc (rel=" + (string)relative_heading + ") - no shot");
-               
-               WsfMessage responseMsg = WsfMessage(message);
-               responseMsg.SetSubType("FAILED_TO_FIRE");
-               
-               CommManagerInstance().SendMessageToTarget( aCommMessage.GetTimestamp(), 
-                                                          aCommMessage.GetTargetPlatform(), 
-                                                          aCommMessage.GetSourcePlatform(),
-                                                          responseMsg );
-               return;
-            }
-            
-            # facing correct direction - proceed with fire
-            if( shooter.Weapon("aam").Fire(trackMsg.Track()) ) {
-               # Report the shot
-               string console_msg = (string)aCommMessage.GetTimestamp() + " Racetrack: Fired at " + trackMsg.Track().TargetName() + " [" + trackMsg.Track().TrackId().ToString() + "]";
-               shooter.Comment(console_msg);
-               # continue racetrack pattern - no need to break formation
-            } else {
-               # If we can't fire, then notify the C2
-               WsfMessage responseMsg = WsfMessage(message);
-               responseMsg.SetSubType("FAILED_TO_FIRE");
-               
-               CommManagerInstance().SendMessageToTarget( aCommMessage.GetTimestamp(), 
-                                                          aCommMessage.GetTargetPlatform(), 
-                                                          aCommMessage.GetSourcePlatform(),
-                                                          responseMsg );
-            }
-         }
-         else
-         {
-            # original firing logic for non-racetrack mode
-            if( shooter.Weapon("aam").Fire(trackMsg.Track()) ) {
-               # Report the shot
-               string console_msg = (string)aCommMessage.GetTimestamp() + " Released weapon targeting " + trackMsg.Track().TargetName() + " [" + trackMsg.Track().TrackId().ToString() + "]";
-               shooter.Comment(console_msg);
-            } else {
-               # If we can't fire, then notify the C2
-               WsfMessage responseMsg = WsfMessage(message);
-               responseMsg.SetSubType("FAILED_TO_FIRE");
-               
-               CommManagerInstance().SendMessageToTarget( aCommMessage.GetTimestamp(), 
-                                                          aCommMessage.GetTargetPlatform(), 
-                                                          aCommMessage.GetSourcePlatform(),
-                                                          responseMsg );
-            }
-         }
-      }
-   }
-}
-end_script
-
-# C2 platform handling a message
-script void blueC2HandleCommMessage(CommMessage aCommMessage) {
-
-   WsfMessage message = aCommMessage.GetMessage();
+   
+   # Message handling by type
    if(message.Type() == "WSF_TRACK_MESSAGE") {
       # Add track reports to the track manager
       WsfTrackMessage trackMessage = (WsfTrackMessage)message;
-      AddTrackToTrackManager(aCommMessage.GetTargetPlatform(), trackMessage);
-   }
-
+      AddTrackToTrackManager(handlingPlatform, trackMessage);
+   } 
    # Forward message to the BMS
    G425BlueBmsInstance().HandleCommMessage(aCommMessage);
 }

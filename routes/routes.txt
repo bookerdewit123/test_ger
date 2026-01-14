@@ -237,161 +237,48 @@ route turn_south_right
       execute custom_route_completed
 end_route
 
+#===============================================================================
+# RACETRACK OVAL - Single shared route with labeled waypoints
+# Both fighters follow this route, starting at different waypoints
+# Leader starts at wp1 (north apex)
+# Wingman starts at wp3 (south apex)
+#===============================================================================
 
-
-# main racetrack route - full oval pattern
-# fighter on north leg heading east, turns south, heads west, turns north, repeat
-# uses latitude offsets (north-south movement) to create oval
-route racetrack_full
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 500 knots
+route racetrack_oval
    
-   # east leg - heading toward red (forward facing fighter priority leg)
-   # move north along latitude
-   offset 0 5 nm
-   
-   # turn at north end (180 degree turn to reverse direction)
-   turn_right 180 deg
-      radial_acceleration 3 g
-   
-   # west leg - heading toward blue  
-   # move south along latitude
-   offset 0 -5 nm
-   
-   # turn at south end (180 degree turn to reverse direction)
-   turn_right 180 deg
-      radial_acceleration 3 g
-   
-   goto start
-end_route
-
-# compact racetrack - shorter legs for tighter pattern per requirements
-route racetrack_compact
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 500 knots
-   
-   # move north 3 nm
-   offset 0 3 nm
-   
-   # 180 degree turn at north end
-   turn_right 180 deg
-      radial_acceleration 3 g
-   
-   # move south 3 nm
-   offset 0 -3 nm
-   
-   # 180 degree turn at south end
-   turn_right 180 deg
-      radial_acceleration 3 g
-   
-   goto start
-end_route
-
-
-# racetrack turn routes
-
-# turn to face east (toward red) 
-route turn_east_left
-   label start offset 0 0 nm
+   label wp1 offset 0 2 nm
       altitude 30000 feet
       speed 600 nm/h
-   turn_to_heading 90 deg
-      turn left
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
-end_route
+      turn_to_heading 90 deg
+         radial_acceleration 3 g
+   
+   offset 4 0 nm
+      turn_to_heading 180 deg
+         radial_acceleration 3 g
+   
+   label wp3 offset 0 -2 nm
+      turn_to_heading 270 deg
+         radial_acceleration 3 g
+   
+   offset -4 0 nm
+      turn_to_heading 0 deg
+         radial_acceleration 3 g
+   
+   goto wp1
 
-route turn_east_right
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 600 nm/h
-   turn_to_heading 90 deg
-      turn right
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
-end_route
-
-route turn_east_shortest
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 600 nm/h
-   turn_to_heading 90 deg
-      turn shortest
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
-end_route
-
-# turn to face west (toward blue land)
-route turn_west_left
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 600 nm/h
-   turn_to_heading 270 deg
-      turn left
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
-end_route
-
-route turn_west_right
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 600 nm/h
-   turn_to_heading 270 deg
-      turn right
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
-end_route
-
-route turn_west_shortest
-   label start offset 0 0 nm
-      altitude 30000 feet
-      speed 600 nm/h
-   turn_to_heading 270 deg
-      turn shortest
-      radial_acceleration 3 g
-      execute racetrack_turn_complete
 end_route
 
 #===============================================================================
-# RACETRACK BEHAVIOR - REPLACES/EXTENDS cap BEHAVIOR
+# RACETRACK CAP BEHAVIOR - Both follow same route
 #===============================================================================
-# Key concepts:
-# - Two fighters follow SAME route, 180 degrees out of phase
-# - Leader faces east (toward red), wingman faces west (toward blue)
-# - Racetrack pattern EXPANDS toward red during engagement (both fighters move together)
-# - Pattern CONTRACTS back after engagement
-# - Fighters never break formation - the whole racetrack moves
 
 behavior racetrack_cap
-   script_variables
-      # track which direction fighter is facing on the racetrack
-      # true = facing east (heading 90, toward red), false = facing west (heading 270, toward blue)
-      bool facingEast = false;
-      
-      # track if we've initialized the racetrack
-      bool racetrackInitialized = false;
-      
-      # wingman reference
-      WsfPlatform wingman;
-      
-      # racetrack center position - can shift east during engagement
-      double racetrackCenterLon = 0;
-      double racetrackBaseLon = 0;  # original longitude (retreat position)
-      
-      # expansion state
-      bool isExpanded = false;
-      double expansionDistance_deg = 0.1;  # ~6nm eastward expansion
-      
-      # time between racetrack checks
-      double lastCheckTime = 0;
-      double checkInterval = 2.0;  # seconds
+   script_variables 
+      bool startedRacetrack = false;
    end_script_variables
    
    precondition
-      # only start racetrack after initial positioning complete
-      if (TIME_NOW > 60)
+      if (TIME_NOW > 120)
       {
          return true;
       }
@@ -400,249 +287,17 @@ behavior racetrack_cap
    end_precondition
    
    execute
-      # initialize racetrack on first run
-      if (!racetrackInitialized) 
-      {
-         # determine role based on aux data
-         if (PLATFORM.AuxDataExists("racetrack_role"))
-         {
-            string role = PLATFORM.AuxDataString("racetrack_role");
-            if (role == "leader")
-            {
-               # leader faces east toward red
-               facingEast = true;
-               PLATFORM.SetHeading(90);
-            }
-            else
-            {
-               # wingman faces west toward blue
-               facingEast = false;
-               PLATFORM.SetHeading(270);
-            }
-         }
-         else
-         {
-            # fallback - use left_side aux data from existing implementation
-            if (PLATFORM.AuxDataExists("left_side"))
-            {
-               facingEast = PLATFORM.AuxDataBool("left_side");
-               PLATFORM.SetHeading(facingEast ? 90 : 270);
-            }
-            else
-            {
-               # default to facing east
-               facingEast = true;
-               PLATFORM.SetHeading(90);
-            }
-         }
+      if (!startedRacetrack) {
+         startedRacetrack = true;
          
-         # find wingman
-         if (PLATFORM.AuxDataExists("wingman_name"))
-         {
-            string wmName = PLATFORM.AuxDataString("wingman_name");
-            wingman = WsfSimulation.FindPlatform(wmName);
-         }
-         
-         # store base longitude for retreat
-         racetrackBaseLon = PLATFORM.Longitude();
-         racetrackCenterLon = racetrackBaseLon;
-         
-         # start following the racetrack route
-         WsfRoute rte = WsfRoute.CopyGlobal("racetrack_compact");
-         rte.Transform(PLATFORM.Latitude(), PLATFORM.Longitude(), 90);  # orient east-west
-         PLATFORM.FollowRoute(rte);
-         
-         PLATFORM.SetAuxData("in_racetrack", true);
-         PLATFORM.Comment("Racetrack init - facing " + (facingEast ? "east" : "west"));
-         
-         racetrackInitialized = true;
-      }
-      
-      # check interval
-      if (TIME_NOW - lastCheckTime < checkInterval)
-      {
-         return;
-      }
-      lastCheckTime = TIME_NOW;
-      
-      # check for completion of custom routes
-      if (PLATFORM.CheckAuxData("is_in_custom_route"))
-      {
-         if (PLATFORM.AuxDataBool("is_in_custom_route") == false)
-         {
-            PLATFORM.SetAuxData("is_in_custom_route", true);
-            
-            # toggle facing direction and follow appropriate turn route
-            if (facingEast)
-            {
-               # was facing east, now turn to face west
-               WsfRoute route = WsfRoute.FindGlobal("turn_west_right");
-               facingEast = false;
-               PLATFORM.FollowRoute(route);
-            }
-            else
-            {
-               # was facing west, now turn to face east
-               WsfRoute route = WsfRoute.FindGlobal("turn_east_right");
-               facingEast = true;
-               PLATFORM.FollowRoute(route);
-            }
+         # Both fighters follow the SAME route
+         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval");
+         if (racetrack.IsValid()) {
+            PLATFORM.FollowRoute(racetrack);
          }
       }
       
-      PLATFORM.SetAuxData("cap", true);
+      PLATFORM.SetAuxData("in_racetrack", true);
       
    end_execute
 end_behavior
-
-
-# Called by BMS or external logic to expand racetrack toward red (ingress)
-# or contract back to base position (retreat)
-# Both fighters in the pair move together
-
-script void expandRacetrack()
-   # expand racetrack pattern toward red (east)
-   # this shifts the entire pattern, both fighters move together
-   
-   if (PLATFORM.AuxDataExists("racetrack_expanded"))
-   {
-      if (PLATFORM.AuxDataBool("racetrack_expanded"))
-      {
-         return;  # already expanded
-      }
-   }
-   
-   # shift pattern eastward
-   double newLon = PLATFORM.Longitude() + 0.1;  # ~6nm east
-   double currentLat = PLATFORM.Latitude();
-   double currentAlt = PLATFORM.Altitude();
-   
-   # update position (pattern center shifts east)
-   PLATFORM.GoToLocation(WsfGeoPoint.Construct(currentLat, newLon, currentAlt));
-   
-   PLATFORM.SetAuxData("racetrack_expanded", true);
-   PLATFORM.Comment("Racetrack expanded toward red");
-   
-   # notify wingman to expand as well
-   if (PLATFORM.AuxDataExists("wingman_name"))
-   {
-      string wmName = PLATFORM.AuxDataString("wingman_name");
-      WsfPlatform wm = WsfSimulation.FindPlatform(wmName);
-      if (wm.IsValid())
-      {
-         if (!wm.AuxDataBool("racetrack_expanded"))
-         {
-            wm.Execute("expandRacetrack");
-         }
-      }
-   }
-end_script
-
-script void contractRacetrack()
-   # contract racetrack pattern back toward blue (west)
-   # retreat to base position
-   
-   if (PLATFORM.AuxDataExists("racetrack_expanded"))
-   {
-      if (!PLATFORM.AuxDataBool("racetrack_expanded"))
-      {
-         return;  # already contracted
-      }
-   }
-   
-   # shift pattern westward
-   double newLon = PLATFORM.Longitude() - 0.1;  # ~6nm west
-   double currentLat = PLATFORM.Latitude();
-   double currentAlt = PLATFORM.Altitude();
-   
-   # update position (pattern center shifts west)
-   PLATFORM.GoToLocation(WsfGeoPoint.Construct(currentLat, newLon, currentAlt));
-   
-   PLATFORM.SetAuxData("racetrack_expanded", false);
-   PLATFORM.Comment("Racetrack contracted toward blue");
-   
-   # notify wingman to contract as well
-   if (PLATFORM.AuxDataExists("wingman_name"))
-   {
-      string wmName = PLATFORM.AuxDataString("wingman_name");
-      WsfPlatform wm = WsfSimulation.FindPlatform(wmName);
-      if (wm.IsValid())
-      {
-         if (wm.AuxDataBool("racetrack_expanded"))
-         {
-            wm.Execute("contractRacetrack");
-         }
-      }
-   }
-end_script
-
-#===============================================================================
-# RACETRACK CALLBACK SCRIPTS
-#===============================================================================
-
-script void racetrack_turn_complete()
-   PLATFORM.SetAuxData("is_in_custom_route", false);
-end_script
-
-#===============================================================================
-# FIRING INTEGRATION SCRIPT
-#===============================================================================
-
-script bool canFireFromRacetrack(WsfTrack target)
-   # check if we can fire from current racetrack position
-   # must be facing east (toward red)
-   
-   bool facingEast = false;
-   double heading = PLATFORM.Heading();
-   
-   # consider facing east if heading is between 45 and 135 degrees
-   if (heading > 45 && heading < 135)
-   {
-      facingEast = true;
-   }
-   
-   if (!facingEast)
-   {
-      return false;
-   }
-   
-   # check relative heading to target - allow firing if target is in forward arc
-   int relative_heading = PLATFORM.RelativeHeadingOf(target);
-   
-   # acceptable: roughly ahead (within 45 degrees of nose)
-   if (relative_heading < 45 || relative_heading > 315)
-   {
-      return true;
-   }
-   
-   return false;
-end_script
-
-script void fireAndContinueRacetrack(WsfTrack target)
-   # fire weapon and stay in racetrack pattern
-   
-   if (!canFireFromRacetrack(target))
-   {
-      PLATFORM.Comment("Cannot fire - not facing threat");
-      return;
-   }
-   
-   # check weapons
-   if (PLATFORM.Weapon("aam").Quantity() <= 0)
-   {
-      PLATFORM.Comment("Cannot fire - no weapons");
-      return;
-   }
-   
-   # check range (120km)
-   double range = PLATFORM.GroundRangeTo(target);
-   if (range > 120000)
-   {
-      PLATFORM.Comment("Target out of range");
-      return;
-   }
-   
-   # fire and continue pattern
-   PLATFORM.Weapon("aam").Fire(target);
-   PLATFORM.Comment("Fired at " + target.TargetName() + " - continuing racetrack");
-end_script
