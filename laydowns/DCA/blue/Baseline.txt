@@ -32,7 +32,7 @@ platform AEW_C2 AEW_BMS_BLUE
    end_script_variables
 end_platform
 
-platform EuroFighter1_Group1 4thGenFighter
+platform EuroFighter1_Group1 4thGenFighter2
 
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
@@ -68,7 +68,7 @@ platform EuroFighter2_Group1 4thGenFighter
 
 end_platform
 
-platform EuroFighter3_Group2 4thGenFighter
+platform EuroFighter3_Group2 4thGenFighter2
 
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
@@ -104,7 +104,7 @@ platform EuroFighter4_Group2 4thGenFighter
 
 end_platform
 
-platform 5thGen1_Group1 5thGenFighter
+platform 5thGen1_Group1 5thGenFighter2
 
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables

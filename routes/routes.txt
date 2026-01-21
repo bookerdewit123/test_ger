@@ -3,7 +3,7 @@
 
 behavior head_to_CRL
 precondition 
-    #PLATFORM.AuxDataBool("AT_CRL");
+    //PLATFORM.AuxDataBool("AT_CRL");
    return true;
 end_precondition
 
@@ -237,67 +237,176 @@ route turn_south_right
       execute custom_route_completed
 end_route
 
-#===============================================================================
-# RACETRACK OVAL - Single shared route with labeled waypoints
-# Both fighters follow this route, starting at different waypoints
-# Leader starts at wp1 (north apex)
-# Wingman starts at wp3 (south apex)
-#===============================================================================
 
 route racetrack_oval
-   
-   label wp1 offset 0 2 nm
+   label wp0 offset 0 0 nm
       altitude 30000 feet
       speed 600 nm/h
-      turn_to_heading 90 deg
-         radial_acceleration 3 g
+      radial_acceleration 3 g
    
-   offset 4 0 nm
-      turn_to_heading 180 deg
-         radial_acceleration 3 g
+   # 1. E (90°) - Pure East
+   label wp1 offset 2.5 0 nm       # 2.5E, 0
+      radial_acceleration 3 g
    
-   label wp3 offset 0 -2 nm
-      turn_to_heading 270 deg
-         radial_acceleration 3 g
+   # 2. E (90°) - Another East
+   label wp2 offset 2.5 0 nm       # Another 2.5E, 0
+      radial_acceleration 3 g
    
-   offset -4 0 nm
-      turn_to_heading 0 deg
-         radial_acceleration 3 g
+   # 3. E (90°) - Third East (doubled distance)
+   offset 5.0 0 nm                 # 5.0E, 0
+      radial_acceleration 3 g
+   
+   # 4. NE (45°) - East and North
+   offset 2.5 -2.5 nm              # 2.5E, 2.5N (negative Y = North)
+      radial_acceleration 3 g
+   
+   # 5. NW (315°) - West and North
+   offset -2.5 -2.5 nm             # 2.5W, 2.5N
+      radial_acceleration 3 g
+   
+   # 6. W (270°) - Pure West
+   label wp6 offset -2.5 0 nm      # 2.5W, 0
+      radial_acceleration 3 g
+   
+   # 7. W (270°) - Another West (doubled distance)
+   offset -20.0 0 nm                # 5.0W, 0
+      radial_acceleration 3 g
+   
+   # 8. SW (225°) - West and South
+   label wp8 offset -2.5 2.5 nm    # 2.5W, 2.5S
+      radial_acceleration 3 g
    
    goto wp1
-
 end_route
 
-#===============================================================================
-# RACETRACK CAP BEHAVIOR - Both follow same route
-#===============================================================================
+route racetrack_oval2
+   label wp0 offset 0 0 nm
+      altitude 30000 feet
+      speed 600 nm/h
+      radial_acceleration 3 g
+   
+   # 1. W (270°) - Pure West
+   label wp1 offset 2.5 0 nm       # 2.5W, 0
+      radial_acceleration 3 g
+   
+   # 2. W (270°) - Another West
+   label wp2 offset 2.5 0 nm       # Another 2.5W, 0
+      radial_acceleration 3 g
+   
+   # 3. W (270°) - Third West
+   offset 5.0 0 nm                 # 5.0W, 0
+      radial_acceleration 3 g
+   
+   # 4. SW (225°) - West and South = +X and -Y
+   offset 2.5 -2.5 nm              # 2.5W, 2.5S
+      radial_acceleration 3 g
+   
+   # 5. SE (135°) - East and South = -X and -Y (LONGER)
+   offset -5.0 -2.5 nm             # 5.0E, 2.5S (long East segment)
+      radial_acceleration 3 g
+   
+   # 6. E (90°) - Pure East = -X only (LONGER)
+   label wp6 offset -5.0 0 nm      # 5.0E, 0 (long East)
+      radial_acceleration 3 g
+   
+   # 7. E (90°) - Another East (LONGER)
+   offset -16.0 0 nm                # 5.0E, 0 (long East)
+      radial_acceleration 3 g
+   
+   # 8. E (90°) - Third East
+   label wp8 offset -2.5 0 nm      # 2.5E, 0
+      radial_acceleration 3 g
+   
+   goto wp1
+end_route
 
-behavior racetrack_cap
+# hold at WP0 orbit until racetrack starts
+behavior racetrack_leader
    script_variables 
-      bool startedRacetrack = false;
+      bool leaderStarted = false;
+      bool joinedRacetrack = false;
+      WsfPlatform wingman = null;
    end_script_variables
    
    precondition
-      if (TIME_NOW > 120)
+      if (TIME_NOW > 2 && PLATFORM.AuxDataString("racetrack_role") == "leader")
       {
          return true;
       }
       else
+      {
          return false;
+      }
    end_precondition
    
    execute
-      if (!startedRacetrack) {
-         startedRacetrack = true;
+      if (!leaderStarted) {
+         leaderStarted = true;
+         string wingmanName = PLATFORM.AuxDataString("wingman_name");
+         wingman = WsfSimulation.FindPlatform(wingmanName);
          
-         # Both fighters follow the SAME route
-         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval");
-         if (racetrack.IsValid()) {
-            PLATFORM.FollowRoute(racetrack);
+      }
+      
+      if (wingman.IsValid() && !joinedRacetrack) {
+         double wingmanLon = wingman.Longitude();
+         
+         if (wingmanLon >= 13.7) {
+            joinedRacetrack = true;
+            
+            WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval2");
+            if (racetrack.IsValid()) {
+               PLATFORM.FollowRoute(racetrack, 0);
+            }
          }
       }
       
-      PLATFORM.SetAuxData("in_racetrack", true);
+      PLATFORM.SetAuxData("in_racetrack", joinedRacetrack);
+   end_execute
+end_behavior
+
+# move straight then join racetrack
+behavior racetrack_wingman
+   script_variables 
+      bool wingmanStarted = false;
+      bool joinedRacetrack = false;
+      WsfGeoPoint targetLocation = WsfGeoPoint();
+   end_script_variables
+   
+   precondition
+      if (TIME_NOW > 2 && PLATFORM.AuxDataString("racetrack_role") == "wingman")
+      {
+         return true;
+      }
+      else
+      {
+         return false;
+      }
+   end_precondition
+   
+   execute
+      if (!wingmanStarted) {
+         wingmanStarted = true;
+         
+         double currentLat = PLATFORM.Latitude();
+         double targetLon = 13.7;
+         double targetAlt = PLATFORM.Altitude();
+         
+         targetLocation = WsfGeoPoint.Construct(currentLat, targetLon, targetAlt);
+         PLATFORM.GoToLocation(targetLocation);
+      }
       
+      double lon = PLATFORM.Longitude();
+      
+      # check if reached target longitude
+      if (!joinedRacetrack && lon >= 13.7) {
+         joinedRacetrack = true;
+         
+         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval");
+         if (racetrack.IsValid()) {
+            PLATFORM.FollowRoute(racetrack, 0);
+         }
+      }
+      
+      PLATFORM.SetAuxData("in_racetrack", joinedRacetrack);
    end_execute
 end_behavior
