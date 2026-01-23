@@ -244,35 +244,35 @@ route racetrack_oval
       speed 600 nm/h
       radial_acceleration 3 g
    
-   # 1. E (90°) - Pure East
-   label wp1 offset 2.5 0 nm       # 2.5E, 0
+   # 1. E (90 degrees) 
+   label wp1 offset 2.5 0 nm       
       radial_acceleration 3 g
    
-   # 2. E (90°) - Another East
-   label wp2 offset 2.5 0 nm       # Another 2.5E, 0
+   # 2. E (90 degrees)
+   label wp2 offset 2.5 0 nm      
       radial_acceleration 3 g
    
-   # 3. E (90°) - Third East (doubled distance)
-   offset 5.0 0 nm                 # 5.0E, 0
+   # 3. E (90 degrees)
+   offset 5.0 0 nm                 
       radial_acceleration 3 g
    
-   # 4. NE (45°) - East and North
+   # 4. NE (45 degrees)
    offset 2.5 -2.5 nm              # 2.5E, 2.5N (negative Y = North)
       radial_acceleration 3 g
    
-   # 5. NW (315°) - West and North
+   # 5. NW (315 degrees)
    offset -2.5 -2.5 nm             # 2.5W, 2.5N
       radial_acceleration 3 g
    
-   # 6. W (270°) - Pure West
+   # 6. W (270 degrees)
    label wp6 offset -2.5 0 nm      # 2.5W, 0
       radial_acceleration 3 g
    
-   # 7. W (270°) - Another West (doubled distance)
-   offset -20.0 0 nm                # 5.0W, 0
+   # 7. W (270 degrees)
+   label wp7 offset -18.0 0 nm                # W, 0
       radial_acceleration 3 g
    
-   # 8. SW (225°) - West and South
+   # 8. SW (225 degrees)
    label wp8 offset -2.5 2.5 nm    # 2.5W, 2.5S
       radial_acceleration 3 g
    
@@ -285,35 +285,35 @@ route racetrack_oval2
       speed 600 nm/h
       radial_acceleration 3 g
    
-   # 1. W (270°) - Pure West
+   # 1. W (270 degrees)
    label wp1 offset 2.5 0 nm       # 2.5W, 0
       radial_acceleration 3 g
    
-   # 2. W (270°) - Another West
+   # 2. W (270 degrees)
    label wp2 offset 2.5 0 nm       # Another 2.5W, 0
       radial_acceleration 3 g
    
-   # 3. W (270°) - Third West
+   # 3. W (270 degrees)
    offset 5.0 0 nm                 # 5.0W, 0
       radial_acceleration 3 g
    
-   # 4. SW (225°) - West and South = +X and -Y
+   # 4. SW (225 degrees)  +X and -Y
    offset 2.5 -2.5 nm              # 2.5W, 2.5S
       radial_acceleration 3 g
    
-   # 5. SE (135°) - East and South = -X and -Y (LONGER)
+   # 5. SE (135 degrees) X and -Y
    offset -5.0 -2.5 nm             # 5.0E, 2.5S (long East segment)
       radial_acceleration 3 g
    
-   # 6. E (90°) - Pure East = -X only (LONGER)
+   # 6. E (90 degrees)
    label wp6 offset -5.0 0 nm      # 5.0E, 0 (long East)
       radial_acceleration 3 g
    
-   # 7. E (90°) - Another East (LONGER)
+   # 7. E (90 degrees)
    offset -16.0 0 nm                # 5.0E, 0 (long East)
       radial_acceleration 3 g
    
-   # 8. E (90°) - Third East
+   # 8. E (90 degrees)
    label wp8 offset -2.5 0 nm      # 2.5E, 0
       radial_acceleration 3 g
    

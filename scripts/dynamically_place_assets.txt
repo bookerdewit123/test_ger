@@ -94,7 +94,7 @@ Array<double> latlon_RED_AEW = {lat_RED_AEW, lon_RED_AEW};
 double lat_RedFighter = WsfRandom.Uniform(mcLatitudeInputRedFighter, mcLatitudeInputRedFighter+mcRange);
 double lon_RedFighter = WsfRandom.Uniform(mcLongitudeInputRedFighter, mcLongitudeInputRedFighter+mcRange);
 
-# Convert nautical miles to degrees latitude (1 nmi ≈ 0.016667 degrees)
+# Convert nautical miles to degrees latitude (1 nmi   0.016667 degrees)
 double nmi_to_deg = 0.016667;
 
 # Spacing between aircraft in formation
@@ -244,10 +244,12 @@ execute at_time 2 sec absolute
    double hex_radius_nm = 3.0;
    double hex_radius_deg = hex_radius_nm * nmi_to_deg;
    double racetrack_pair_separation_nm = 6.0;
-   double half_sep = (racetrack_pair_separation_nm / 2.0) * nmi_to_deg;   
+   double half_sep = (racetrack_pair_separation_nm / 2.0) * nmi_to_deg;
+   double setback_nm = 15.0;
+   double setback_deg = setback_nm * nmi_to_deg;
+   double racetrack_center_lon = 13.7;
    
    #  4th gen pair 1 (EuroFighter1 + EuroFighter2) as racetrack
-
    WsfPlatform ef1 = WsfSimulation.FindPlatform("EuroFighter1_Group1");
    WsfPlatform ef2 = WsfSimulation.FindPlatform("EuroFighter2_Group1");
    
@@ -255,13 +257,13 @@ execute at_time 2 sec absolute
    {
       # get center position
       double center_lat = (ef1.Latitude() + ef2.Latitude()) / 2.0;
-      double center_lon = 13.5;
+      double center_lon = racetrack_center_lon - setback_deg;
       
       #(EF1)
       double leader_lat = center_lat + half_sep;
       double leader_lon = center_lon;
       ef1.SetLocation(leader_lat, leader_lon, alt);
-      ef1.SetHeading(-90);
+      ef1.SetHeading(270);
       ef1.SetAuxData("racetrack_role", "leader");
       ef1.SetAuxData("wingman_name", "EuroFighter2_Group1");
       ef1.SetAuxData("in_racetrack", false);
@@ -271,7 +273,7 @@ execute at_time 2 sec absolute
       double wingman_lat = center_lat - half_sep;
       double wingman_lon = center_lon;
       ef2.SetLocation(wingman_lat, wingman_lon, alt);
-      ef2.SetHeading(270);
+      ef2.SetHeading(90);
       ef2.SetAuxData("racetrack_role", "wingman");
       ef2.SetAuxData("leader_name", "EuroFighter1_Group1");
       ef2.SetAuxData("in_racetrack", false);
@@ -279,14 +281,13 @@ execute at_time 2 sec absolute
    }
    
    #  4th gen pair 2 (EuroFighter3 + EuroFighter4) as racetrack
-   
    WsfPlatform ef3 = WsfSimulation.FindPlatform("EuroFighter3_Group2");
    WsfPlatform ef4 = WsfSimulation.FindPlatform("EuroFighter4_Group2");
    
    if (ef3.IsValid() && ef4.IsValid())
    {
       double center_lat = (ef3.Latitude() + ef4.Latitude()) / 2.0;
-      double center_lon = 13.5;
+      double center_lon = racetrack_center_lon - setback_deg;  
       
       #(EF3)
       double leader_lat = center_lat + half_sep;
@@ -317,13 +318,12 @@ execute at_time 2 sec absolute
    if (f35_1.IsValid() && f35_2.IsValid())
    {
       double center_lat = (f35_1.Latitude() + f35_2.Latitude()) / 2.0;
-      double center_lon = 13.5;
-      
+      double center_lon = racetrack_center_lon;
       # LEADER (F35_1)
       double leader_lat = center_lat + half_sep;
       double leader_lon = center_lon;
       f35_1.SetLocation(leader_lat, leader_lon, alt);
-      f35_1.SetHeading(-90);
+      f35_1.SetHeading(270);
       f35_1.SetAuxData("racetrack_role", "leader");
       f35_1.SetAuxData("wingman_name", "5thGen2_Group1");
       f35_1.SetAuxData("in_racetrack", false);
@@ -333,7 +333,7 @@ execute at_time 2 sec absolute
       double wingman_lat = center_lat - half_sep;
       double wingman_lon = center_lon;
       f35_2.SetLocation(wingman_lat, wingman_lon, alt);
-      f35_2.SetHeading(270);
+      f35_2.SetHeading(90);
       f35_2.SetAuxData("racetrack_role", "wingman");
       f35_2.SetAuxData("leader_name", "5thGen1_Group1");
       f35_2.SetAuxData("in_racetrack", false);
