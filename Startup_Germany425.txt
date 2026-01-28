@@ -72,7 +72,3 @@ final_run_number $<gcSeed: 1>$
 
 end_time 10 m #200 min #700 s #700 s
 
-
-# ******************    Use or disclosure of the information contained herein     ******************
-# ******************      is subject to the restrictions on the Cover page        ******************
-# **********************************        UNCLASSIFIED        ************************************

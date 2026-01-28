@@ -6,10 +6,10 @@ platform AEW_C2 AEW_BMS_BLUE
    route
      position 53n 14e
          altitude 30000 feet
-         speed 460 knots
+         speed 460 knots #referenced from G425 working deck (AEW E-7 slide) 530 mph -> 460 knots
          heading 90 degrees
    end_route
-   
+    
    edit processor data_mgr 
       report_to platform EuroFighter1_Group1 comm L16_R via L16_T
       report_to platform EuroFighter2_Group1 comm L16_R via L16_T
@@ -23,9 +23,9 @@ platform AEW_C2 AEW_BMS_BLUE
       report_to platform global_ibcs_battalion_eoc comm L16_R via L16_T
       
    end_processor 
-
+      
    execute at_time 1 sec absolute
-      FollowRoute ("capRoute");
+      FollowRoute("capRoute");
    end_execute
      
 end_platform
