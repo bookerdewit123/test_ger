@@ -5,11 +5,31 @@ include_once CommManager.txt
 processor COMM_MANAGER_MESSAGE_PROCESSOR WSF_MESSAGE_PROCESSOR
    on_message
       script
-         # Construct and send the message out on all CommLinks registered
-         # for this source and message type
-         CommManagerInstance().SendMessage( TIME_NOW, 
-                                            PLATFORM,
-                                            WsfMessage(MESSAGE) ); # send a copy 
+         if( PLATFORM.Side() == "blue" ) {
+            # Construct and send the message out on all CommLinks registered
+            # for this source and message type
+            CommMessage sentMessage = CommManagerInstance().SendMessage( TIME_NOW, 
+                                                                         PLATFORM,
+                                                                         WsfMessage(MESSAGE),  # send a copy
+                                                                         true ); # broadcast the message
+
+            # Before allowing the sim to continue, have the local platform
+            # handle the message. This may seem backwards but the SendMessage
+            # schedules a future delivery of the message while the handling
+            # here happens at the current sim time.  
+            if( PLATFORM.IsA_TypeOf("G425_PLATFORM_BASE") ) {
+               string handlerScriptName = PLATFORM->GetMessageHandlerScriptName();
+               if(WsfSimulation.ScriptExists(handlerScriptName)) {
+                  WsfSimulation.Execute( handlerScriptName, {sentMessage});
+               }         
+            }
+         } else if ( PLATFORM.Side() == "red" ) {
+            if(MESSAGE.Type() == "WSF_TRACK_MESSAGE") {
+               # Invoke the Red BMS 
+               WsfTrackMessage trackMessage = (WsfTrackMessage)MESSAGE;
+               G425RedBmsInstance().ProcessTrackMessage(trackMessage, PLATFORM);
+            }
+         }
       end_script
    end_on_message
 end_processor

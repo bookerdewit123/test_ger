@@ -27,7 +27,22 @@ script_struct CommManager
          Map<WsfPlatform, Map<string, Map<CommNetwork, Set<WsfPlatform>>>>();
 
       string cCOMM_MANAGER_LOG_FILE_NAME = "CommManager";
+      
+      # This map stores a list of which platform have received which messages. This is used to
+      # support the sending of braodcast messages 
+      Map<int, Set<WsfPlatform>> mMessageReceivedBy = Map<int, Set<WsfPlatform>>();
    end_script_variables
+   
+   # Returns the set of platforms that have already received a message with the given id
+   #
+   # param aId The message id
+   script Set<WsfPlatform> GetReceiversOfMessage(int aId) {
+      if(!mMessageReceivedBy.Exists(aId))
+         mMessageReceivedBy.Set(aId, Set<WsfPlatform>());
+      
+      return mMessageReceivedBy.Get(aId);
+   }
+   end_script
    
    # Attempts to register a CommNetwork
    #
@@ -176,21 +191,27 @@ script_struct CommManager
          CSV_DATA_TYPES csvDataTypes = CSV_DATA_TYPES();
          # Initialize log file header with names and types (Note: may want to create a manager for this for validation)
          Array<string> header_names = {
-            "Time (Send)",
-            "Time (Receive)",
+            "SendTime",
+            "ReceiveTime",
+            "Type",
             "MessageID",
             "MessageType",
             "MessageSubType",
+            "MessageAge",
             "Transmitter",
             "CommsType",
             "Receiver",
-            "Failure Reason"
+            "FailureReason",
+            "Route"
          };
          Array<string> header_types = {
             csvDataTypes.cDECIMAL_TYPE,
             csvDataTypes.cDECIMAL_TYPE,
+            csvDataTypes.cSTRING_TYPE,
             csvDataTypes.cINT_TYPE,
             csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cSTRING_TYPE,
+            csvDataTypes.cDECIMAL_TYPE,
             csvDataTypes.cSTRING_TYPE,
             csvDataTypes.cSTRING_TYPE,
             csvDataTypes.cSTRING_TYPE,
@@ -215,118 +236,55 @@ script_struct CommManager
                                double aReceiveTime,
                                CommMessage aCommMessage,
                                CommNetwork aCommNetwork,
+                               string aType,
                                string failureReason ) {
+                               
       Array<string> fields = {
          (string)aSendTime,
          (string)aReceiveTime,
+         aType,
          (string)aCommMessage.GetId(),
          aCommMessage.GetMessage().Type(),
          aCommMessage.GetMessage().SubType(),
+         (string)( aSendTime - aCommMessage.GetMessageCreationTime() ),
          aCommMessage.GetSourcePlatform().Name(),
          aCommNetwork.GetName(),
          aCommMessage.GetTargetPlatform().Name(),
-         failureReason
+         failureReason,
+         "->".Join(aCommMessage.GetRoute())
       };
       CSVLogFileManagerInstance().LogToFile(cCOMM_MANAGER_LOG_FILE_NAME, fields);
    }
    end_script
 
-
-   # Attempts to send the given message on all CommLinks from the source platform
-   # to a specific target. If no CommLink is defined between the source and target
-   # platforms then the message will not be sent. The delivery will be delayed
-   # based on the configuration of the CommNetwork(s) for the CommLink(s)  
-   #
-   # param aTimeNow        The current simulation time
-   # param aSourcePlatform The platform where the message originated
-   # param aTargetPlatform The platform that will receive the message
-   # param aMessage        The message to be sent
-   # return                Retuns a map of CommNetworks and the delay generated for each
-   #                       CommLink that the message was dispatched on. Typically this will
-   #                       have only one entry, but there if multiple CommLinks exist
-   #                       between the source and target platforms that are configured to
-   #                       support this message type, then the message will be sent over
-   #                       all of those CommLinks
-   script Map<CommNetwork, double> SendMessageToTarget( double aTimeNow, 
-                                                        WsfPlatform aSourcePlatform, 
-                                                        WsfPlatform aTargetPlatform, 
-                                                        WsfMessage aMessage) {
-      Map<CommNetwork, double> results = Map<CommNetwork, double>();
+   script void markMessageAsReceivedByPlatform(int aMessageId, WsfPlatform aPlatform) {
+      Set<WsfPlatform> receiversOfMessage = GetReceiversOfMessage(aMessageId);
+      if( receiversOfMessage.Exists(aPlatform) )
+         return;
    
-      # This should never happen, but just in case...
-      if(!mIsInitialized)
-         Initialize();
-
-      if(!mCommLinksBySource.Exists(aSourcePlatform))
-         return results;
-      
-      Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
-         mCommLinksBySource.Get(aSourcePlatform);
-      
-      if (!messageMap.Exists(aMessage.Type()))
-         return results;
-         
-      Map<CommNetwork, Set<WsfPlatform>> linkAndTargets =
-         messageMap.Get(aMessage.Type());
-
-      if (linkAndTargets.Empty())
-         return results;
-
-      foreach ( CommNetwork commNetwork : Set<WsfPlatform> targetPlatforms in linkAndTargets ) {
-         if( targetPlatforms.Exists(aTargetPlatform) ) {
-            # Verify that the comm message handler script defined by the platform exists
-            string handlerScriptName = aTargetPlatform->messageHandlerScriptName;
-            if(!WsfSimulation.ScriptExists(handlerScriptName)) {
-               # TODO log error
-               continue; 
-            }         
-
-            # Generate a delay based on the registered comm links configuration
-            double delay = commNetwork.GenerateDelay();
-            double executionTime = aTimeNow + delay;
-
-            # Create and dispatch the commMessage
-            CommMessage commMessage =
-               ConstructCommMessage(executionTime, aSourcePlatform, aTargetPlatform, aMessage);
-            if (JammerManager().IsLocationJammed(aTargetPlatform.Location(), commNetwork.GetName())){
-               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "Jammed");   
-            } else {
-               WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});
-               # Log the message to the csv
-               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, ""); 
-               # Append this comm to the results
-               results.Set(commNetwork, delay);  
-            }                     
-         }
-      }
-      return results;
+      # Mark that this platform has handled/repeated the message
+      receiversOfMessage.Insert(aPlatform);
    }
    end_script
    
-   # Attempts to send the given message on all CommLinks from the source platform
-   # for the given message type. The delivery will be delayed based on the
-   # configuration of the CommNetwork for the CommLink
+   # Attempts to send a message out from a source platform to all other
+   # platforms to which it is linked.
    #
-   # param aTimeNow        The current simulation time
-   # param aSourcePlatform The platform where the message originated
-   # param aMessage        The message to be sent
-   # return                False if the message failed to be sent for whatever reason
-   script bool SendMessage( double aTimeNow,
-                            WsfPlatform aSourcePlatform, 
-                            WsfMessage aMessage)
-      # This should never happen, but just in case...
-      if(!mIsInitialized)
-         Initialize();
-
-      if(!mCommLinksBySource.Exists(aSourcePlatform))
+   # param aCommMessage  The message to be sent. It will be copied, retaining the
+   #                     original id. The copies will update the target to a linked
+   #                     target as the links are iterated
+   # return  false if any link was unable to handle the message, else true   
+   script bool SendMessageOnAllLinks( CommMessage aCommMessage ) {
+      double timeNow = aCommMessage.GetMessageHandlingTime();
+      WsfPlatform sourcePlatform = aCommMessage.GetSourcePlatform();
+      
+      if(!mCommLinksBySource.Exists(sourcePlatform))
          return false;
       
       Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
-         mCommLinksBySource.Get(aSourcePlatform);
+         mCommLinksBySource.Get(sourcePlatform);
       
-      Set<Object> test = messageMap.KeySet();
-      
-      string messageType = aMessage.Type();
+      string messageType = aCommMessage.GetMessage().Type();
       if (!messageMap.Exists(messageType))
          return false;
          
@@ -337,39 +295,208 @@ script_struct CommManager
          return false;
          
       bool retVal = true;
+      # Handling for point-to-point messages 
       foreach ( CommNetwork commNetwork : Set<WsfPlatform> targetPlatforms in linkAndTargets ) {
          foreach ( WsfPlatform targetPlatform in targetPlatforms ) {
+            # If the target of this link was destroyed then skip sending the message 
+            if(targetPlatform.IsNull())
+               continue;
+               
             # Verify that the comm message handler script defined by the platform exists
-            string handlerScriptName = targetPlatform->messageHandlerScriptName;
+            string handlerScriptName = targetPlatform->GetMessageHandlerScriptName();
             if(!WsfSimulation.ScriptExists(handlerScriptName)) {
                # TODO log error
                retVal = false;
                continue; 
             }         
 
-            
             # Generate a delay based on the registered comm links configuration
             double delay = commNetwork.GenerateDelay();
-            double executionTime = aTimeNow + delay;
+            double executionTime = timeNow + delay;
 
             # Create and dispatch the commMessage
             CommMessage commMessage =
-               ConstructCommMessage(executionTime, aSourcePlatform, targetPlatform, aMessage);
+               ConstructCommMessageCopy(aCommMessage, executionTime, sourcePlatform, targetPlatform);
+            
             # Check if commMessage is over Link16 and if target platform is jammed
             # if so, do not call ExecuteAtTime and log failure reason as "jammed"
-            if ( JammerManager().IsLocationJammed(targetPlatform.Location(), commNetwork.GetName()) ) {
-               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "Jammed");   
+            bool sourceIsJammed = JammerManagerInstance().IsLocationJammed(sourcePlatform.Location(), commNetwork.GetName());
+            bool targetIsJammed = JammerManagerInstance().IsLocationJammed(targetPlatform.Location(), commNetwork.GetName());
+            if( sourceIsJammed || targetIsJammed ) { 
+               if ( sourceIsJammed && targetIsJammed ){
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, "SEND", "Both Jammed");   
+               } else if ( sourceIsJammed ) {
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, "SEND", "Transmitter Jammed");
+               } else {
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, "SEND", "Receiver Jammed");
+               }
             } else {
                WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});
                # Log the message to the csv
-               LogCommMessage( aTimeNow, executionTime, commMessage, commNetwork, "");   
+               LogCommMessage( timeNow, executionTime, commMessage, commNetwork, "SEND", "");   
             }                     
          }
-      } 
-     
-      return true;
+      }
+      return retVal;   
+   }
+   end_script
+
+   # Handles the repetition of a broadcast message. This will send the CommMessage
+   # out on all links except for any links back to the source platform. It also tracks
+   # if a platform has already received the message and prevents from repeating the
+   # message to a platform that has already received it.
+   #
+   # param  aCommMessage  The message to be sent. It will be copied, retaining the
+   #                      original id. The copies will update the target to a linked
+   #                      target as the links are iterated
+   # return  false if any link was unable to handle the message, else true         
+   script bool RepeatBroadcastMessage( CommMessage aCommMessage ) {
+      # This should never happen, but just in case...
+      if(!mIsInitialized)
+         Initialize();
+
+      # Get the set of platforms that have already received this message 
+      Set<WsfPlatform> receiversOfMessage = GetReceiversOfMessage(aCommMessage.GetId());
+
+      WsfPlatform repeatingPlatform = null;
+      if(aCommMessage.GetHopCount() == 0 ) {
+         # If this is the first transmission of a message, then Hop Count will be 0.
+         # In this case the target has not been set and the message is being "repeated"
+         # by the source platform
+         repeatingPlatform = aCommMessage.GetSourcePlatform();
+      } else {
+         # If this is an actual repeat then hop count will be greater than zero
+         # In this case, the repeating platform is the target of the incoming message         
+         repeatingPlatform = aCommMessage.GetTargetPlatform();
+
+         # Has this repeating platform been destroyed?
+         if(repeatingPlatform.IsNull())
+            return false;
+
+         # Has this repeating platform already received/handled this message?
+         if( receiversOfMessage.Exists(repeatingPlatform) )
+            return false;
+      }
+      
+      # Mark this message as "received" meaning no other platform should try to the send this
+      # message back to this platform 
+      markMessageAsReceivedByPlatform( aCommMessage.GetId(), repeatingPlatform );
+
+      
+      # Does the repeater have links
+      if(!mCommLinksBySource.Exists(repeatingPlatform))
+         return false;
+      
+      # Get them
+      Map<string, Map<CommNetwork, Set<WsfPlatform>>> messageMap =
+         mCommLinksBySource.Get(repeatingPlatform);      
+      
+      # The current time is the timestamp on the CommMessage
+      double timeNow = aCommMessage.GetMessageHandlingTime();
+      
+      # Do any of the repeaters links support this message type?
+      string messageType = aCommMessage.GetMessage().Type();
+      if (!messageMap.Exists(messageType))
+         return false;
+      
+      # Get Them
+      Map<CommNetwork, Set<WsfPlatform>> linkAndTargets =
+         messageMap.Get(messageType);      
+      
+      # Repeat the message out on those links
+      bool retVal = true;
+      foreach ( CommNetwork commNetwork : Set<WsfPlatform> targetPlatforms in linkAndTargets ) {
+         foreach ( WsfPlatform targetPlatform in targetPlatforms ) {
+            # If the target of this link was destroyed then skip sending the message 
+            if(targetPlatform.IsNull())
+               continue;
+               
+            # If this target is the source of the repeated message, then do
+            # not repeat the message back to it
+            if( targetPlatform == aCommMessage.GetSourcePlatform() )
+               continue;
+            
+            # If this target has already received the message, then don't send it
+            # Note: This is an optimization to reduce the number of redundant messages
+            # sent, in real life this message would be forwarded to the platform
+            if(receiversOfMessage.Exists(targetPlatform))
+               continue;
+         
+            # Verify that the comm message handler script defined by the platform exists
+            string handlerScriptName = targetPlatform->GetMessageHandlerScriptName();
+            if(!WsfSimulation.ScriptExists(handlerScriptName)) {
+               # TODO log error
+               retVal = false;
+               continue; 
+            }         
+
+            # Generate a delay based on the registered comm links configuration
+            double delay = commNetwork.GenerateDelay();
+            double executionTime = timeNow + delay;
+
+            # Create and dispatch the commMessage
+            CommMessage commMessage =
+               ConstructCommMessageCopy(aCommMessage, executionTime, repeatingPlatform, targetPlatform);
+            
+            string repeatType = "BROADCAST";
+            if (commMessage.GetHopCount() > 1)
+               repeatType = "REPEAT";
+
+            # Check if commMessage is over Link16 and if target platform is jammed
+            # if so, do not call ExecuteAtTime and log failure reason as "jammed"
+            bool sourceIsJammed = JammerManagerInstance().IsLocationJammed(repeatingPlatform.Location(), commNetwork.GetName());
+            bool targetIsJammed = JammerManagerInstance().IsLocationJammed(targetPlatform.Location(), commNetwork.GetName());
+            if( sourceIsJammed || targetIsJammed ) { 
+               if ( sourceIsJammed && targetIsJammed ){
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, repeatType, "Both Jammed");   
+               } else if ( sourceIsJammed ) {
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, repeatType, "Transmitter Jammed");
+               } else {
+                  LogCommMessage( timeNow, executionTime, commMessage, commNetwork, repeatType, "Receiver Jammed");
+               }
+            } else {
+               WsfSimulation.ExecuteAtTime( executionTime, "RepeatCommManagerBroadcastMessage", {commMessage});
+               WsfSimulation.ExecuteAtTime( executionTime, handlerScriptName, {commMessage});
+               
+               # Log the message to the csv
+               LogCommMessage( timeNow, executionTime, commMessage, commNetwork, repeatType, "");
+            }                     
+         }
+      }
+      return retVal; 
+   }
    end_script
    
+   # Attempts to send the given message on all CommLinks from the source platform
+   # for the given message type. The delivery will be delayed based on the
+   # configuration of the CommNetwork for the CommLink
+   #
+   # param aTimeNow        The current simulation time
+   # param aSourcePlatform The platform where the message originated
+   # param aMessage        The message to be sent
+   # param aBroadcast      If true, receiving platforms will attempt to forward the message on all links. 
+   # return                False if the message failed to be sent for whatever reason
+   script CommMessage SendMessage( double aTimeNow,
+                            WsfPlatform aSourcePlatform, 
+                            WsfMessage aMessage,
+                            bool aBroadcast)
+      # This should never happen, but just in case...
+      if(!mIsInitialized)
+         Initialize();
+
+      # Special handling for broadcast messages
+      CommMessage baseMessage =
+         ConstructCommMessage(aTimeNow, aSourcePlatform, aMessage, aBroadcast);
+      
+      if( aBroadcast ) {
+         RepeatBroadcastMessage(baseMessage);
+      } else {
+         SendMessageOnAllLinks(baseMessage);
+      }
+      
+      return baseMessage;
+
+   end_script
 end_script_struct
 
 # Global method that creates/gets a static instance of
@@ -379,9 +506,16 @@ script CommManager CommManagerInstance()
    return comm_manager;
 end_script
 
+script void RepeatCommManagerBroadcastMessage( CommMessage commMessage) {
+   # Resend the message too all neighbors
+   CommManagerInstance().RepeatBroadcastMessage( commMessage );
+}
+end_script
+
 # Global method that is invoked by the CommManagerObserver
 # in response to the SIMULATION_STARTING event
 script void InitializeCommManager() {
    CommManagerInstance().Initialize();
 }
 end_script
+

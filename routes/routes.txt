@@ -320,12 +320,10 @@ route racetrack_oval2
    goto wp1
 end_route
 
-# hold at WP0 orbit until racetrack starts
-behavior racetrack_leader
+
+    behavior racetrack_leader
    script_variables 
-      bool leaderStarted = false;
-      bool joinedRacetrack = false;
-      WsfPlatform wingman = null;
+      bool routeStarted = false;
    end_script_variables
    
    precondition
@@ -340,36 +338,22 @@ behavior racetrack_leader
    end_precondition
    
    execute
-      if (!leaderStarted) {
-         leaderStarted = true;
-         string wingmanName = PLATFORM.AuxDataString("wingman_name");
-         wingman = WsfSimulation.FindPlatform(wingmanName);
-         
-      }
-      
-      if (wingman.IsValid() && !joinedRacetrack) {
-         double wingmanLon = wingman.Longitude();
-         
-         if (wingmanLon >= 13.7) {
-            joinedRacetrack = true;
-            
-            WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval2");
-            if (racetrack.IsValid()) {
-               PLATFORM.FollowRoute(racetrack, 0);
-            }
+      if (!routeStarted) {
+         routeStarted = true;
+         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval2");
+         if (racetrack.IsValid()) {
+            PLATFORM.FollowRoute(racetrack, 0);
          }
       }
       
-      PLATFORM.SetAuxData("in_racetrack", joinedRacetrack);
+      PLATFORM.SetAuxData("in_racetrack", true);
    end_execute
 end_behavior
 
 # move straight then join racetrack
 behavior racetrack_wingman
    script_variables 
-      bool wingmanStarted = false;
-      bool joinedRacetrack = false;
-      WsfGeoPoint targetLocation = WsfGeoPoint();
+      bool routeStarted = false;
    end_script_variables
    
    precondition
@@ -384,29 +368,14 @@ behavior racetrack_wingman
    end_precondition
    
    execute
-      if (!wingmanStarted) {
-         wingmanStarted = true;
-         
-         double currentLat = PLATFORM.Latitude();
-         double targetLon = 13.7;
-         double targetAlt = PLATFORM.Altitude();
-         
-         targetLocation = WsfGeoPoint.Construct(currentLat, targetLon, targetAlt);
-         PLATFORM.GoToLocation(targetLocation);
-      }
-      
-      double lon = PLATFORM.Longitude();
-      
-      # check if reached target longitude
-      if (!joinedRacetrack && lon >= 13.7) {
-         joinedRacetrack = true;
-         
-         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval");
+      if (!routeStarted) {
+         routeStarted = true;
+         WsfRoute racetrack = WsfRoute.FindGlobal("racetrack_oval2");
          if (racetrack.IsValid()) {
             PLATFORM.FollowRoute(racetrack, 0);
          }
       }
       
-      PLATFORM.SetAuxData("in_racetrack", joinedRacetrack);
+      PLATFORM.SetAuxData("in_racetrack", true);
    end_execute
 end_behavior

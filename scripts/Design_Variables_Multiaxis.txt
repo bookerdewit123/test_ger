@@ -27,17 +27,16 @@ $define LATENCY 10
 ############################################
 ############## WEAPONS #####################
 ############################################
-#MACH 4
-$define BLUE_AVERAGE_SPEED_MPS 1372
+#MACH 4 1372 m/s
+$define BLUE_AVERAGE_SPEED_MPS 1372 
 $define BLUE_WEAPON_PK_RANGE 100
 $define BLUE_WEAPON_PK .9
 $define FUSE_TIME 27
 $define BLUE_NUM_WEAPONS_PER_LAUNCHER 2
 
-$define RED_AVERAGE_SPEED_GLIDE 378
-$define RED_GLIDE_PK_RANGE 300
-$define RED_GLIDE_PK 1
-$define RED_WEAPON_PK .9
+$define CRUISE_MISSILE_INTERVAL 15
+$define RED_AVERAGE_SPEED_CRUISE_MISSILE 240.1
+$define FUSE_TIME_CRUISE 2000
 
 ############################################
 ############## BMS VALUES ##############

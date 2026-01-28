@@ -19,23 +19,24 @@ platform_type Su-35 RED_FIGHTER
    edit mover 
    end_mover 
 
+   weapon AA_13_R_37M_LRAAM_Launcher RED_AAM 
+      quantity 4 ### This is so that we control when to fire by having it ocurr with reloads
+      maximum_request_count 4
+   end_weapon
 
 
    # DATA PAST THIS POINT IS BASED ON THE G425 WORKING DECK
    
    sensor AN/SU-35_LARGE AN_SU-35_LARGE
       on
-      #internal_link data_mgr
    end_sensor 
 
    sensor AN/SU-35_MEDIUM AN_SU-35_MEDIUM
       on
-      #internal_link data_mgr
    end_sensor 
 
    sensor AN/SU-35_SMALL AN_SU-35_SMALL
       on
-      #internal_link data_mgr
    end_sensor 
 
    script_variables
@@ -43,3 +44,27 @@ platform_type Su-35 RED_FIGHTER
    end_script_variables
 
 end_platform_type
+
+# This script calculates the pk for a missile based on its launch
+# conditions and stores that data on the weapon
+script void RedFighterWeaponFired(WsfWeaponEngagement aWeaponEngagement, WsfTrack aTargetTrack)
+   if(aWeaponEngagement.WeaponSystemName() == "AA_13_R_37M_LRAAM_Launcher") {
+      WsfPlatform shooter = aWeaponEngagement.FiringPlatform();
+      WsfPlatform target = aWeaponEngagement.TargetPlatform();
+      WsfPlatform weaponPlatform = aWeaponEngagement.WeaponPlatform();
+      
+      double rangeNm = shooter.GroundRangeTo(target)*Math.NM_PER_M();
+      
+      double calculatedPk = CalculateAA13Pk(rangeNm);
+      
+      weaponPlatform.SetAuxData("CalculatedPK", calculatedPk);
+
+      string comment = "Incoming Weapon Fired with pk=" + (string)((double)((int)(calculatedPk*10000))/100.0) + "%";
+      target.Comment(comment);
+   }
+   
+end_script
+
+observer
+   enable WEAPON_FIRED RedFighterWeaponFired
+end_observer

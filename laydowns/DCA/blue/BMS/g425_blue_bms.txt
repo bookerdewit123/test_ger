@@ -4,7 +4,7 @@ include_once ../CommHandlers/comm_network_names.txt
 include_once weapons/blue/g425/g425_weapon_effect.txt
 
 # Enumeration of behavior strings
-script_struct BEHAVIOR_ENUM
+script_struct BLUE_BMS_BEHAVIOR_ENUM
    script_variables
       string CAP_FORWARD  = "Cap Forward";
       string CAP_BACKWARD = "Cap Backward";
@@ -12,11 +12,11 @@ script_struct BEHAVIOR_ENUM
    end_script_variables
 end_script_struct
 
-# Getter for static instance of BEHAVIOR_ENUM used to prevent
-# excessive instantiation of the BEHAVIOR_ENUM script_struct
+# Getter for static instance of BLUE_BMS_BEHAVIOR_ENUM used to prevent
+# excessive instantiation of the BLUE_BMS_BEHAVIOR_ENUM script_struct
 script
-   BEHAVIOR_ENUM BEHAVIOR_ENUM_INST() {
-      static BEHAVIOR_ENUM behaviorEnum = BEHAVIOR_ENUM();
+   BLUE_BMS_BEHAVIOR_ENUM BLUE_BMS_BEHAVIOR_ENUM_INST() {
+      static BLUE_BMS_BEHAVIOR_ENUM behaviorEnum = BLUE_BMS_BEHAVIOR_ENUM();
       return  behaviorEnum;
    }
 end_script
@@ -44,15 +44,15 @@ end_script
 script_variables
    # Constants defining the names of auxiliary data that will stored on
    # platforms to suport the BMS logic
-   string cG425_BMS_AUX_DATA_NAME_BEHAVIOR = "xBehavior_s";
-   string cG425_BMS_AUX_DATA_NAME_PCT      = "xPrimaryClaimTarget_o";
-   string cG425_BMS_AUX_DATA_NAME_PCV      = "xPrimaryClaimValue_s";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR = "xBehavior_s";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_PCT      = "xPrimaryClaimTarget_o";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_PCV      = "xPrimaryClaimValue_s";
    
    # Constants defining the type for a Claim Message and the names of
    # auxiliary data that will stored on the message
-   string cG425_BMS_AUX_DATA_NAME_MSG_TYPE       = "G425_BMS_CLAIM_MESSAGE";
-   string cG425_BMS_AUX_DATA_NAME_MSG_CLAIMANT   = "xClaimant_o";
-   string cG425_BMS_AUX_DATA_NAME_MSG_TRACK      = "xClaimedTrack_o";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TYPE       = "G425_BMS_CLAIM_MESSAGE";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_MSG_CLAIMANT   = "xClaimant_o";
+   string cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TRACK      = "xClaimedTrack_o";
 end_script_variables
 
 
@@ -64,9 +64,8 @@ script_struct G425BlueBms
 
    script_variables
       # Tracks when the BMS should be active
-      # TODO: This should default false and be set to true by Red
-      # BMS on first detection of blue forces (jamming starts as well)
-      bool mScenarioIsHot = true; # false;
+      # This defaults to false
+      bool mScenarioIsHot = false;
       
       # Tracks the Situation Awareness of each individual blue platform
       # PlatformSA -> Target -> Claimer -> Claim Type
@@ -87,7 +86,17 @@ script_struct G425BlueBms
    
    # Setter/Getter for Scenario State
    script bool ScenarioIsHot() { return mScenarioIsHot; } end_script
-   script void SetScenarioState(bool aIsHot) { mScenarioIsHot = aIsHot; } end_script
+   script bool SetScenarioState(bool aIsHot) {
+      mScenarioIsHot = aIsHot;
+      
+      if(mScenarioIsHot)
+         writeln_debug("*** BLUE BMS IS HOT ***");
+      else
+         writeln_debug("*** BLUE BMS IS COLD ***");
+      
+      return mScenarioIsHot; 
+   }
+   end_script
    
 
    script Map<WsfPlatform, string> GetSATruthForTarget(WsfPlatform aTarget) {
@@ -120,23 +129,27 @@ script_struct G425BlueBms
 
       # Get the Auxiliary Data                             
       string currentBehavior = "???";
-      if(aBluePlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR))
-         currentBehavior = aBluePlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
+      if(aBluePlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR))
+         currentBehavior = aBluePlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR);
       
       string targetName = "None";
-      if(aBluePlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT))
-         targetName = ((WsfPlatform)aBluePlatform.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT)).Name();
+      if(aBluePlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT))
+         targetName = ((WsfPlatform)aBluePlatform.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_PCT)).Name();
       
       string targetClaim = "None";
-      if(aBluePlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCV))
-         targetClaim = aBluePlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_PCV);
+      if(aBluePlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV))
+         targetClaim = aBluePlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_PCV);
       
       # Get the Truth SA
       string truthClaims = "";
       Map<WsfPlatform, string> SATruth = GetSATruthForTarget(aTargetPlatform);
       foreach ( WsfPlatform claimant : string claimType in SATruth) {
-         if( claimType != CLAIM_ENUM_INST().NONE )
-            truthClaims = truthClaims +  claimant.Name() + "[" + claimType + "];"; 
+         if( claimType != CLAIM_ENUM_INST().NONE ) {
+            if( claimant.IsNull() )
+               truthClaims = truthClaims +  "DESTROYED PLATFORM[" + claimType + "];";
+            else
+               truthClaims = truthClaims +  claimant.Name() + "[" + claimType + "];"; 
+         }
       } 
 
       string trackId = "N/A";
@@ -198,9 +211,9 @@ script_struct G425BlueBms
          return false;
 
       # Does this platform type engage targets?
-      return  ( aPlatform.Type() == "4thGenFighter"
-                # uncomment this line when the JammerManager is implemented in issue  4667
-                # || processingPlatform.Type() == "5thGenFighter" and JammermanagerInstance().IsLocationJammed(processingPlatform.Location())
+      return  ( aPlatform.Type() == "4thGenFighter" ||
+                ( aPlatform.Type() == "5thGenFighter" &&
+                  JammerManagerInstance().IsLocationJammed(aPlatform.Location(), gcLINK16_NETWORK_NAME))
                );
    } 
    end_script
@@ -284,20 +297,20 @@ script_struct G425BlueBms
       writeln_debug("AUX DATA FOR " + aPlatform.Name());
       # Retrieve auxiliary data from the claimant platform
       # which is required for this logic.
-      if(aPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR))
-         writeln_debug("    BEHAVIOR: " + aPlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR));
+      if(aPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR))
+         writeln_debug("    BEHAVIOR: " + aPlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR));
       else
          writeln_debug("    BEHAVIOR: NOT FOUND");
 
-      if(aPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT)) {
-         WsfPlatform PCT = (WsfPlatform)aPlatform.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT);
+      if(aPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT)) {
+         WsfPlatform PCT = (WsfPlatform)aPlatform.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
          writeln_debug("    PCT: " + PCT.Name());
       } else {
          writeln_debug("    PCT: NOT FOUND");
       }
 
-      if(aPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCV))
-         writeln_debug("    PCV: " + aPlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_PCV));
+      if(aPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV))
+         writeln_debug("    PCV: " + aPlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_PCV));
       else
          writeln_debug("    PCV: NOT FOUND");
    }
@@ -331,83 +344,30 @@ script_struct G425BlueBms
              writeln_debug("TRUTH SA: NULL TARGET FOUND!!!");
          } else {
             writeln_debug("TRUTH SA: " + target.Name() );
-            foreach( WsfPlatform claimant : string claimType in sa )
-               writeln_debug("    " + claimant.Name() + " - " + claimType );
+            foreach( WsfPlatform claimant : string claimType in sa ) {
+               if(claimant.IsNull())
+                  writeln_debug("    Destroyed Platform - " + claimType );
+               else
+                  writeln_debug("    " + claimant.Name() + " - " + claimType );
+            }
          }
       }
    }
    end_script
    
-   script WsfPlatform GetClosestPotentialClaimantPerLocalSA(WsfTrack track, Map<WsfPlatform,Map<WsfPlatform, string>> localSA){
-      writeln_debug("Building Claimant List...");
-      Map<double, WsfPlatform> potential_claimants = Map<double, WsfPlatform>();
-      WsfGeoPoint trackReportedPosition = track.ReportedLocation();
-      WsfPlatform target = track.Target();
-
-      if(target.IsValid()) {
-         for (int i = 0; i < WsfSimulation.PlatformCount(); i = i + 1)
-         {
-            WsfPlatform potentialClaimant = WsfSimulation.PlatformEntry(i);
-
-            # skip any inactive combatants
-            if(!IsActiveCombatant(potentialClaimant))
-               continue;
-
-            # Retrieve auxiliary data from the potential claimant
-            # platform which is required for this logic.
-            assert(potentialClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
-            string pcBehavior =  potentialClaimant.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
-
-            assert(potentialClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCT);
-            Object pcPCT =  potentialClaimant.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT);
-
-            assert(potentialClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCV), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCV);
-            string pcPCV =  potentialClaimant.AuxDataString(cG425_BMS_AUX_DATA_NAME_PCV);
-
-            
-            if(pcBehavior != BEHAVIOR_ENUM_INST().CAP_FORWARD) {
-               writeln_debug(potentialClaimant.Name() + "[" + potentialClaimant.Type() + "]" + " is not Capping Forward");
-               continue;
-            }
-            
-            # iterate over the current claimants SA and see if the platform, p,
-            # has any current primary claims in that SA
-            bool isPotentialClaimant = true;
-            foreach (WsfPlatform sa_target_object : Map<WsfPlatform, string> claim in localSA)
-            {
-               WsfPlatform sa_target = (WsfPlatform)sa_target_object;
-               
-               if( sa_target != target && 
-                   claim.Exists(potentialClaimant) && 
-                   claim.Get(potentialClaimant) != CLAIM_ENUM_INST().NONE) {
-                  # This potential claimant already has a primary claim against another target so don't consider him
-                  writeln_debug(potentialClaimant.Name() + "[" + potentialClaimant.Type() + "]" + " already has a primary [" + claim.Get(potentialClaimant) +"] against another target: " + sa_target.Name());
-                  isPotentialClaimant = false;
-                  break;
-               }
-            }
-            
-            if(isPotentialClaimant) {
-               # Get the slant range between the platform and the tartget and
-               # add to potential claimants
-               WsfGeoPoint platformPosition = potentialClaimant.Location();
-               double distance = platformPosition.SlantRangeTo(trackReportedPosition);
-               potential_claimants.Set(distance, potentialClaimant);
-               writeln_debug(potentialClaimant.Name() + "[" + potentialClaimant.Type() + "]" + " is a potential claimant at distance " + (string)distance);
-            }
-         }
-      }
-      writeln_debug("... Claimant List has " + (string)potential_claimants.Size() + " entries");
-      
-      if( potential_claimants.Size() > 0 ) {
-         WsfPlatform closest = (WsfPlatform)potential_claimants.Get(potential_claimants.ElementKeyAtIndex(0));
-         writeln_debug("Closest claimant is " + closest.Name() + "[" + closest.Type() + "]");
-         return closest;
-      }
-      return null;
+   # Compares the distance between a source platform and two other platforms
+   #
+   # param aReferencePlatform  The platform that is the reference position
+   # param aCurrentPlatform    The platform that is currently considered "closest"
+   # param aTestPlatform       The platform that we are testing for IsCloser
+   # return  True if aTestPlatform is closer to aReferencePlatform than aCurrentPlatform, otherwise false
+   script bool IsCloser( WsfPlatform aReferencePlatform,
+                         WsfPlatform aCurrentPlatform,
+                         WsfPlatform aTestPlatform ) {
+      return aReferencePlatform.SlantRangeTo(aTestPlatform) < aReferencePlatform.SlantRangeTo(aCurrentPlatform);
    }
    end_script
-
+   
    # Determines the type of shooting claim that the given claimant platform would have
    # against the given track using that platforms SA and current conditions 
    #
@@ -436,7 +396,9 @@ script_struct G425BlueBms
       # If any claimant has a claim, this platform cannot claim
       bool otherPlatformHasClaim = false;
       foreach(WsfPlatform otherClaimant : string claimType in SAOnTarget) {
-         if(claimType != CLAIM_ENUM_INST().NONE && claimType != CLAIM_ENUM_INST().INTERCEPT) {
+         if( otherClaimant.IsValid() &&
+             claimType != CLAIM_ENUM_INST().NONE && 
+             claimType != CLAIM_ENUM_INST().INTERCEPT) {
             writeln_debug((string)TIME_NOW + " [" + aClaimant.Name() + "] Other platform " + otherClaimant.Name() + " already has an " + claimType + " claim against " + target.Name());
             // print the platform claim, local SA, and Truth
             DebugDumpAuxDataForPlatform(otherClaimant);
@@ -452,46 +414,35 @@ script_struct G425BlueBms
       
       # Retrieve auxiliary data from the claimant platform
       # which is required for this logic.
-      assert(aClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
-      string behavior =  aClaimant.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
+      assert(aClaimant.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR);
+      string behavior =  aClaimant.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR);
 
-      assert(aClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCT);
-      Object PCT =  aClaimant.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT);
+      assert(aClaimant.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
+      Object PCT =  aClaimant.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
 
-      assert(aClaimant.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCV), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCV);
-      string PCV =  aClaimant.AuxDataString(cG425_BMS_AUX_DATA_NAME_PCV);
+      assert(aClaimant.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_PCV);
+      string PCV =  aClaimant.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_PCV);
       
       # Should this claimant surrender their claim?
-      if( behavior == BEHAVIOR_ENUM_INST().CAP_BACKWARD &&
+      if( behavior == BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_BACKWARD &&
           PCV == CLAIM_ENUM_INST().INTERCEPT ) {
          writeln_debug(aClaimant.Name() + " should release claim against " + target.Name()); 
          return CLAIM_ENUM_INST().NONE;
       }
       
       # Is this claimant facing the enemy?
-      if( behavior == BEHAVIOR_ENUM_INST().CAP_FORWARD ) {
-         # create a map of distances to target to blue fighters which are capping
-         # forward and which this claimant believes do not have a claim on any target
-         writeln_debug((string)TIME_NOW + " - Determining if " + aClaimant.Name() + "[" + aClaimant.Type() + "]" + " is the closest claimant to " + target.Name()); 
-         
-         WsfPlatform closest = GetClosestPotentialClaimantPerLocalSA(track, claimantsSA);
-         
-         # Of this list, is there no potential claimant or is this claimant the closest?
-         if ( closest == null || closest == aClaimant)
-         {
-            # Is this claimant in a position to fire?
-            if(canShooterEngage(aClaimant, aWeaponType, track)) {
-               writeln_debug(aClaimant.Name() + " can engage " + target.Name());
-               return CLAIM_ENUM_INST().FIRE;
-            } else {
-               writeln_debug(aClaimant.Name() + " can intercept " + target.Name());
-               return CLAIM_ENUM_INST().INTERCEPT;
-            }
+      if( behavior == BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_FORWARD ) {
+         # Is this claimant in a position to fire?
+         if(canShooterEngage(aClaimant, aWeaponType, track)) {
+            writeln_debug(aClaimant.Name() + " can engage " + target.Name());
+            return CLAIM_ENUM_INST().FIRE;
+         } else {
+            writeln_debug(aClaimant.Name() + " can intercept " + target.Name());
+            return CLAIM_ENUM_INST().INTERCEPT;
          }         
-      } else {
-         writeln_developer("Claimant behavior state is " + behavior);
       }
-        
+
+      writeln_developer("Claimant behavior state is " + behavior);
       return CLAIM_ENUM_INST().NONE;
    }
    end_script
@@ -504,13 +455,13 @@ script_struct G425BlueBms
          bool crap = true;
    
       WsfMessage claimMessage = WsfMessage();
-      claimMessage.SetType(cG425_BMS_AUX_DATA_NAME_MSG_TYPE);
+      claimMessage.SetType(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TYPE);
       claimMessage.SetSubType(aClaimType);
       
-      claimMessage.SetAuxData(cG425_BMS_AUX_DATA_NAME_MSG_CLAIMANT, aClaimingPlatform);
-      claimMessage.SetAuxData(cG425_BMS_AUX_DATA_NAME_MSG_TRACK, WsfTrack(aTrack)); # send a copy because the original will be deleted
+      claimMessage.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_CLAIMANT, aClaimingPlatform);
+      claimMessage.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TRACK, WsfTrack(aTrack)); # send a copy because the original will be deleted
       
-      CommManagerInstance().SendMessage(TIME_NOW, aClaimingPlatform, claimMessage);
+      CommManagerInstance().SendMessage(TIME_NOW, aClaimingPlatform, claimMessage, true);
    }
    end_script
    
@@ -528,16 +479,21 @@ script_struct G425BlueBms
 
       # Handle incoming messages
       WsfMessage message = aCommMessage.GetMessage();
-      if( message.Type()==cG425_BMS_AUX_DATA_NAME_MSG_TYPE ) {
+      if( message.Type()==cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TYPE ) {
          # This is a claim message from another platform. Fuse it into the local SA
          
          # Grab aux data from the message
-         assert(message.CheckAuxData(cG425_BMS_AUX_DATA_NAME_MSG_CLAIMANT), "ERROR: Blue BMS received a Claim Message missing auxiliary data: " + cG425_BMS_AUX_DATA_NAME_MSG_CLAIMANT);
-         assert(message.CheckAuxData(cG425_BMS_AUX_DATA_NAME_MSG_TRACK), "ERROR: Blue BMS received a Claim Message missing auxiliary data: " + cG425_BMS_AUX_DATA_NAME_MSG_TRACK);
+         assert(message.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_CLAIMANT), "ERROR: Blue BMS received a Claim Message missing auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_MSG_CLAIMANT);
+         assert(message.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TRACK), "ERROR: Blue BMS received a Claim Message missing auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TRACK);
          
-         WsfPlatform claimant = (WsfPlatform) message.AuxDataObject(cG425_BMS_AUX_DATA_NAME_MSG_CLAIMANT);
-         WsfTrack track = (WsfTrack) message.AuxDataObject(cG425_BMS_AUX_DATA_NAME_MSG_TRACK);
-         assert(claimant.IsValid(), "ERROR: Blue BMS was unable to get a valid claimant from a Claim Message");
+         WsfPlatform claimant = (WsfPlatform) message.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_CLAIMANT);
+         WsfTrack track = (WsfTrack) message.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_MSG_TRACK);
+         
+         if(!claimant.IsValid()) {
+            writeln_debug("Claim message received from destroyed claimant. Message ignored.");
+            return;
+         }
+
          assert(track.IsValid(), "ERROR: Blue BMS was unable to get a valid target track from a Claim Message");
          
          WsfPlatform target = track.Target();
@@ -548,16 +504,14 @@ script_struct G425BlueBms
          SAOnTarget.Set(claimant, claimType);
       } else if( message.Type()=="WSF_TRACK_MESSAGE") {
          # If the current platform is RTB, then do nothing
-         if(processingPlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR) == BEHAVIOR_ENUM_INST().RTB)
+         if(processingPlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR) == BLUE_BMS_BEHAVIOR_ENUM_INST().RTB)
             return;
 
          # Update Capping state based on heading
-         # Note: this should not be updated here,
-         # but rather by the behavior tree
          if (processingPlatform.Heading() > 0 ) 
-            processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR, BEHAVIOR_ENUM_INST().CAP_FORWARD);
+            processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR, BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_FORWARD);
          else
-            processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR, BEHAVIOR_ENUM_INST().CAP_BACKWARD);
+            processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR, BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_BACKWARD);
 
          # Handle Track Message 
          WsfTrackMessage trackMsg = WsfTrackMessage((WsfTrackMessage)message);  # create a working copy
@@ -582,14 +536,14 @@ script_struct G425BlueBms
 
          # Retrieve auxiliary and target/behavior data from the
          # claimant platform, which is required for this logic.
-         assert(processingPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
-         string behavior =  processingPlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_BEHAVIOR);
+         assert(processingPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR);
+         string behavior =  processingPlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR);
 
-         assert(processingPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCT);
-         Object PCT =  processingPlatform.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT);
+         assert(processingPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
+         WsfPlatform PCT =  (WsfPlatform)processingPlatform.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
 
-         assert(processingPlatform.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCV), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BMS_AUX_DATA_NAME_PCV);
-         string PCV =  processingPlatform.AuxDataString(cG425_BMS_AUX_DATA_NAME_PCV);
+         assert(processingPlatform.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV), "ERROR: Blue BMS executed against a platform which does not have required auxiliary data: " + cG425_BLUE_BMS_AUX_DATA_NAME_PCV);
+         string PCV =  processingPlatform.AuxDataString(cG425_BLUE_BMS_AUX_DATA_NAME_PCV);
          
          # Retrieve the weapon
          WsfWeapon weapon = processingPlatform.Weapon(cWEAPON_NAME);
@@ -607,8 +561,8 @@ script_struct G425BlueBms
                # Transmit Release Claim
                sendClaimMessage( processingPlatform, track, CLAIM_ENUM_INST().NONE );
                # Update Platform Aux Data
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCT, processingPlatform);
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, processingPlatform);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE);
                # Update BMS SA for this platform
                GetOrCreateTargetSAForPlatform(processingPlatform, target).Set(processingPlatform, CLAIM_ENUM_INST().NONE); 
                # Update Truth
@@ -619,12 +573,38 @@ script_struct G425BlueBms
          } else if(claim_check == CLAIM_ENUM_INST().INTERCEPT) {
             # This platform does not already have a claim, so assert an Intercept claim against this target
             # Note when a platform has no primary claim, the PCT is itself.
-            if(PCT==processingPlatform) {
+            if(PCV==CLAIM_ENUM_INST().INTERCEPT) {
+               # if target is closer than current intercept
+               if(IsCloser(processingPlatform, PCT, target)) {
+                  # Transmit Release of old Claim
+                  sendClaimMessage( processingPlatform, track, CLAIM_ENUM_INST().NONE );
+                  # Update Platform Aux Data
+                  processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, processingPlatform);
+                  processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE);
+                  # Update BMS SA for this platform
+                  GetOrCreateTargetSAForPlatform(processingPlatform, target).Set(processingPlatform, CLAIM_ENUM_INST().NONE); 
+                  # Update Truth
+                  UpdateTruthSA(processingPlatform, target, CLAIM_ENUM_INST().NONE);
+                  #writeln(processingPlatform.Name() + ": " + "Releasing Intercept Claim on " + target.Name());
+                  LogBMSEvent( processingPlatform, target, track, claim_check, "RELEASE CLAIM", "N/A" );
+                  
+                  # Transmit new Intercept Claim
+                  sendClaimMessage( processingPlatform, track, CLAIM_ENUM_INST().INTERCEPT );
+                  # Update Platform Aux Data
+                  processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, target);
+                  processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().INTERCEPT);
+                  # Update BMS SA for this platform
+                  UpdatePlatformSA(processingPlatform, target, processingPlatform, CLAIM_ENUM_INST().INTERCEPT); 
+                  # Update Truth
+                  UpdateTruthSA(processingPlatform, target, CLAIM_ENUM_INST().INTERCEPT);
+                  #writeln(processingPlatform.Name() + ": " + "Tracking Intercept Claim on " + target.Name());
+                  LogBMSEvent( processingPlatform, target, track, claim_check, "INTERCEPT", calculatedPk_s );               }
+            } else if(PCT==processingPlatform) {
                # Transmit Intercept Claim
                sendClaimMessage( processingPlatform, track, CLAIM_ENUM_INST().INTERCEPT );
                # Update Platform Aux Data
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCT, target);
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().INTERCEPT);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, target);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().INTERCEPT);
                # Update BMS SA for this platform
                UpdatePlatformSA(processingPlatform, target, processingPlatform, CLAIM_ENUM_INST().INTERCEPT); 
                # Update Truth
@@ -639,8 +619,8 @@ script_struct G425BlueBms
                # Transmit Engage Claim
                sendClaimMessage( processingPlatform, track, CLAIM_ENUM_INST().ENGAGE );
                # Update Platform Aux Data
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCT, target);
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().ENGAGE);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, target);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().ENGAGE);
                # Update BMS SA for this platform 
                UpdatePlatformSA(processingPlatform, target, processingPlatform, CLAIM_ENUM_INST().ENGAGE);
                # Update Truth
@@ -666,7 +646,7 @@ script_struct G425BlueBms
          
             # If winchester RB
             if(weapon.QuantityRemaining() <= 0.0)
-               processingPlatform.SetAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR, BEHAVIOR_ENUM_INST().RTB);
+               processingPlatform.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR, BLUE_BMS_BEHAVIOR_ENUM_INST().RTB);
          } else {
             assert(true, "Wow, CheckClaim() somehow returned an invalid value: " + claim_check +"   - How did you even do that?"); 
          }
@@ -692,8 +672,6 @@ script void handleBlueWeaponEndOfLife(WsfWeaponEngagement aWeaponEngagement, Wsf
    # Get the firing blue platform
    WsfPlatform firingPlatform = aWeaponEngagement.FiringPlatform();
    
-   assert(firingPlatform.IsValid(), "handleBlueWeaponEndOfLife() - Firing platform is null. This means a weapon was in the air when its firer was destroyed ... We ened to handle this case but we currently don't");
-   
    # Release all claims on this target for all platforms
    for (int i = 0; i < WsfSimulation.PlatformCount(); i = i + 1)
    {
@@ -701,23 +679,36 @@ script void handleBlueWeaponEndOfLife(WsfWeaponEngagement aWeaponEngagement, Wsf
       if(platformToUpdate.IsA_TypeOf("BLUE_FIGHTER")) {
          # Release aux data
          WsfPlatform aux_target = null;
-         if(platformToUpdate.CheckAuxData(cG425_BMS_AUX_DATA_NAME_PCT))
-            aux_target = (WsfPlatform)platformToUpdate.AuxDataObject(cG425_BMS_AUX_DATA_NAME_PCT);
+         if(platformToUpdate.CheckAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT))
+            aux_target = (WsfPlatform)platformToUpdate.AuxDataObject(cG425_BLUE_BMS_AUX_DATA_NAME_PCT);
          if(aux_target == aTargetPlatform) {
+            string target_name = "destroyed target";
+            if( aux_target.IsValid() )
+               target_name = "target: " + aux_target.Name();
             writeln_debug( (string)TIME_NOW + " Releasing Aux Data for platformToUpdate " + platformToUpdate.Name() +
-                           " against target " + aux_target.Name());
-            platformToUpdate.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCT, platformToUpdate);
-            platformToUpdate.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE);
+                           " against " + target_name);
+            platformToUpdate.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, platformToUpdate);
+            platformToUpdate.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE);
          }
                   
          # Release platform SA  (should probably create an API method for this)
+         string firingPlatformName = "Destroyed Platform";
+         if( firingPlatform.IsValid() )
+            firingPlatformName = firingPlatform.Name();
+            
+         string targetPlatformName = "Destroyed Platform";
+         if( aTargetPlatform.IsValid() )
+            targetPlatformName = aTargetPlatform.Name();
+         
+         
+            
          writeln_debug( (string)TIME_NOW + " Updating platform" + platformToUpdate.Name() +
-                        " SA for claiming platform " + firingPlatform.Name() + " against target " + aTargetPlatform.Name()); 
+                        " SA for claiming platform " + firingPlatformName + " against target " + targetPlatformName); 
          G425BlueBmsInstance().UpdatePlatformSA(platformToUpdate, aTargetPlatform, firingPlatform, CLAIM_ENUM_INST().NONE);
          
          # Release truth  (should probably create an API method for this)
          writeln_debug( (string)TIME_NOW + " Updating SA truth for " + platformToUpdate.Name() +
-                        " against target " + aTargetPlatform.Name());
+                        " against target " + targetPlatformName);
          G425BlueBmsInstance().UpdateTruthSA(platformToUpdate, aTargetPlatform, CLAIM_ENUM_INST().NONE);
          
          G425BlueBmsInstance().LogBMSEvent( platformToUpdate, aTargetPlatform, null, "N/A", "Weapon EOL[NONE]", "N/A" );
@@ -800,12 +791,12 @@ script void handleSimulationStarting() {
             
       if(p.IsA_TypeOf("BLUE_FIGHTER")) {
          if (p.Heading() > 0 ) 
-            p.SetAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR, BEHAVIOR_ENUM_INST().CAP_FORWARD);
+            p.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR, BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_FORWARD);
          else
-            p.SetAuxData(cG425_BMS_AUX_DATA_NAME_BEHAVIOR,  BEHAVIOR_ENUM_INST().CAP_BACKWARD);
+            p.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_BEHAVIOR,  BLUE_BMS_BEHAVIOR_ENUM_INST().CAP_BACKWARD);
 
-         p.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCT, p ); # when there is no claim, this value is the platform itself
-         p.SetAuxData(cG425_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE );
+         p.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCT, p ); # when there is no claim, this value is the platform itself
+         p.SetAuxData(cG425_BLUE_BMS_AUX_DATA_NAME_PCV, CLAIM_ENUM_INST().NONE );
       }
    }
 }

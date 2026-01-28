@@ -19,9 +19,10 @@ linux_afsim_location = r'../../../../../AFSIM-2.2205.6+lts-x64-linux/bin/mission
 csv_file = local_location +r"\doe.csv"  # Replace with your actual CSV file path
 seeds_csv = local_location +r"\random_seeds.csv"  # Replace with your actual CSV file path for random seeds
 cluster_dir = local_location +r"\cluster_runs"  # Specify the output directory
-num_runs = 10  # Specify how many files and runs we want to generate
+num_runs = 1  # Specify how many files and runs we want to generate
 
-def generate_random_files(data_csv, seeds_csv, num_runs, cluster_dir):
+# Return an integer representing the user defined number of runs multiplied by the number of permutations of Excursions and Vignettes
+def generate_random_files(data_csv, seeds_csv, num_runs, cluster_dir) -> int:
     # Initialize lists to store headers and their associated values
     headers = []
     header_data = []
@@ -56,7 +57,7 @@ def generate_random_files(data_csv, seeds_csv, num_runs, cluster_dir):
     base_dir_sead = os.path.join('C:\\Users', os.getenv('USERNAME'), 'output', 'SEAD')
     
     # Create the main Strike and Multi Axis directory and subdirectories for Baseline and Excursions
-    subfolders = ['Baseline'] + [f'Excursion {i}' for i in range(1, 8)]  # Excursions 1-7
+    subfolders = ['Baseline'] + [f'Excursion{i}' for i in range(1, 8)]  # Excursions 1-7
     for subfolder in subfolders:
         os.makedirs(os.path.join(base_dir_strike, subfolder), exist_ok=True)
         os.makedirs(os.path.join(base_dir_multi_axis, subfolder), exist_ok=True)
@@ -69,7 +70,7 @@ def generate_random_files(data_csv, seeds_csv, num_runs, cluster_dir):
 
     # Generate all permutations of EXCURSION and VIGNETTE
     permutations = list(product(excursion_options, vignette_options))
-    
+
     # Generate files for each permutation
     for perm_index, (excursion, vignette) in enumerate(permutations):
         for run in range(num_runs):
@@ -146,6 +147,8 @@ def generate_random_files(data_csv, seeds_csv, num_runs, cluster_dir):
             # j += 1
 # NOT READY FOR LINUX CLUSTER. DO NOT USE ON CLUSTER YET ################################
 
+    return (num_runs * len(permutations))
+
 def run_Multi_Run(cluster_dir, num_runs, afsim_location):
     for run_num in range (num_runs):
         multi_Run_Path = cluster_dir + '\\run_' + str(run_num+1) + '.txt'
@@ -154,6 +157,6 @@ def run_Multi_Run(cluster_dir, num_runs, afsim_location):
                 
 # Example usage
 
-generate_random_files(csv_file, seeds_csv, num_runs, cluster_dir)
+total_runs = generate_random_files(csv_file, seeds_csv, num_runs, cluster_dir)
 if platform.system() == 'Windows':
-    run_Multi_Run(cluster_dir,num_runs,afsim_location)
+    run_Multi_Run(cluster_dir,total_runs,afsim_location)

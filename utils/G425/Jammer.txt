@@ -45,7 +45,11 @@ script_struct Jammer
    }
    end_script
    
+   #if range is 0 we consider it No jamming
    script double GetIsActive(){
+      if (range == 0)
+         return false;
+         
       return isActive;
    }
    end_script
@@ -62,11 +66,11 @@ script_struct Jammer
 
 end_script_struct
 
-script Jammer ConstructJammer(string aCommType, double aRangeNMI, double aLongitude, bool aIsActive){
+script Jammer ConstructJammer(string aCommType, double aLongitude,double aRangeNMI, bool aIsActive){
    Jammer jammer = Jammer();
    jammer.SetCommType(aCommType);
-   jammer.SetRangeNMI(aRangeNMI);
    jammer.SetLongitude(aLongitude);
+   jammer.SetRangeNMI(aRangeNMI);
    jammer.SetIsActive(aIsActive);
    jammer.isValid=false;
    return jammer;

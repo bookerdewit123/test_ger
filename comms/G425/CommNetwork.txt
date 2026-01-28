@@ -43,8 +43,8 @@ script_struct CommNetwork
       }
       
       # If the random number generator happens to generate a negative value, clip it to 0.0
-      if(delay < 0.0)
-         delay = 0.0;
+      if(delay < 0.01)
+         delay = 0.01;
          
       return delay;      
    end_script

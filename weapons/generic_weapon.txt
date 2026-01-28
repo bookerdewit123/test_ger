@@ -72,3 +72,28 @@ weapon RED_GLIDE GENERIC_SAM
    launched_platform_type RED_GLIDE
    weapon_effects RED_BOMB_EFFECT
 end_weapon
+
+weapon_effects RED_AAM_EFFECT WSF_GRADUATED_LETHALITY
+   radius_and_pk $<RED_RADIUS_PK:100>$ m $<RED_WEAPON_PK:0.7>$ # set on assumptions.txt
+   
+   # This script is called when a weapon detonated but before it applies the hit or miss. This appears to be
+   # the only place where we can set a pk degradation and have it be honored.
+   script void on_weapon_target_engagement(WsfPlatform aTarget)
+      WsfPlatform weaponPlatform = WeaponPlatform();
+      if(weaponPlatform.AuxDataExists("CalculatedPK")){
+         double calculatedPk = weaponPlatform.AuxDataDouble("CalculatedPK");
+         
+         double currentPk = Pk();
+      
+         double pkDegrade = calculatedPk / currentPk; 
+   
+         # "degrade" the Pk so that it matches the calculated pk
+         SetPkDegrade(pkDegrade);
+      }      
+   end_script
+end_weapon_effects
+
+weapon RED_AAM GENERIC_SAM 
+   launched_platform_type BLUE_SAM
+   weapon_effects RED_AAM_EFFECT
+end_weapon

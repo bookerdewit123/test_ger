@@ -3,7 +3,9 @@ script_variables
 ## Monte Carlo Simulation Inputs ##
 # Latitude are degrees north and Longitude are degrees east
 #.1 is 6 nmi
- double mcLatitudeInput5thGen = $<RED_WRL_LAT:54>$ -.6; //- 1.5;
+#5th Gen Latitude is based on Red WRL (red fighter center) latitude. 
+# It is then moved south 60 nmi. The Position variance raises it North by a Monte carlo distance
+ double mcLatitudeInput5thGen = ($<RED_WRL_LAT:54>$ - 1) + $<POSITION_VARIANCE: .4>$ ;
  double mcLongitudeInput5thGen = $<RED_WRL_LON:15>$ - 1.7; //2.2; //-1.1; // - 1.9; //13.1;
  
  double mcLatitudeInput4thGen_Group1 = mcLatitudeInput5thGen + $<BLUE_OFFSET:.28>$; //+ $<BLUE_OFFSET:.5>$;
@@ -171,47 +173,48 @@ execute at_time .01 s absolute
    WsfSimulation.FindPlatform("AEW_C2").SetLocation(latlon_AEW_C2[0], latlon_AEW_C2[1], alt);
    
    # Setting new location of RED AEW
-   WsfSimulation.FindPlatform("RED_AEW").SetLocation(latlon_RED_AEW[0], latlon_RED_AEW[1], alt);
+   # if statement here so that the multiaxis scenarios can run 
+   if("$<VIGNETTE: Strike>$" == "Strike")
+   {
+	   WsfSimulation.FindPlatform("RED_AEW").SetLocation(latlon_RED_AEW[0], latlon_RED_AEW[1], alt);
 
    
-   # Setting new location of RED Fighters - Single Row Alternating Formation (18 aircraft)
-   # Ratio: 2 Su-34 : 1 Su-35 (2:1 bomber to escort ratio)
-   # Pattern: 2 Su-34s, 1 Su-35, repeating along longitude line
-   # All at same altitude with 2 nmi horizontal spacing
+	   # Setting new location of RED Fighters - Single Row Alternating Formation (18 aircraft)
+	   # Ratio: 2 Su-34 : 1 Su-35 (2:1 bomber to escort ratio)
+	   # Pattern: 2 Su-34s, 1 Su-35, repeating along longitude line
+	   # All at same altitude with 2 nmi horizontal spacing
    
-
-   
-   WsfSimulation.FindPlatform("Su34_1").SetLocation(latlon_Su34_001[0], latlon_Su34_001[1], alt);
-   WsfSimulation.FindPlatform("Su34_2").SetLocation(latlon_Su34_002[0], latlon_Su34_002[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_1").SetLocation(latlon_Su35_001[0], latlon_Su35_001[1], alt);
-   
-   WsfSimulation.FindPlatform("Su34_3").SetLocation(latlon_Su34_003[0], latlon_Su34_003[1], alt);
-   WsfSimulation.FindPlatform("Su34_4").SetLocation(latlon_Su34_004[0], latlon_Su34_004[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_2").SetLocation(latlon_Su35_002[0], latlon_Su35_002[1], alt);
-   
-   WsfSimulation.FindPlatform("Su34_5").SetLocation(latlon_Su34_005[0], latlon_Su34_005[1], alt);
-   WsfSimulation.FindPlatform("Su34_6").SetLocation(latlon_Su34_006[0], latlon_Su34_006[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_3").SetLocation(latlon_Su35_003[0], latlon_Su35_003[1], alt);
-   
-   WsfSimulation.FindPlatform("Su34_7").SetLocation(latlon_Su34_007[0], latlon_Su34_007[1], alt);
-   WsfSimulation.FindPlatform("Su34_8").SetLocation(latlon_Su34_008[0], latlon_Su34_008[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_4").SetLocation(latlon_Su35_004[0], latlon_Su35_004[1], alt);
-   
-   WsfSimulation.FindPlatform("Su34_9").SetLocation(latlon_Su34_009[0], latlon_Su34_009[1], alt);
-   WsfSimulation.FindPlatform("Su34_10").SetLocation(latlon_Su34_010[0], latlon_Su34_010[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_5").SetLocation(latlon_Su35_005[0], latlon_Su35_005[1], alt);
-   
-   WsfSimulation.FindPlatform("Su34_11").SetLocation(latlon_Su34_011[0], latlon_Su34_011[1], alt);
-   WsfSimulation.FindPlatform("Su34_12").SetLocation(latlon_Su34_012[0], latlon_Su34_012[1], alt);
-   
-   WsfSimulation.FindPlatform("Su35_6").SetLocation(latlon_Su35_006[0], latlon_Su35_006[1], alt);
-
-   
+	   WsfSimulation.FindPlatform("Su34_1").SetLocation(latlon_Su34_001[0], latlon_Su34_001[1], alt);
+	   WsfSimulation.FindPlatform("Su34_2").SetLocation(latlon_Su34_002[0], latlon_Su34_002[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_1").SetLocation(latlon_Su35_001[0], latlon_Su35_001[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su34_3").SetLocation(latlon_Su34_003[0], latlon_Su34_003[1], alt);
+	   WsfSimulation.FindPlatform("Su34_4").SetLocation(latlon_Su34_004[0], latlon_Su34_004[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_2").SetLocation(latlon_Su35_002[0], latlon_Su35_002[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su34_5").SetLocation(latlon_Su34_005[0], latlon_Su34_005[1], alt);
+	   WsfSimulation.FindPlatform("Su34_6").SetLocation(latlon_Su34_006[0], latlon_Su34_006[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_3").SetLocation(latlon_Su35_003[0], latlon_Su35_003[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su34_7").SetLocation(latlon_Su34_007[0], latlon_Su34_007[1], alt);
+	   WsfSimulation.FindPlatform("Su34_8").SetLocation(latlon_Su34_008[0], latlon_Su34_008[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_4").SetLocation(latlon_Su35_004[0], latlon_Su35_004[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su34_9").SetLocation(latlon_Su34_009[0], latlon_Su34_009[1], alt);
+	   WsfSimulation.FindPlatform("Su34_10").SetLocation(latlon_Su34_010[0], latlon_Su34_010[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_5").SetLocation(latlon_Su35_005[0], latlon_Su35_005[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su34_11").SetLocation(latlon_Su34_011[0], latlon_Su34_011[1], alt);
+	   WsfSimulation.FindPlatform("Su34_12").SetLocation(latlon_Su34_012[0], latlon_Su34_012[1], alt);
+	   
+	   WsfSimulation.FindPlatform("Su35_6").SetLocation(latlon_Su35_006[0], latlon_Su35_006[1], alt);
+	}
+     
    # Setting new location of RED Bombers
 #   WsfSimulation.FindPlatform("Red_A2G_1").SetLocation(latlon_RedBomber_001[0], latlon_RedBomber_001[1], alt);
 #   WsfSimulation.FindPlatform("Red_A2G_2").SetLocation(latlon_RedBomber_002[0], latlon_RedBomber_002[1], alt);

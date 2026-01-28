@@ -48,6 +48,7 @@ include_once platforms/blue/Platform_Types/blue_ffg.txt
 include_once platforms/blue/Platform_Types/blue_lrsam.txt
 include_once platforms/blue/Platform_Types/blue_mrsam.txt
 include_once platforms/red/Platform_Types/RED_FIGHTER.txt
+include_once platforms/red/Platform_Types/RED_CRUISE_MISSILE_LAUNCHER.txt
 include_once platforms/red/Platform_Types/Su-34.txt
 include_once platforms/red/Platform_Types/Su-35.txt
 include_once platforms/red/Platform_Types/red_lrsam.txt
@@ -69,8 +70,8 @@ include comms/Topologies/$(EXCURSION)_Topology.txt #Network currently doesn't wo
 ######################################################
 ###### WEAPONS ################################
 include_once weapons/generic_weapon_base.txt
-
 include_once weapons/generic_weapon.txt
+include_once weapons/cruise_missile.txt
 ######################################################
 ###### BMS PROCESSORS ################################
    # Utils

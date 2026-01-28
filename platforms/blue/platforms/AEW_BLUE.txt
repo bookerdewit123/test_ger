@@ -1,6 +1,10 @@
 include_once scripts/bms_systems/processors/dca_bmc2.txt
-platform_type AEW_BMS_BLUE BMS_PLATFORM  
+
+include_once sensors/an_blue_aew.txt
+
+platform_type AEW_BMS_BLUE G425_PLATFORM_BASE  
    side blue
+   icon awacs
    command_chain FIGHTER_TASKING SELF
    position 0n 0w heading 90 deg
 
@@ -10,7 +14,7 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
       default_radial_acceleration   3 g #temp TODO
       default_climb_rate            254 m/s #from wiki
       maximum_climb_rate            260 m/s #extrapolated guess from wiki
-      maximum_speed                 1060 knots #janes F15J reference (AT LOW ALTITUDE), probably closer to 2315 knots at high altitude (wiki)
+      maximum_speed                 460 knots #janes F15J reference (AT LOW ALTITUDE), probably closer to 2315 knots at high altitude (wiki)
       minimum_speed                 150.0 knots #temp TODO
       maximum_altitude              60000 ft #wiki/janes reference
       minimum_altitude              20000 ft
@@ -20,15 +24,16 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
       maximum_radial_acceleration 6 g
    end_mover
    
-   processor data_mgr WSF_TRACK_PROCESSOR 
+   sensor AN/BLUE-AEW_LARGE AN_BLUE-AEW_LARGE
       on
-      internal_link AN/APG-81
-      internal_link L16_T
-   end_processor
+   end_sensor 
 
-   sensor AN/BLUE-AEW AN_BLUE-AEW
+   sensor AN/BLUE-AEW_MEDIUM AN_BLUE-AEW_MEDIUM
       on
-      internal_link data_mgr
+   end_sensor 
+
+   sensor AN/BLUE-AEW_SMALL AN_BLUE-AEW_SMALL
+      on
    end_sensor 
 
 	add router default WSF_COMM_ROUTER
@@ -38,15 +43,13 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
 
    comm L16_T 4thGen_Transmit  
       on
-      internal_link data_mgr
       internal_link weapon_target_pairing
    #   router_name Comm_Router
    end_comm
 
    comm L16_R 4thGen_Receiver  
       on
-      internal_link data_mgr
-      #network_name Topology
+      //network_name Topology
       internal_link weapon_target_pairing
    #   router_name Comm_Router
    end_comm
@@ -54,15 +57,13 @@ platform_type AEW_BMS_BLUE BMS_PLATFORM
 
    comm MADL_T 5thGen_Transmit
       off
-      internal_link data_mgr
-      #network_name Topology
+      //network_name Topology
    #   router_name Comm_Router
    end_comm
 
    comm MADL_R 5thGen_Receiver 
       off
-      internal_link data_mgr
-         #network_name Topology
+         //network_name Topology
    #   router_name Comm_Router
    end_comm
 

@@ -8,20 +8,6 @@ include_once comms/G425/CommManagerMessageProcessor.txt
 
 # The base class for any platform that utilizes the RCS detection algorithm
 platform_type G425_PLATFORM_BASE WSF_PLATFORM
-   aux_data
-      # Aux data for tracking whether this platform is being engaged
-      # These commented out variables are currently added and deleted
-      # by the BMS as needed and are only placed here for definition
-       
-      # If this instance is an aggressor platform, then the xPersecutionTarget_O
-      # variable is targeted platform for persecution (attack).
-      # WSF_PLATFORM xPersecutionTarget_O
-      
-      # If this instance is a defender platform, then the xPersecutedBy_O
-      # variable is the WsfPlatform that is persecuting (attacking) this platform.
-      # WSF_PLATFORM xPersecutedBy_O
-   end_aux_data
-
    script_variables
       # This should be initialized by classes extending G425_PLATFORM_BASE
       int xRCS_I = RCS_SIZE_ENUM().NONE;
@@ -52,6 +38,12 @@ platform_type G425_PLATFORM_BASE WSF_PLATFORM
       #                                       between the target and source
       Array<Map<string, Object>> messageLinks = null; 
    end_script_variables
+   
+   # A helper for retrieving the messageHandlerScriptName
+   script string GetMessageHandlerScriptName(){
+      return messageHandlerScriptName;
+   }
+   end_script
    
    add processor comm_manager_message_processor COMM_MANAGER_MESSAGE_PROCESSOR
       on

@@ -126,11 +126,47 @@ altitude 30000 ft
 end_platform
 
 execute at_interval_of 1 s 
+         WsfPlatform poi_3 = WsfSimulation.FindPlatform("POI_3");
+         WsfPlatform poi_4 = WsfSimulation.FindPlatform("POI_4");
+         
          WsfDraw drawWRL = WsfDraw();
          drawWRL.SetColor(0,0,1);
-         drawWRL.SetDuration(100);
+         drawWRL.SetDuration(1);
          drawWRL.BeginLines();
-         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_3"));
-         drawWRL.Vertex(WsfSimulation.FindPlatform("POI_4"));
+         drawWRL.Vertex(poi_3);
+         drawWRL.Vertex(poi_4);
          drawWRL.End();
+         
+         double jammerCoverageNMI = $<JAMCOVERAGE: 0>$; 
+         if( jammerCoverageNMI > 0 ) {
+            WsfDraw drawJammer = WsfDraw();
+            drawJammer.SetLayer("Jamming");
+            drawJammer.SetColor(1,1,1,0.25);
+            drawJammer.SetDuration(1);
+            
+            drawJammer.BeginQuadrilateral();
+            
+            # NorthWest corner
+            WsfGeoPoint nw = WsfGeoPoint(poi_3.Location());
+            nw.OffsetNED(0.0, -jammerCoverageNMI * Math.M_PER_NM(), 0.0);
+            drawJammer.Vertex(nw);
+            
+            # NorthEast corner
+            WsfGeoPoint ne = WsfGeoPoint(poi_3.Location());
+            ne.OffsetNED(0.0, jammerCoverageNMI * Math.M_PER_NM(), 0.0);
+            drawJammer.Vertex(ne);
+            
+            # SouthEast corner
+            WsfGeoPoint se = WsfGeoPoint(poi_4.Location());
+            se.OffsetNED(0.0, jammerCoverageNMI * Math.M_PER_NM(), 0.0);
+            drawJammer.Vertex(se);
+            
+            # SouthWest corner
+            WsfGeoPoint sw = WsfGeoPoint(poi_4.Location());
+            sw.OffsetNED(0.0, -jammerCoverageNMI * Math.M_PER_NM(), 0.0);
+            drawJammer.Vertex(sw);
+         
+            drawJammer.End();
+         }
+         
 end_execute

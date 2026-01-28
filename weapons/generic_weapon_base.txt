@@ -23,30 +23,79 @@ platform_type GENERIC_SAM WSF_PLATFORM
    radar_signature    SAM_RADAR_SIGNATURE
    
    mover WSF_STRAIGHT_LINE_MOVER 
-     #average_speed                 $<BLUE_AVERAGE_SPEED_MPS:100>$ kts  # mach 4
+     //average_speed                 $<BLUE_AVERAGE_SPEED_MPS:100>$ kts  # mach 4
      maximum_lateral_acceleration  20.0 g
-     guidance_mode                 pure_pursuit #lead_pursuit
+     guidance_mode                 pure_pursuit //lead_pursuit
      guide_to_truth true
    end_mover
 
-#   processor data_mgr WSF_TRACK_PROCESSOR
-#      purge_interval 400 seconds
-#   end_processor
-
    processor fuse WSF_AIR_TARGET_FUSE
-     max_time_of_flight_to_detonate $<FUSE_TIME:27>$ s #27.0 sec  # 25 nm range
+     max_time_of_flight_to_detonate $<FUSE_TIME:27>$ s //27.0 sec  # 25 nm range
   end_processor
 
-#  processor seeker WSF_PERFECT_TRACKER
-#     update_interval  2 s
-#  end_processor
-#
-#   processor seeker_turn_on WSF_WEAPON_TRACK_PROCESSOR
-#   end_processor
 
 end_platform_type
 
 weapon GENERIC_SAM WSF_EXPLICIT_WEAPON 
+   category MISSILE
+   category SAM
+   launched_platform_type GENERIC_SAM
+   weapon_effects SAM_EFFECT
+
+   quantity               4
+   salvo_interval         5.0 sec
+
+end_weapon
+
+#Guided Movers need aero. Values are bogus but the final velocity is good
+aero CRUISE_AERO WSF_AERO
+   reference_area            0.0510705 m2        # Ref 1, 0.255 m diameter
+   aspect_ratio              2.0
+   cl_max                    4.5
+   cl_max                    20.0                # TODO-TEST
+
+   # Values estimated from Hoerner's Drag book
+   cd_zero_subsonic          0.10
+   cd_zero_supersonic        0.35
+   mach_begin_cd_rise        0.95
+   mach_end_cd_rise          1.30
+   mach_max_supersonic       6.00
+end_aero
+
+platform_type GENERIC_CRUISE WSF_PLATFORM
+   icon cruise_missile
+   side blue
+   
+   infrared_signature SAM_INFRARED_SIGNATURE
+   optical_signature  SAM_OPTICAL_SIGNATURE
+   radar_signature    SAM_RADAR_SIGNATURE
+   
+   mover WSF_GUIDED_MOVER  
+   integration_timestep      0.001 secs
+   update_interval           0.01 secs
+   compute_all_forces_each_substep enable
+   
+   stage 1
+      aero                   CRUISE_AERO
+      total_mass             3150 kg              # Unrealistic number, only used so missile has enough fuel to reach target
+      empty_mass             121.4 kg            # See calculations above
+      specific_impulse       2500 sec             # This value was set in order to have the missile reach it's target
+      burn_time              1 sec              # So Cruise missile can maintain speed
+   end_stage
+   end_mover
+
+   processor guidance WSF_GUIDANCE_COMPUTER 
+      commanded_altitude 70 m
+      commanded_speed $<RED_AVERAGE_SPEED_CRUISE_MISSILE:100>$ m/s
+   end_processor 
+
+   processor fuse WSF_AIR_TARGET_FUSE
+     max_time_of_flight_to_detonate $<FUSE_TIME_CRUISE:27>$ s //27.0 sec  # 25 nm range
+  end_processor
+
+end_platform_type
+
+weapon GENERIC_CRUISE WSF_EXPLICIT_WEAPON 
    category MISSILE
    category SAM
    launched_platform_type GENERIC_SAM

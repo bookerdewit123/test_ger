@@ -26,14 +26,21 @@ platform AEW_C2 AEW_BMS_BLUE
          { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
          { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
          { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
-         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} },
-         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} }
+         { "target": "5thGen1_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward" },
+         { "target": "5thGen2_Group1",      "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward" }
       };
    end_script_variables
 end_platform
 
-platform EuroFighter1_Group1 4thGenFighter2
+platform EuroFighter1_Group1 4thGenFighter
 
+   route
+      position 53n 14e
+      altitude 25000 feet
+      speed 509 knots
+      heading -90 degrees
+   end_route
+   
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
@@ -51,7 +58,7 @@ platform EuroFighter1_Group1 4thGenFighter2
 end_platform
 
 platform EuroFighter2_Group1 4thGenFighter
-
+   # Route set in 4thGenFighter Platform Type
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
@@ -68,8 +75,15 @@ platform EuroFighter2_Group1 4thGenFighter
 
 end_platform
 
-platform EuroFighter3_Group2 4thGenFighter2
+platform EuroFighter3_Group2 4thGenFighter
 
+   route
+      position 53n 14e
+      altitude 25000 feet
+      speed 509 knots
+      heading -90 degrees
+   end_route
+   
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
@@ -87,7 +101,7 @@ platform EuroFighter3_Group2 4thGenFighter2
 end_platform
 
 platform EuroFighter4_Group2 4thGenFighter
-
+   # Route set in 4thGenFighter Platform_Type
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
@@ -104,18 +118,21 @@ platform EuroFighter4_Group2 4thGenFighter
 
 end_platform
 
-platform 5thGen1_Group1 5thGenFighter2
+platform 5thGen1_Group1 5thGenFighter
 
+   route
+      position 53n 14e
+      altitude 25000 feet
+      speed 509 knots
+      heading -90 degrees
+   end_route
+   
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
          { "target": "5thGen2_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"} , "direction": "forward"  }
       };
    end_script_variables
@@ -124,17 +141,13 @@ platform 5thGen1_Group1 5thGenFighter2
 end_platform
 
 platform 5thGen2_Group1 5thGenFighter
-
+   # Route set in 5thGenFighter Platform_type
    # Identifies the global script for handling incoming messages from the CommManager 
    script_variables
       messageHandlerScriptName = "blueHandleCommMessage";
 
       # Defines Comm Links
       messageLinks = {
-         { "target": "EuroFighter1_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter2_Group1", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter3_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
-         { "target": "EuroFighter4_Group2", "network": gcLINK16_NETWORK_NAME, "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  },
          { "target": "5thGen1_Group1",      "network": gcMADL_NETWORK_NAME,   "messages": {"WSF_TRACK_MESSAGE", "G425_BMS_CLAIM_MESSAGE"}, "direction": "forward"  }
       };
    end_script_variables
@@ -142,15 +155,15 @@ platform 5thGen2_Group1 5thGenFighter
 end_platform
 
 
-script void handleBaselineSimulationInitializing() {
+script void handleSimulationInitializingForJamming() {
    # Configure jamming for this scenario
    JammerManagerInstance().ConfigureJammer( gcLINK16_NETWORK_NAME,
                                             $<FLOT_LONGITUDE_DBL: 0>$,
-                                            0.0,  # TODO - handle jamming ranges 0, 50, 100 nmi
-                                            false );
+                                            $<JAMCOVERAGE: 0>$,  # Jam range, defined in cluster_startup_local or run files
+                                            true );
 }
 end_script
 
 observer
-   enable SIMULATION_INITIALIZING handleBaselineSimulationInitializing
+   enable SIMULATION_INITIALIZING handleSimulationInitializingForJamming
 end_observer

@@ -13,19 +13,29 @@ script_struct CommMessage
       # A key/value containing the mMessage
       WsfMessage mMessage = null;
       
-      # The simulation time that the com mMessage was created
-      double mTimestamp = 0.0;  
+      # The simulation time when the commMessage will be handled
+      double mHandleTime = -1.0;  
       
       # Whether this CommMessage instance is valid 
       bool mIsValid = false;
+      
+      # Whether a platform that receives this message should resend it on all of its links
+      bool mBroadcast = false;
+      
+      # The names of the platforms in this messaegs route
+      Array<string> mRoute = Array<string>(); 
+      
+      # The simulation time when the message was created
+      double mCreationTime = -1.0;
+      
    end_script_variables
    
    script int GetId()
       return mId;
    end_script
    
-   script double GetTimestamp()
-      return mTimestamp;
+   script double GetMessageHandlingTime()
+      return mHandleTime;
    end_script
    
    script WsfPlatform GetSourcePlatform()
@@ -43,6 +53,22 @@ script_struct CommMessage
    script bool IsValid()
       return mIsValid;
    end_script
+   
+   script bool IsBroadcast()
+      return mBroadcast;
+   end_script
+   
+   script int GetHopCount()
+      return mRoute.Size() -1;
+   end_script
+   
+   script Array<string> GetRoute()
+      return Array<string>(mRoute);
+   end_script
+   
+   script double GetMessageCreationTime()
+      return mCreationTime;
+   end_script
 end_script_struct
 
 # Factory script for creating and initializing a CommMessage struct
@@ -53,11 +79,51 @@ end_script_struct
 # param aMessage        The message being sent as a Map
 script CommMessage ConstructCommMessage( double aTimestamp,
                                          WsfPlatform aSourcePlatform,
-                                         WsfPlatform aTargetPlatform,
-                                         WsfMessage aMessage )
+                                         WsfMessage aMessage,
+                                         bool aBroadcast )
    # Initialize the message counter
    static int nextId = 1;
    
+   # Create Invalid CommMessage struct
+   CommMessage instance = CommMessage();
+
+   # Validate arguments
+   if(aSourcePlatform.IsNull()){
+      # TODO log failure
+      return instance;
+   }
+
+   if(aMessage.IsNull()){
+      # TODO log failure
+      return instance;
+   }
+   
+   # Create and Initialize CommMessage struct
+   instance.mHandleTime      = aTimestamp;
+   instance.mCreationTime    = aTimestamp;
+   instance.mSourcePlatform  = aSourcePlatform;
+   instance.mTargetPlatform  = null;
+   instance.mMessage         = aMessage;
+   instance.mIsValid         = true;
+   instance.mId              = nextId;
+   instance.mBroadcast       = aBroadcast;
+   instance.mRoute           = { aSourcePlatform.Name() };
+   
+   nextId += 1;
+   
+   return instance;
+end_script
+
+# Factory script for creating a repeated copy of a CommMessage struct
+#
+# param aCommMessage    The message to be repeated
+# param aTimestamp      The simulation time at which the repeated message was generated
+# param aSourcePlatform The platform that is sourcing the message
+# param aTargetPlatform The platform that is the target of the message
+script CommMessage ConstructCommMessageCopy( CommMessage aCommMessage,
+                                             double aTimestamp,
+                                             WsfPlatform aSourcePlatform,
+                                             WsfPlatform aTargetPlatform ) {
    # Create Invalid CommMessage struct
    CommMessage instance = CommMessage();
 
@@ -70,20 +136,22 @@ script CommMessage ConstructCommMessage( double aTimestamp,
       # TODO log failure
       return instance;
    }
-   if(aMessage.IsNull()){
-      # TODO log failure
-      return instance;
-   }
    
    # Create and Initialize CommMessage struct
-   instance.mTimestamp       = aTimestamp;
+   instance.mHandleTime      = aTimestamp;
+   instance.mCreationTime    = aCommMessage.GetMessageCreationTime();
    instance.mSourcePlatform  = aSourcePlatform;
    instance.mTargetPlatform  = aTargetPlatform;
-   instance.mMessage         = aMessage;
+   instance.mMessage         = WsfMessage(aCommMessage.GetMessage());
    instance.mIsValid         = true;
-   instance.mId              = nextId;
+   instance.mId              = aCommMessage.GetId();
+   instance.mBroadcast       = aCommMessage.IsBroadcast();
    
-   nextId += 1;
+   # extend the route to include the new target
+   Array<string> route = aCommMessage.GetRoute();
+   route.PushBack(aTargetPlatform.Name());
+   instance.mRoute = route;
    
    return instance;
+}
 end_script
